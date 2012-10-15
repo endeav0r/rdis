@@ -668,7 +668,11 @@ struct _graph_node * graph_node_copy (struct _graph_node * node)
 
 int graph_node_cmp (struct _graph_node * lhs, struct _graph_node * rhs)
 {
-    return lhs->index - rhs->index;
+    if (lhs->index < rhs->index)
+        return -1;
+    else if (lhs->index > rhs->index)
+        return 1;
+    return 0;
 }
 
 
