@@ -140,7 +140,8 @@ void graph_merge (struct _graph * graph, struct _graph * rhs)
 }
 
 
-
+// this is the slowest function in rdis, so things may be done a bit
+// differently here
 void graph_reduce (struct _graph * graph)
 {
     // if a node has one successor and that node has one predecessor,
@@ -170,11 +171,10 @@ void graph_reduce (struct _graph * graph)
 
         head_node = graph_fetch_node(graph, index->index);
 
+        // we have removed this node from the graph
         if (head_node == NULL) {
-            fprintf(stderr,
-                    "graph_reduce error, could not find head node %llx\n",
-                    (unsigned long long) index->index);
-            exit(-1);
+            node_it = node_it->next;
+            continue;
         }
 
         // if this node has only one successor
@@ -249,20 +249,7 @@ void graph_reduce (struct _graph * graph)
                     tail_suc_edge->head = head_node->index;
             }
         }
-
         object_delete(successors);
-
-        // remove tail node from list of nodes to check
-        struct _list_it * tail_it;
-        for (tail_it  = list_iterator(node_list);
-             tail_it != NULL;
-             tail_it  = tail_it->next) {
-            index = tail_it->data;
-            if (index->index == tail_node->index) {
-                list_remove(node_list, tail_it);
-                break;
-            }
-        }
 
         // remove tail node from graph
 
@@ -389,13 +376,8 @@ int graph_add_edge (struct _graph * graph,
     head_node = graph_fetch_node(graph, head_needle);
     tail_node = graph_fetch_node(graph, tail_needle);
 
-    if ((head_node == NULL) || (tail_node == NULL)) {
-        if (head_node == NULL)
-            printf("didn't find head node\n");
-        else
-            printf("didn't find tail node\n");
+    if ((head_node == NULL) || (tail_node == NULL))
         return -1;
-    }
 
     edge = graph_edge_create(head_node->index, tail_node->index, data);
 
@@ -686,16 +668,12 @@ struct _graph_node * graph_node_copy (struct _graph_node * node)
 
 int graph_node_cmp (struct _graph_node * lhs, struct _graph_node * rhs)
 {
-    if (lhs->index < rhs->index)
-        return -1;
-    else if (lhs->index > rhs->index)
-        return 1;
-    return 0;
+    return lhs->index - rhs->index;
 }
 
 
 
-size_t graph_node_successors_n (struct _graph_node * node)
+inline size_t graph_node_successors_n (struct _graph_node * node)
 {
     struct _list_it * it;
     size_t successors = 0;

@@ -66,20 +66,22 @@ int main (int argc, char * argv[])
 {
     struct _elf64 * elf64;
 
-    elf64 = elf64_create("one");
+    elf64 = elf64_create(argv[1]);
     printf("entry: %llx\n", (unsigned long long) elf64_entry(elf64));
 
     struct _graph * graph = elf64_graph(elf64);
-
+    
     graph_reduce(graph);
 
-    struct _graph * family = graph_family(graph, 0x4004fc);
+
+
+    struct _graph * family = graph_family(graph, elf64_entry(elf64));
 
     graph_debug(family);
 
     struct _rdg_graph * rdg_graph;
 
-    rdg_graph = rdg_graph_create(0x4004fc, family);
+    rdg_graph = rdg_graph_create(elf64_entry(elf64), family);
     rdg_graph_delete(rdg_graph);
 
     graph_delete(family);

@@ -143,7 +143,7 @@ void rdg_assign_level_map     (struct _rdg_graph * rdg_graph);
 void rdg_assign_position      (struct _rdg_graph * rdg_graph);
 void rdg_assign_x     (struct _rdg_graph * rdg_graph);
 void rdg_assign_y             (struct _rdg_graph * rdg_graph);
-void rdg_acyclicize           (struct _graph * graph, uint64_t index);
+void rdg_acyclicize           (struct _graph * graph, uint64_t top_index);
 void rdg_set_graph_width      (struct _rdg_graph * rdg_graph);
 
 int  rdg_level_top            (struct _rdg_graph * rdg_graph, int level);

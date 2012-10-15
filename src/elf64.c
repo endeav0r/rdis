@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <udis86.h>
 
 struct _elf64 * elf64_create (char * filename)
 {
@@ -164,9 +165,34 @@ struct _graph * elf64_graph (struct _elf64 * elf64)
 
     // disassemble from entry point
     graph = x8664_graph(elf64_base_address(elf64),
-                        elf64_entry(elf64),
+                        elf64_entry(elf64) - elf64_base_address(elf64),
                         elf64->data,
                         elf64->data_size);
+
+    // check for __libc_start_main loader
+    struct _list * ins_list;
+    ins_list = graph_fetch_data(graph, elf64_entry(elf64) + 0x1d);
+    if (ins_list != NULL) {
+        struct _ins * ins = list_first(ins_list);
+        if (ins != NULL) {
+            ud_t ud_obj;
+            ud_init      (&ud_obj);
+            ud_set_mode  (&ud_obj, 64);
+            ud_set_input_buffer(&ud_obj, ins->bytes, ins->size);
+            ud_disassemble(&ud_obj);
+            if (    (ud_obj.mnemonic == UD_Imov)
+                 && (ud_obj.operand[0].base == UD_R_RDI)) {
+                struct _graph * main_graph;
+                main_graph = x8664_graph(elf64_base_address(elf64),
+                                         udis86_sign_extend_lval(&(ud_obj.operand[1]))
+                                          - elf64_base_address(elf64),
+                                         elf64->data,
+                                         elf64->data_size);
+                graph_merge(graph, main_graph);
+                graph_delete(main_graph);
+            }
+        }
+    }
 
     // find symtab sections
     int si;

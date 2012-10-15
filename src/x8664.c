@@ -125,9 +125,11 @@ void x8664_graph_0 (struct _graph * graph,
         if (last_address != -1) {
             struct _ins_edge * ins_edge = ins_edge_create(edge_type);
             if (graph_add_edge(graph, last_address, address + offset, ins_edge))
+                /*
                 printf("error adding edge %llx -> %llx\n",
                        (unsigned long long) last_address,
                        (unsigned long long) address + offset);
+                */
             object_delete(ins_edge);
         }
         last_address = address + offset;
@@ -245,9 +247,11 @@ void x8664_graph_1 (struct _graph * graph,
 
             struct _ins_edge * ins_edge = ins_edge_create(type);
             if (graph_add_edge(graph, head, tail, ins_edge))
+                /*
                 printf("error, pass 1, adding edge %llx -> %llx\n",
                        (unsigned long long) head,
                        (unsigned long long) tail);
+                */
             object_delete(ins_edge);
             break;
         default :

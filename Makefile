@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS = -Wall -O2 -g -Werror
+CFLAGS = -Wall -O2 -g -pg -Werror
 LIB=`pkg-config --cflags --libs gtk+-3.0` -ludis86 -lcairo -lm
 
 _OBJS = elf64.o graph.o index.o instruction.o list.o map.o object.o queue.o rdgraph.o \

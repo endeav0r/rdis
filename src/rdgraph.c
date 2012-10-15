@@ -218,7 +218,6 @@ struct _rdg_node * rdg_node_create (uint64_t index, cairo_surface_t * surface)
 
 void rdg_node_delete (struct _rdg_node * node)
 {
-    printf("rdg_node_delete %p\n", node->surface);
     if (node->surface != NULL)
         cairo_surface_destroy(node->surface);
     free(node);
@@ -339,7 +338,8 @@ int rdg_node_sink_y (struct _rdg_graph * rdg_graph,
 }
 
 
-void rdg_acyclicize (struct _graph * graph, uint64_t index, uint64_t from)
+
+void rdg_acyclicize (struct _graph * graph, uint64_t index)
 {
     struct _graph_node * node = graph_fetch_node(graph, index);
     if (node == NULL) {
@@ -1318,17 +1318,11 @@ void rdg_random_permute (struct _rdg_graph * rdg_graph, int swap_iterations)
 {
     int * random_numbers = (int *) malloc(sizeof(int) * swap_iterations * 3);
 
-    FILE * fh = fopen("/dev/urandom", "rb");
-    if (fh == NULL) {
-        srand(clock());
-        int i;
-        for (i = 0; i < swap_iterations * 3; i++)
-            random_numbers[i] = rand();
-    }
-    else {
-        fread(random_numbers, sizeof(int), swap_iterations * 3, fh);
-        fclose(fh);
-    }
+    // we seed it with top_index to get consistent looking graphs each time
+    srand(rdg_graph->top_index);
+    int i;
+    for (i = 0; i < swap_iterations * 3; i++)
+        random_numbers[i] = rand();
 
     int crossings = rdg_count_edge_crossings(rdg_graph);
     rdg_random_permute_swap(rdg_graph, random_numbers, swap_iterations);
