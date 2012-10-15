@@ -10,6 +10,7 @@ struct _object_vtable_ptr {
 #define OBJECT_VTABLE(XX) \
     (((struct _object_vtable_ptr *) XX)->object)
 
+/*
 void object_delete (void * data)
 {
     struct _object * object = OBJECT_VTABLE(data);
@@ -62,3 +63,4 @@ void object_merge (void * lhs, void * rhs)
     }
     object->merge(lhs, rhs);
 }
+*/

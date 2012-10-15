@@ -12,9 +12,19 @@ struct _object_header {
     struct _object * object;
 };
 
-void   object_delete (void * data);
-void * object_copy   (void * data);
-int    object_cmp    (void * lhs, void * rhs);
-void   object_merge  (void * lhs, void * rhs);
+#define object_delete(XYX) \
+    ((struct _object_header *) XYX)->object->delete(XYX)
+#define object_copy(XYX) \
+    ((struct _object_header *) XYX)->object->copy(XYX)
+#define object_cmp(XYX, YXY) \
+    (((struct _object_header *) XYX)->object->cmp(XYX, YXY))
+#define object_merge(XYX, YXY) \
+    (((struct _object_header *) XYX)->object->merge(XYX, YXY))
+
+
+//void   object_delete (void * data);
+//inline void * object_copy   (void * data);
+//int    object_cmp    (void * lhs, void * rhs);
+//inline void   object_merge  (void * lhs, void * rhs);
 
 #endif

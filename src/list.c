@@ -24,16 +24,19 @@ struct _list * list_create ()
 
 void list_delete (struct _list * list)
 {
+    struct _list_it * current;
     struct _list_it * next;
 
-    while (list->first != NULL) {
-        next = list->first->next;
+    current = list->first;
 
-        object_delete(list->first->data);
+    while (current != NULL) {
+        next = current->next;
 
-        free(list->first);
+        object_delete(current->data);
+
+        free(current);
         
-        list->first = next;
+        current = next;
     }
 
     free(list);
