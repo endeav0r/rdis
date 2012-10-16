@@ -14,35 +14,6 @@
 #include <string.h>
 
 
-void graph_debug (struct _graph * graph)
-{
-    struct _graph_it * it;
-    for (it = graph_iterator(graph); it != NULL; it = graph_it_next(it)) {
-        struct _list_it * edge_it;
-        struct _graph_edge * edge;
-        printf("%llx [ ", (unsigned long long) graph_it_index(it));
-        for (edge_it = list_iterator(graph_it_edges(it)); edge_it != NULL; edge_it = edge_it->next) {
-            edge = edge_it->data;
-            printf("(%llx -> %llx) ",
-                   (unsigned long long) edge->head,
-                   (unsigned long long) edge->tail);
-        }
-        printf("]\n");
-
-        struct _list *    ins_list = graph_it_data(it);
-        struct _list_it * ins_it;
-
-        for (ins_it = list_iterator(ins_list); ins_it != NULL; ins_it = ins_it->next) {
-            struct _ins * ins;
-            ins = ins_it->data;
-            printf("  %llx  ", (unsigned long long) ins->address);
-
-            printf("%s\n", ins->description);
-        }
-    }
-}
-
-
 void graphviz_out (struct _graph * graph)
 {
     char * graphviz_string = rdgraph_graphviz_string(graph);
@@ -70,22 +41,23 @@ int main (int argc, char * argv[])
     printf("entry: %llx\n", (unsigned long long) elf64_entry(elf64));
 
     struct _graph * graph = elf64_graph(elf64);
-    
     graph_reduce(graph);
+    struct _graph * graph_copy = object_copy(graph);
+    graph_delete(graph);
 
-
-
-    struct _graph * family = graph_family(graph, elf64_entry(elf64));
+    struct _graph * family = graph_family(graph_copy, 0x402fc0);
 
     graph_debug(family);
 
+    /*
     struct _rdg_graph * rdg_graph;
 
     rdg_graph = rdg_graph_create(elf64_entry(elf64), family);
     rdg_graph_delete(rdg_graph);
+    */
 
     graph_delete(family);
-    graph_delete(graph);
+    graph_delete(graph_copy);
     elf64_delete(elf64);
 
     cairo_debug_reset_static_data();

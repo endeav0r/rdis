@@ -33,6 +33,47 @@ static const struct _object graph_object = {
     (void   (*) (void *, void *)) graph_merge,
 };
 
+
+
+
+void graph_debug (struct _graph * graph)
+{
+    struct _graph_it * it;
+    for (it = graph_iterator(graph); it != NULL; it = graph_it_next(it)) {
+        struct _list_it * edge_it;
+        struct _graph_edge * edge;
+        printf("%llx [ ", (unsigned long long) graph_it_index(it));
+        for (edge_it = list_iterator(graph_it_edges(it)); edge_it != NULL; edge_it = edge_it->next) {
+            edge = edge_it->data;
+            printf("(%llx -> %llx) ",
+                   (unsigned long long) edge->head,
+                   (unsigned long long) edge->tail);
+        }
+        printf("]\n");
+
+        struct _list *    ins_list = graph_it_data(it);
+        struct _list_it * ins_it;
+
+        for (ins_it = list_iterator(ins_list); ins_it != NULL; ins_it = ins_it->next) {
+            struct _ins * ins;
+            ins = ins_it->data;
+            printf("  %llx  ", (unsigned long long) ins->address);
+
+            int i;
+            for (i = 0; i < 8; i++) {
+                if (i >= ins->size)
+                    printf("  ");
+                else
+                    printf("%02x", ins->bytes[i]);
+            }
+
+            printf("  %s\n", ins->description);
+        }
+    }
+}
+
+
+
 struct _graph * graph_create ()
 {
     struct _graph * graph;
@@ -276,19 +317,27 @@ struct _graph * graph_family (struct _graph * graph, uint64_t indx)
         index = object_copy(queue_peek(queue));
         queue_pop(queue);
 
+        // already added this node to the queue
         if (graph_fetch_node(new_graph, index->index) != NULL) {
             object_delete(index);
             continue;
         }
 
+        // fetch node
         struct _graph_node * node = graph_fetch_node(graph, index->index);
         if (node == NULL) {
             fprintf(stderr, "graph_family could not find node %llx\n",
                     (unsigned long long) index->index);
             exit(-1);
         }
-        tree_insert(new_graph->nodes, node);
 
+        // create new node with this graph as graph
+        struct _graph_node * new_node;
+        new_node = graph_node_create(new_graph, node->index, node->data);
+        tree_insert(new_graph->nodes, new_node);
+        object_delete(new_node);
+
+        // add this node's edges and queue up new nodes
         struct _list_it * it;
         object_delete(index);
         for (it = list_iterator(node->edges); it != NULL; it = it->next) {
@@ -297,6 +346,7 @@ struct _graph * graph_family (struct _graph * graph, uint64_t indx)
                 index = graph_index_create(edge->tail);
             else
                 index = graph_index_create(edge->head);
+            graph_add_edge(new_graph, edge->head, edge->tail, edge->data);
             queue_push(queue, index);
             object_delete(index);
         }

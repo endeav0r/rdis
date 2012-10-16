@@ -102,6 +102,26 @@ char * elf64_strtab_str (struct _elf64 * elf64,
 
 
 
+Elf64_Shdr * elf64_shdr_by_name (struct _elf64 * elf64, const char * name)
+{
+    int i;
+    Elf64_Shdr * shdr;
+
+    for (i = 0; i < elf64->ehdr->e_shnum; i++) {
+        shdr = elf64_shdr(elf64, i);
+        const char * shdr_name;
+        shdr_name = elf64_strtab_str(elf64, 
+                                     elf64->ehdr->e_shstrndx,
+                                     shdr->sh_name);
+        if (strcmp(name, shdr_name) == 0)
+            return shdr;
+    }
+
+    return NULL;
+}
+
+
+
 uint64_t elf64_vaddr_to_offset (struct _elf64 * elf64, uint64_t address)
 {
     Elf64_Phdr * phdr;
@@ -202,6 +222,28 @@ struct _graph * elf64_graph (struct _elf64 * elf64)
             struct _graph * sym_graph = elf64_dis_symtab(elf64, si);
             graph_merge(graph, sym_graph);
             graph_delete(sym_graph);
+        }
+    }
+
+    Elf64_Shdr * plt_shdr = elf64_shdr_by_name(elf64, ".plt");
+    if (plt_shdr == NULL)
+        return graph;
+
+    uint64_t plt_bottom = plt_shdr->sh_addr;
+    uint64_t plt_top = plt_bottom + plt_shdr->sh_size;
+
+    // remove edges into the PLT
+    struct _graph_it * it;
+    for (it = graph_iterator(graph); it != NULL; it = graph_it_next(it)) {
+        struct _graph_node * node = graph_it_node(it);
+        struct _list_it * eit;
+        for (eit = list_iterator(node->edges); eit != NULL; eit = eit->next) {
+            struct _graph_edge * edge = eit->data;
+            if ((edge->tail < plt_top) && (edge->tail >= plt_bottom)) {
+                eit = list_remove(node->edges, eit);
+                if (eit == NULL)
+                    break;
+            }
         }
     }
 

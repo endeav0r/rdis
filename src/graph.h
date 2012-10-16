@@ -40,6 +40,9 @@ struct _graph {
 };
 
 
+void graph_debug (struct _graph * graph);
+
+
 /*
 * GRAPH OPERATOR INSTRUCTIONS
 */

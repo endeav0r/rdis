@@ -9,37 +9,39 @@ struct _ins * x8664_ins (uint64_t address, ud_t * ud_obj)
                      ud_insn_asm(ud_obj),
                      NULL);
 
-    char * mnemonic_str = NULL;
-    switch (ud_obj->mnemonic) {
-    case UD_Ijo   : mnemonic_str = "jo"; break;
-    case UD_Ijno  : mnemonic_str = "jno"; break;
-    case UD_Ijb   : mnemonic_str = "jb"; break;
-    case UD_Ijae  : mnemonic_str = "jae"; break;
-    case UD_Ijz   : mnemonic_str = "jz"; break;
-    case UD_Ijnz  : mnemonic_str = "jnz"; break;
-    case UD_Ijbe  : mnemonic_str = "jbe"; break;
-    case UD_Ija   : mnemonic_str = "ja"; break;
-    case UD_Ijs   : mnemonic_str = "js"; break;
-    case UD_Ijns  : mnemonic_str = "jns"; break;
-    case UD_Ijp   : mnemonic_str = "jp"; break;
-    case UD_Ijnp  : mnemonic_str = "jnp"; break;
-    case UD_Ijl   : mnemonic_str = "jl"; break;
-    case UD_Ijge  : mnemonic_str = "jge"; break;
-    case UD_Ijle  : mnemonic_str = "jle"; break;
-    case UD_Ijg   : mnemonic_str = "jg"; break;
-    case UD_Ijmp  : mnemonic_str = "jmp"; break;
-    case UD_Icall : mnemonic_str = "call"; break;
-    default :break;
-    }
+    if (ud_obj->operand[0].type == UD_OP_JIMM) {
+        char * mnemonic_str = NULL;
+        switch (ud_obj->mnemonic) {
+        case UD_Ijo   : mnemonic_str = "jo"; break;
+        case UD_Ijno  : mnemonic_str = "jno"; break;
+        case UD_Ijb   : mnemonic_str = "jb"; break;
+        case UD_Ijae  : mnemonic_str = "jae"; break;
+        case UD_Ijz   : mnemonic_str = "jz"; break;
+        case UD_Ijnz  : mnemonic_str = "jnz"; break;
+        case UD_Ijbe  : mnemonic_str = "jbe"; break;
+        case UD_Ija   : mnemonic_str = "ja"; break;
+        case UD_Ijs   : mnemonic_str = "js"; break;
+        case UD_Ijns  : mnemonic_str = "jns"; break;
+        case UD_Ijp   : mnemonic_str = "jp"; break;
+        case UD_Ijnp  : mnemonic_str = "jnp"; break;
+        case UD_Ijl   : mnemonic_str = "jl"; break;
+        case UD_Ijge  : mnemonic_str = "jge"; break;
+        case UD_Ijle  : mnemonic_str = "jle"; break;
+        case UD_Ijg   : mnemonic_str = "jg"; break;
+        case UD_Ijmp  : mnemonic_str = "jmp"; break;
+        case UD_Icall : mnemonic_str = "call"; break;
+        default :break;
+        }
 
-    if (mnemonic_str != NULL) {
-        char tmp[64];
-        uint64_t destination;
-        destination  = address + ud_insn_len(ud_obj);
-        destination += udis86_sign_extend_lval(&(ud_obj->operand[0]));
-        snprintf(tmp, 64, "%s %llx", mnemonic_str,
-                 (unsigned long long) destination);
-        ins_s_description(ins, tmp);
+        if (mnemonic_str != NULL) {
+            char tmp[64];
+            uint64_t destination;
+            destination  = address + ud_insn_len(ud_obj);
+            destination += udis86_sign_extend_lval(&(ud_obj->operand[0]));
+            snprintf(tmp, 64, "%s %llx", mnemonic_str,
+                     (unsigned long long) destination);
+            ins_s_description(ins, tmp);
+        }
     }
 
     return ins;
@@ -155,6 +157,11 @@ void x8664_graph_0 (struct _graph * graph,
         case UD_Ijg   :
         case UD_Ijmp  :
         case UD_Icall :
+            operand = &(ud_obj.operand[0]);
+
+            if (operand->type != UD_OP_JIMM)
+                break;
+
             if (ud_obj.mnemonic == UD_Icall)
                 edge_type = INS_EDGE_NORMAL;
             else if (ud_obj.mnemonic == UD_Ijmp)
@@ -162,7 +169,6 @@ void x8664_graph_0 (struct _graph * graph,
             else
                 edge_type = INS_EDGE_JCC_FALSE;
 
-            operand = &(ud_obj.operand[0]);
             if (operand->type == UD_OP_JIMM) {
                 x8664_graph_0(graph,
                               address,
@@ -236,6 +242,10 @@ void x8664_graph_1 (struct _graph * graph,
         case UD_Ijle  :
         case UD_Ijg   :
             operand = &(ud_obj.operand[0]);
+
+            if (operand->type != UD_OP_JIMM)
+                break;
+            
             uint64_t head = graph_it_index(it);
             uint64_t tail = head
                              + ud_insn_len(&ud_obj)

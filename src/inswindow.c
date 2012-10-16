@@ -325,17 +325,21 @@ void inswindow_graph_update (struct _inswindow * inswindow, uint64_t index)
     // find graph node this index refers to
     struct _graph_node * node = graph_fetch_node_max(inswindow->graph, index);
 
-
     // update currently_displayed_graph
-    struct _graph * family = graph_family(inswindow->graph, node->index);
     if (inswindow->currently_displayed_graph != NULL)
         object_delete(inswindow->currently_displayed_graph);
-    inswindow->currently_displayed_graph = family;
+    inswindow->currently_displayed_graph = graph_family(inswindow->graph, node->index);
 
     // pseudo-find top node
-    struct _graph_it * it = graph_iterator(family);
+    struct _graph_it * it = graph_iterator(inswindow->currently_displayed_graph);
     uint64_t top_node_index = graph_it_index(it);
     graph_it_delete(it);
+
+    printf("inswindow_graph_update %llx %llx\n",
+           (unsigned long long) node->index,
+           (unsigned long long) top_node_index);
+
+    graph_debug(inswindow->currently_displayed_graph);
 
     // update rdg_graph
     if (inswindow->rdg_graph != NULL)
