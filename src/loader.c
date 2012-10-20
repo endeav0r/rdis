@@ -54,3 +54,15 @@ struct _tree * loader_function_tree (_loader * loader)
 
     return loader_object->function_tree(loader);
 }
+
+
+struct _map * loader_labels (_loader * loader)
+{
+    struct _loader_object_ptr * loader_object_ptr;
+    struct _loader_object     * loader_object;
+
+    loader_object_ptr = (struct _loader_object_ptr *) loader;
+    loader_object = loader_object_ptr->loader_object;
+
+    return loader_object->labels(loader);
+}

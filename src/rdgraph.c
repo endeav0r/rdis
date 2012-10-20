@@ -1449,10 +1449,8 @@ void rdg_move_node_to_x (struct _rdg_graph * rdg_graph, struct _rdg_node * rdg_n
     if (x < rdg_node->x) {
         int i;
         rdg_node->x = x;
-        printf("rdg_node->position %d\n", rdg_node->position);
         i = rdg_node->position - 1;
         while (i >= 0) {
-            printf("i: %d\n", i);
             struct _index * index = map_fetch(level_map, i);
             struct _rdg_node * rdg_left;
             rdg_left = graph_fetch_data(rdg_graph->graph, index->index);
@@ -1464,9 +1462,6 @@ void rdg_move_node_to_x (struct _rdg_graph * rdg_graph, struct _rdg_node * rdg_n
             if (rdg_node_center_x(rdg_right) < rdg_node_center_x(rdg_left)) {
                 rdg_swap_node_positions(rdg_graph, rdg_node->level,
                                         rdg_left->position, rdg_right->position);
-                printf("swapping %llx %d and %llx %d\n",
-                       (unsigned long long) rdg_left->position, rdg_left->x,
-                       (unsigned long long) rdg_right->position, rdg_right->x);
                 continue;
             }
 
@@ -1485,7 +1480,6 @@ void rdg_move_node_to_x (struct _rdg_graph * rdg_graph, struct _rdg_node * rdg_n
 
         i = rdg_node->position;
         while (i + 1< level_map->size) {
-            printf("i: %d\n", i);
             struct _index * index = map_fetch(level_map, i);
             struct _rdg_node * rdg_left;
             rdg_left = graph_fetch_data(rdg_graph->graph, index->index);
@@ -1529,15 +1523,13 @@ void rdg_reduce_edge_crossings (struct _rdg_graph * rdg_graph)
     }
     */
 
-    for (i = 0; i < rdg_graph->levels->size * 4; i++) {
+    for (i = 0; i < rdg_graph->levels->size * 8; i++) {
         struct _graph_it * it;
         for (it = graph_iterator(rdg_graph->graph);
              it != NULL;
              it = graph_it_next(it)) {
             struct _rdg_node * rdg_node = graph_it_data(it);
             int x = rdg_node_adjacent_center(rdg_graph, rdg_node);
-            printf("moving %llx from %d to %d\n",
-                   (unsigned long long) rdg_node->index, rdg_node->x, x);
             rdg_move_node_to_x(rdg_graph, rdg_node, x);
         }
     }

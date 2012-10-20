@@ -1,5 +1,7 @@
 #include "elf32.h"
 
+#include "index.h"
+#include "label.h"
 #include "util.h"
 #include "x86.h"
 
@@ -19,7 +21,8 @@ static const struct _loader_object elf32_loader_object = {
     },
     (uint64_t        (*) (void *)) elf32_entry,
     (struct _graph * (*) (void *)) elf32_graph,
-    (struct _tree *  (*) (void *)) elf32_function_tree
+    (struct _tree *  (*) (void *)) elf32_function_tree,
+    (struct _map  *  (*) (void *)) elf32_labels
 };
 
 
@@ -123,6 +126,28 @@ char * elf32_strtab_str (struct _elf32 * elf32,
 {
     Elf32_Shdr * shdr = elf32_shdr(elf32, strtab);
     return (char *) &(elf32->data[shdr->sh_offset + offset]);
+}
+
+
+const char * elf32_sym_name_by_address (struct _elf32 * elf32, uint64_t address)
+{
+    int shdr_i;
+    for (shdr_i = 0; shdr_i < elf32->ehdr->e_shnum; shdr_i++) {
+        Elf32_Shdr * shdr = elf32_shdr(elf32, shdr_i);
+        if (shdr->sh_type != SHT_SYMTAB)
+            continue;
+
+        int sym_i;
+        for (sym_i = 0; sym_i < shdr->sh_size / shdr->sh_entsize; sym_i++) {
+            Elf32_Sym * sym = elf32_section_element(elf32, shdr_i, sym_i);
+            if (sym->st_value != address)
+                continue;
+            // found matching symbol
+            return elf32_strtab_str(elf32, shdr->sh_link, sym->st_name);
+        }
+    }
+
+    return NULL;
 }
 
 
@@ -309,6 +334,35 @@ struct _tree * elf32_function_tree (struct _elf32 * elf32)
     }
 
     return tree;
+}
+
+
+
+struct _map * elf32_labels (struct _elf32 * elf32)
+{
+    // start by getting an address of all the functions
+    struct _tree * function_tree = elf32_function_tree(elf32);
+
+    struct _map  * labels_map = map_create();
+
+    // look through all functions in function tree and add a label for each
+    struct _tree_it * it;
+    for (it = tree_iterator(function_tree); it != NULL; it = tree_it_next(it)) {
+        struct _index * index = tree_it_data(it);
+        const char * name = elf32_sym_name_by_address(elf32, index->index);
+        if (name == NULL) {
+            char tmp[128];
+            snprintf(tmp, 128, "fun_%llx", (unsigned long long) index->index);
+            name = tmp;
+        }
+
+        struct _label * label = label_create(index->index, name, LABEL_FUNCTION);
+        map_insert(labels_map, index->index, label);
+        object_delete(label);
+    }
+
+    object_delete(function_tree);
+    return labels_map;
 }
 
 

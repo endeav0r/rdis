@@ -1,5 +1,7 @@
 #include "elf64.h"
 
+#include "index.h"
+#include "label.h"
 #include "util.h"
 #include "x8664.h"
 
@@ -19,7 +21,8 @@ static const struct _loader_object elf64_object = {
     },
     (uint64_t        (*) (void *)) elf64_entry,
     (struct _graph * (*) (void *)) elf64_graph,
-    (struct _tree *  (*) (void *)) elf64_function_tree
+    (struct _tree *  (*) (void *)) elf64_function_tree,
+    (struct _map  *  (*) (void *)) elf64_labels
 };
 
 
@@ -123,6 +126,28 @@ char * elf64_strtab_str (struct _elf64 * elf64,
 {
     Elf64_Shdr * shdr = elf64_shdr(elf64, strtab);
     return (char *) &(elf64->data[shdr->sh_offset + offset]);
+}
+
+
+const char * elf64_sym_name_by_address (struct _elf64 * elf64, uint64_t address)
+{
+    int shdr_i;
+    for (shdr_i = 0; shdr_i < elf64->ehdr->e_shnum; shdr_i++) {
+        Elf64_Shdr * shdr = elf64_shdr(elf64, shdr_i);
+        if (shdr->sh_type != SHT_SYMTAB)
+            continue;
+
+        int sym_i;
+        for (sym_i = 0; sym_i < shdr->sh_size / shdr->sh_entsize; sym_i++) {
+            Elf64_Sym * sym = elf64_section_element(elf64, shdr_i, sym_i);
+            if (sym->st_value != address)
+                continue;
+            // found matching symbol
+            return elf64_strtab_str(elf64, shdr->sh_link, sym->st_name);
+        }
+    }
+
+    return NULL;
 }
 
 
@@ -280,7 +305,6 @@ struct _graph * elf64_graph (struct _elf64 * elf64)
 struct _tree * elf64_function_tree (struct _elf64 * elf64)
 {
     struct _tree     * tree = tree_create();
-    struct _function * function;
 
     int sec_i;
     // symbols are easy
@@ -301,15 +325,45 @@ struct _tree * elf64_function_tree (struct _elf64 * elf64)
             char * name = elf64_strtab_str(elf64, shdr->sh_link, sym->st_name);
             printf("found function %s at %llx\n",
                    name, (unsigned long long) sym->st_value);
-            function = function_create(sym->st_value, name);
-            if (tree_fetch(tree, function) == NULL)
-                tree_insert(tree, function);
+
+            struct _index * index = index_create(sym->st_value);
+            if (tree_fetch(tree, index) == NULL)
+                tree_insert(tree, index);
                 
-            object_delete(function);
+            object_delete(index);
         }
     }
 
     return tree;
+}
+
+
+
+struct _map * elf64_labels (struct _elf64 * elf64)
+{
+    // start by getting an address of all the functions
+    struct _tree * function_tree = elf64_function_tree(elf64);
+
+    struct _map * labels_map = map_create();
+
+    // look through all functions in function tree and add a label for each
+    struct _tree_it * it;
+    for (it = tree_iterator(function_tree); it != NULL; it = tree_it_next(it)) {
+        struct _index * index = tree_it_data(it);
+        const char * name = elf64_sym_name_by_address(elf64, index->index);
+        if (name == NULL) {
+            char tmp[128];
+            snprintf(tmp, 128, "fun_%llx", (unsigned long long) index->index);
+            name = tmp;
+        }
+
+        struct _label * label = label_create(index->index, name, LABEL_FUNCTION);
+        map_insert(labels_map, index->index, label);
+        object_delete(label);
+    }
+
+    object_delete(function_tree);
+    return labels_map;
 }
 
 
