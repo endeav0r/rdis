@@ -1,7 +1,7 @@
-#include "elf64.h"
+#include "elf32.h"
 
 #include "util.h"
-#include "x8664.h"
+#include "x86.h"
 
 #include <elf.h>
 #include <stdio.h>
@@ -10,24 +10,24 @@
 #include <udis86.h>
 
 
-static const struct _loader_object elf64_object = {
+static const struct _loader_object elf32_loader_object = {
     {
-        (void            (*) (void *)) elf64_delete, 
+        (void            (*) (void *)) elf32_delete,
         NULL,
         NULL,
         NULL,
     },
-    (uint64_t        (*) (void *)) elf64_entry,
-    (struct _graph * (*) (void *)) elf64_graph,
-    (struct _tree *  (*) (void *)) elf64_function_tree
+    (uint64_t        (*) (void *)) elf32_entry,
+    (struct _graph * (*) (void *)) elf32_graph,
+    (struct _tree *  (*) (void *)) elf32_function_tree
 };
 
 
-struct _elf64 * elf64_create (const char * filename)
+struct _elf32 * elf32_create (const char * filename)
 {
     FILE * fh;
     size_t filesize;
-    struct _elf64 * elf64;
+    struct _elf32 * elf32;
 
     fh = fopen(filename, "rb");
     if (fh == NULL)
@@ -37,50 +37,50 @@ struct _elf64 * elf64_create (const char * filename)
     filesize = ftell(fh);
     fseek(fh, 0, SEEK_SET);
 
-    elf64 = (struct _elf64 *) malloc(sizeof(struct _elf64));
-    elf64->data = malloc(filesize);
-    elf64->loader_object = &elf64_object;
+    elf32 = (struct _elf32 *) malloc(sizeof(struct _elf32));
+    elf32->data = malloc(filesize);
+    elf32->loader_object = &elf32_loader_object;
 
-    elf64->data_size = fread(elf64->data, 1, filesize, fh);
+    elf32->data_size = fread(elf32->data, 1, filesize, fh);
 
     fclose(fh);
 
-    // make sure this is a 64-bit ELF
-    if (    (elf64->ehdr->e_ident[EI_MAG0] != ELFMAG0)
-         || (elf64->ehdr->e_ident[EI_MAG1] != ELFMAG1)
-         || (elf64->ehdr->e_ident[EI_MAG2] != ELFMAG2)
-         || (elf64->ehdr->e_ident[EI_MAG3] != ELFMAG3)
-         || (elf64->ehdr->e_ident[EI_CLASS] != ELFCLASS64)) {
-        elf64_delete(elf64);
+    // make sure this is a 32-bit ELF
+    if (    (elf32->ehdr->e_ident[EI_MAG0]  != ELFMAG0)
+         || (elf32->ehdr->e_ident[EI_MAG1]  != ELFMAG1)
+         || (elf32->ehdr->e_ident[EI_MAG2]  != ELFMAG2)
+         || (elf32->ehdr->e_ident[EI_MAG3]  != ELFMAG3)
+         || (elf32->ehdr->e_ident[EI_CLASS] != ELFCLASS32)) {
+        elf32_delete(elf32);
         return NULL;       
     }
-    
-    return elf64;
+
+    return elf32;
 }
 
 
 
-void elf64_delete (struct _elf64 * elf64)
+void elf32_delete (struct _elf32 * elf32)
 {
-    free(elf64->data);
-    free(elf64);
+    free(elf32->data);
+    free(elf32);
 }
 
 
 
-uint64_t elf64_entry (struct _elf64 * elf64)
+uint64_t elf32_entry (struct _elf32 * elf32)
 {
-    return elf64->ehdr->e_entry;
+    return elf32->ehdr->e_entry;
 }
 
 
 
-uint64_t elf64_base_address (struct _elf64 * elf64)
+uint64_t elf32_base_address (struct _elf32 * elf32)
 {
     int phdr_i;
 
-    for (phdr_i = 0; phdr_i < elf64->ehdr->e_phnum; phdr_i++) {
-        Elf64_Phdr * phdr = elf64_phdr(elf64, phdr_i);
+    for (phdr_i = 0; phdr_i < elf32->ehdr->e_phnum; phdr_i++) {
+        Elf32_Phdr * phdr = elf32_phdr(elf32, phdr_i);
         if (phdr->p_offset == 0)
             return phdr->p_vaddr;
     }
@@ -90,53 +90,53 @@ uint64_t elf64_base_address (struct _elf64 * elf64)
 
 
 
-Elf64_Phdr * elf64_phdr (struct _elf64 * elf64, size_t index)
+Elf32_Phdr * elf32_phdr (struct _elf32 * elf32, size_t index)
 {
-    return (Elf64_Phdr *) &(elf64->data[elf64->ehdr->e_phoff
-                                        + (index * elf64->ehdr->e_phentsize)]);
+    return (Elf32_Phdr *) &(elf32->data[elf32->ehdr->e_phoff
+                                        + (index * elf32->ehdr->e_phentsize)]);
 }
 
 
 
-Elf64_Shdr * elf64_shdr (struct _elf64 * elf64, size_t index)
+Elf32_Shdr * elf32_shdr (struct _elf32 * elf32, size_t index)
 {
-    return (Elf64_Shdr *) &(elf64->data[elf64->ehdr->e_shoff
-                                        + (index * elf64->ehdr->e_shentsize)]);
+    return (Elf32_Shdr *) &(elf32->data[elf32->ehdr->e_shoff
+                                        + (index * elf32->ehdr->e_shentsize)]);
 }
 
 
 
-void * elf64_section_element (struct _elf64 * elf64,
+void * elf32_section_element (struct _elf32 * elf32,
                               size_t section,
                               size_t index)
 {
-    Elf64_Shdr * shdr = elf64_shdr(elf64, section);
-    return (Elf64_Sym *) &(elf64->data[shdr->sh_offset
+    Elf32_Shdr * shdr = elf32_shdr(elf32, section);
+    return (Elf32_Sym *) &(elf32->data[shdr->sh_offset
                                        + (index * shdr->sh_entsize)]);
 }
 
 
 
-char * elf64_strtab_str (struct _elf64 * elf64,
+char * elf32_strtab_str (struct _elf32 * elf32,
                          unsigned int strtab,
                          unsigned int offset)
 {
-    Elf64_Shdr * shdr = elf64_shdr(elf64, strtab);
-    return (char *) &(elf64->data[shdr->sh_offset + offset]);
+    Elf32_Shdr * shdr = elf32_shdr(elf32, strtab);
+    return (char *) &(elf32->data[shdr->sh_offset + offset]);
 }
 
 
 
-Elf64_Shdr * elf64_shdr_by_name (struct _elf64 * elf64, const char * name)
+Elf32_Shdr * elf32_shdr_by_name (struct _elf32 * elf32, const char * name)
 {
     int i;
-    Elf64_Shdr * shdr;
+    Elf32_Shdr * shdr;
 
-    for (i = 0; i < elf64->ehdr->e_shnum; i++) {
-        shdr = elf64_shdr(elf64, i);
+    for (i = 0; i < elf32->ehdr->e_shnum; i++) {
+        shdr = elf32_shdr(elf32, i);
         const char * shdr_name;
-        shdr_name = elf64_strtab_str(elf64, 
-                                     elf64->ehdr->e_shstrndx,
+        shdr_name = elf32_strtab_str(elf32, 
+                                     elf32->ehdr->e_shstrndx,
                                      shdr->sh_name);
         if (strcmp(name, shdr_name) == 0)
             return shdr;
@@ -147,14 +147,14 @@ Elf64_Shdr * elf64_shdr_by_name (struct _elf64 * elf64, const char * name)
 
 
 
-uint64_t elf64_vaddr_to_offset (struct _elf64 * elf64, uint64_t address)
+uint64_t elf32_vaddr_to_offset (struct _elf32 * elf32, uint64_t address)
 {
-    Elf64_Phdr * phdr;
+    Elf32_Phdr * phdr;
     int i;
     int64_t result;
 
-    for (i = 0; i < elf64->ehdr->e_phnum; i++) {
-        phdr = elf64_phdr(elf64, i);
+    for (i = 0; i < elf32->ehdr->e_phnum; i++) {
+        phdr = elf32_phdr(elf32, i);
         if (    (phdr->p_vaddr <= address)
              && (phdr->p_vaddr + phdr->p_filesz >= address)) {
             result = address - phdr->p_vaddr;
@@ -168,9 +168,9 @@ uint64_t elf64_vaddr_to_offset (struct _elf64 * elf64, uint64_t address)
 
 
 
-struct _graph * elf64_dis_symtab (struct _elf64 * elf64, int section)
+struct _graph * elf32_dis_symtab (struct _elf32 * elf32, int section)
 {
-    Elf64_Shdr * shdr = elf64_shdr(elf64, section);
+    Elf32_Shdr * shdr = elf32_shdr(elf32, section);
     int sym_i;
 
     struct _graph * graph;
@@ -179,21 +179,18 @@ struct _graph * elf64_dis_symtab (struct _elf64 * elf64, int section)
     graph = graph_create();
 
     for (sym_i = 0; sym_i < shdr->sh_size / shdr->sh_entsize; sym_i++) {
-        Elf64_Sym * sym = elf64_section_element(elf64, section, sym_i);
-        if (ELF64_ST_TYPE(sym->st_info) == STT_FUNC) {
+        Elf32_Sym * sym = elf32_section_element(elf32, section, sym_i);
+        if (ELF32_ST_TYPE(sym->st_info) == STT_FUNC) {
             if (sym->st_value == 0)
                 continue;
-            uint64_t offset = elf64_vaddr_to_offset(elf64, sym->st_value);
+            uint64_t offset = elf32_vaddr_to_offset(elf32, sym->st_value);
             if (offset == -1)
                 continue;
-            /*
-            if (strcmp("tree_node_insert", elf64_strtab_str(elf64, shdr->sh_link, sym->st_name)))
-                continue;
-            */
-            sym_graph = x8664_graph(elf64_base_address(elf64),
-                                    sym->st_value - elf64_base_address(elf64),
-                                    elf64->data,
-                                    elf64->data_size);
+
+            sym_graph = x86_graph(elf32_base_address(elf32),
+                                  sym->st_value - elf32_base_address(elf32),
+                                  elf32->data,
+                                  elf32->data_size);
             graph_merge(graph, sym_graph);
             graph_delete(sym_graph);
         }
@@ -204,19 +201,20 @@ struct _graph * elf64_dis_symtab (struct _elf64 * elf64, int section)
 
 
 
-struct _graph * elf64_graph (struct _elf64 * elf64)
+struct _graph * elf32_graph (struct _elf32 * elf32)
 {
     struct _graph * graph;
 
     // disassemble from entry point
-    graph = x8664_graph(elf64_base_address(elf64),
-                        elf64_entry(elf64) - elf64_base_address(elf64),
-                        elf64->data,
-                        elf64->data_size);
+    graph = x86_graph(elf32_base_address(elf32),
+                      elf32_entry(elf32) - elf32_base_address(elf32),
+                      elf32->data,
+                      elf32->data_size);
 
+    /*
     // check for __libc_start_main loader
     struct _list * ins_list;
-    ins_list = graph_fetch_data(graph, elf64_entry(elf64) + 0x1d);
+    ins_list = graph_fetch_data(graph, elf32_entry(elf32) + 0x1d);
     if (ins_list != NULL) {
         struct _ins * ins = list_first(ins_list);
         if (ins != NULL) {
@@ -228,29 +226,30 @@ struct _graph * elf64_graph (struct _elf64 * elf64)
             if (    (ud_obj.mnemonic == UD_Imov)
                  && (ud_obj.operand[0].base == UD_R_RDI)) {
                 struct _graph * main_graph;
-                main_graph = x8664_graph(elf64_base_address(elf64),
+                main_graph = x8664_graph(elf32_base_address(elf32),
                                          udis86_sign_extend_lval(&(ud_obj.operand[1]))
-                                          - elf64_base_address(elf64),
-                                         elf64->data,
-                                         elf64->data_size);
+                                          - elf32_base_address(elf32),
+                                         elf32->data,
+                                         elf32->data_size);
                 graph_merge(graph, main_graph);
                 graph_delete(main_graph);
             }
         }
     }
+    */
 
     // find symtab sections
     int si;
-    for (si = 0; si < elf64->ehdr->e_shnum; si++) {
-        Elf64_Shdr * shdr = elf64_shdr(elf64, si);
+    for (si = 0; si < elf32->ehdr->e_shnum; si++) {
+        Elf32_Shdr * shdr = elf32_shdr(elf32, si);
         if (shdr->sh_type == SHT_SYMTAB) {
-            struct _graph * sym_graph = elf64_dis_symtab(elf64, si);
+            struct _graph * sym_graph = elf32_dis_symtab(elf32, si);
             graph_merge(graph, sym_graph);
             graph_delete(sym_graph);
         }
     }
 
-    Elf64_Shdr * plt_shdr = elf64_shdr_by_name(elf64, ".plt");
+    Elf32_Shdr * plt_shdr = elf32_shdr_by_name(elf32, ".plt");
     if (plt_shdr == NULL)
         return graph;
 
@@ -277,28 +276,28 @@ struct _graph * elf64_graph (struct _elf64 * elf64)
 
 
 
-struct _tree * elf64_function_tree (struct _elf64 * elf64)
+struct _tree * elf32_function_tree (struct _elf32 * elf32)
 {
     struct _tree     * tree = tree_create();
     struct _function * function;
 
     int sec_i;
     // symbols are easy
-    for (sec_i = 0; sec_i < elf64->ehdr->e_shnum; sec_i++) {
-        Elf64_Shdr * shdr = elf64_shdr(elf64, sec_i);
+    for (sec_i = 0; sec_i < elf32->ehdr->e_shnum; sec_i++) {
+        Elf32_Shdr * shdr = elf32_shdr(elf32, sec_i);
         if (shdr->sh_type != SHT_SYMTAB)
             continue;
 
         int sym_i;
         for (sym_i = 0; sym_i < shdr->sh_size / shdr->sh_entsize; sym_i++) {
-            Elf64_Sym * sym = elf64_section_element(elf64, sec_i, sym_i);
-            if (ELF64_ST_TYPE(sym->st_info) != STT_FUNC)
+            Elf32_Sym * sym = elf32_section_element(elf32, sec_i, sym_i);
+            if (ELF32_ST_TYPE(sym->st_info) != STT_FUNC)
                 continue;
 
             if (sym->st_value == 0)
                 continue;
 
-            char * name = elf64_strtab_str(elf64, shdr->sh_link, sym->st_name);
+            char * name = elf32_strtab_str(elf32, shdr->sh_link, sym->st_name);
             printf("found function %s at %llx\n",
                    name, (unsigned long long) sym->st_value);
             function = function_create(sym->st_value, name);
@@ -314,21 +313,21 @@ struct _tree * elf64_function_tree (struct _elf64 * elf64)
 
 
 
-int elf64_memory (struct _elf64 * elf64, uint64_t address)
+int elf32_memory (struct _elf32 * elf32, uint64_t address)
 {
-    uint64_t offset = elf64_vaddr_to_offset(elf64, address);
+    uint64_t offset = elf32_vaddr_to_offset(elf32, address);
     if (offset == -1)
         return -1;
-    if (offset > elf64->data_size)
+    if (offset > elf32->data_size)
         return -1;
 
-    return elf64->data[offset];
+    return elf32->data[offset];
 }
 
 
 
-struct _memory_segment * elf64_memory_segments_contains (struct _list * list,
-                                                  Elf64_Phdr * phdr)
+struct _memory_segment * elf32_memory_segments_contains (struct _list * list,
+                                                         Elf32_Phdr * phdr)
 {
     struct _list_it * it;
     struct _memory_segment * mem_seg;
@@ -347,20 +346,20 @@ struct _memory_segment * elf64_memory_segments_contains (struct _list * list,
 
 
 
-struct _list * elf64_memory_segments (struct _elf64 * elf64)
+struct _list * elf32_memory_segments (struct _elf32 * elf32)
 {
     struct _list * list = list_create();
-    Elf64_Phdr   * phdr;
+    Elf32_Phdr   * phdr;
     int            phdr_i;
     struct _memory_segment * mem_seg_ptr;
     struct _memory_segment mem_seg;
 
-    for (phdr_i = 0; phdr_i < elf64->ehdr->e_phnum; phdr_i++) {
-        phdr = elf64_phdr(elf64, phdr_i);
+    for (phdr_i = 0; phdr_i < elf32->ehdr->e_phnum; phdr_i++) {
+        phdr = elf32_phdr(elf32, phdr_i);
         if (phdr->p_memsz == 0)
             continue;
         // if this phdr falls within the bounds of an existing memory segment
-        mem_seg_ptr = elf64_memory_segments_contains(list, phdr);
+        mem_seg_ptr = elf32_memory_segments_contains(list, phdr);
         if (mem_seg_ptr != NULL) {
             // create a new mem_seg with correct address and size
             if (phdr->p_vaddr < mem_seg_ptr->address)

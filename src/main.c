@@ -35,30 +35,27 @@ void graphviz_out (struct _graph * graph)
 
 int main (int argc, char * argv[])
 {
-    struct _elf64 * elf64;
+    _loader * loader;
 
-    elf64 = elf64_create(argv[1]);
-    printf("entry: %llx\n", (unsigned long long) elf64_entry(elf64));
+    loader = loader_create(argv[1]);
+    if (loader == NULL) {
+        fprintf(stderr, "failed to load file %s\n", argv[1]);
+        return -1;
+    }
 
-    struct _graph * graph = elf64_graph(elf64);
+    printf("entry: %llx\n", (unsigned long long) loader_entry(loader));
+
+    struct _graph * graph = loader_graph(loader);
     graph_reduce(graph);
-    struct _graph * graph_copy = object_copy(graph);
-    graph_delete(graph);
 
-    struct _graph * family = graph_family(graph_copy, 0x402fc0);
+    struct _graph * family = graph_family(graph, 0x403160);
 
     graph_debug(family);
 
-    /*
-    struct _rdg_graph * rdg_graph;
+    object_delete(family);
+    object_delete(graph);
 
-    rdg_graph = rdg_graph_create(elf64_entry(elf64), family);
-    rdg_graph_delete(rdg_graph);
-    */
-
-    graph_delete(family);
-    graph_delete(graph_copy);
-    elf64_delete(elf64);
+    object_delete(loader);
 
     cairo_debug_reset_static_data();
     FcFini();

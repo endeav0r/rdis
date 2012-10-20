@@ -10,18 +10,23 @@ int main (int argc, char * argv[])
 {
     gtk_init(&argc, &argv);
 
-    struct _elf64 * elf64 = elf64_create(argv[1]);
+    _loader * loader = loader_create(argv[1]);
+    if (loader == NULL) {
+        fprintf(stderr, "could not load file %s\n", argv[1]);
+        return -1;
+    }
 
-    struct _graph * graph = elf64_graph(elf64);
+    struct _graph * graph = loader_graph(loader);
     graph_reduce(graph);
-    struct _tree * function_tree = elf64_function_tree(elf64);
+
+    struct _tree * function_tree = loader_function_tree(loader);
 
     struct _inswindow * inswindow;
-    inswindow = inswindow_create(graph, function_tree, elf64_entry(elf64));
+    inswindow = inswindow_create(graph, function_tree, loader_entry(loader));
 
     object_delete(function_tree);
     object_delete(graph);
-    elf64_delete(elf64);
+    object_delete(loader);
 
     gtk_widget_show(inswindow_window(inswindow));
 

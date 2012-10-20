@@ -6,9 +6,11 @@
 #include <stdio.h>
 
 #include "list.h"
+#include "loader.h"
 #include "graph.h"
 
 struct _elf64 {
+	const struct _loader_object * loader_object;
     union {
         uint8_t    * data;  
         Elf64_Ehdr * ehdr;
@@ -16,8 +18,8 @@ struct _elf64 {
     size_t data_size;
 };
 
-struct _elf64 * elf64_create  (char * filename);
-void            elf64_delete (struct _elf64 * elf64);
+struct _elf64 * elf64_create  (const char * filename);
+void            elf64_delete  (struct _elf64 * elf64);
 
 uint64_t        elf64_entry         (struct _elf64 * elf64);
 int             elf64_memory        (struct _elf64 * elf64, uint64_t address);

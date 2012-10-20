@@ -39,7 +39,8 @@ GtkWidget * hexwindow (struct _byte_table * byte_table)
 
             c = byte_table->table[i + j].byte;
             snprintf(asciiHex, 4, "%02x ", c);
-            strncat(asciiHexLine, asciiHex, 128);
+            strncat(asciiHexLine, asciiHex, 127);
+            asciiHexLine[127] = '\0';
 
             if ((c >= 32) && (c < 127))
                 ascii[j] = c;

@@ -131,7 +131,8 @@ void rdg_graph_reduce_and_draw (struct _rdg_graph * rdg_graph)
 {
 
     rdg_reduce_edge_crossings(rdg_graph);
-    rdg_assign_x(rdg_graph);
+    rdg_left_adjust_x(rdg_graph);
+    //rdg_assign_x(rdg_graph);
     rdg_set_graph_width(rdg_graph);
     //rdg_debug(rdg_graph);
     rdg_draw(rdg_graph);
@@ -924,6 +925,34 @@ void rdg_assign_x (struct _rdg_graph * rdg_graph)
 }
 
 
+// adjusts all rdg_node x values to the least value is 0
+void rdg_left_adjust_x (struct _rdg_graph * rdg_graph)
+{
+    int min_x = 1000000;
+    struct _graph_it * it;
+
+    // find min_x
+    for (it = graph_iterator(rdg_graph->graph); it != NULL; it = graph_it_next(it)) {
+        struct _rdg_node * rdg_node = graph_it_data(it);
+        if (rdg_node->x < min_x)
+            min_x = rdg_node->x;
+    }
+
+    printf("min_x: %d\n", min_x);
+
+    if (min_x == 0)
+        return;
+
+    min_x *= -1;
+
+    // adjust nodes
+    for (it = graph_iterator(rdg_graph->graph); it != NULL; it = graph_it_next(it)) {
+        struct _rdg_node * rdg_node = graph_it_data(it);
+        rdg_node->x += min_x;
+    }
+}
+
+
 void rdg_assign_y (struct _rdg_graph * rdg_graph)
 {
     int level       = 0;
@@ -1385,56 +1414,133 @@ void rdg_random_permute (struct _rdg_graph * rdg_graph, int swap_iterations)
 }
 
 
+// find the left x of this node by calculating the x center of adjacent nodes
+int rdg_node_adjacent_center (struct _rdg_graph * rdg_graph, struct _rdg_node * rdg_node)
+{
+    int x = 0; // sum of adjacent node x values
+    int n = 0; // number of adjacent nodes
+
+    struct _graph_node * node = graph_fetch_node(rdg_graph->graph, rdg_node->index);
+    struct _list_it * it;
+    for (it = list_iterator(node->edges); it != NULL; it = it->next) {
+        struct _graph_edge * edge = it->data;
+        struct _rdg_node * rdg_adjacent;
+        if (edge->head == rdg_node->index)
+            rdg_adjacent = graph_fetch_data(rdg_graph->graph, edge->tail);
+        else
+            rdg_adjacent = graph_fetch_data(rdg_graph->graph, edge->head);
+        n++;
+        x += rdg_node_center_x(rdg_adjacent);
+    }
+
+    if (n == 0)
+        return 0;
+
+    x = x / n;
+    return x - (rdg_node_width(rdg_node) / 2);
+}
+
+
+void rdg_move_node_to_x (struct _rdg_graph * rdg_graph, struct _rdg_node * rdg_node, int x)
+{
+    struct _map * level_map = map_fetch(rdg_graph->levels, rdg_node->level);
+
+    // if we're moving left
+    if (x < rdg_node->x) {
+        int i;
+        rdg_node->x = x;
+        printf("rdg_node->position %d\n", rdg_node->position);
+        i = rdg_node->position - 1;
+        while (i >= 0) {
+            printf("i: %d\n", i);
+            struct _index * index = map_fetch(level_map, i);
+            struct _rdg_node * rdg_left;
+            rdg_left = graph_fetch_data(rdg_graph->graph, index->index);
+            index = map_fetch(level_map, i + 1);
+            struct _rdg_node * rdg_right;
+            rdg_right = graph_fetch_data(rdg_graph->graph, index->index);
+
+            // these nodes need to swap position
+            if (rdg_node_center_x(rdg_right) < rdg_node_center_x(rdg_left)) {
+                rdg_swap_node_positions(rdg_graph, rdg_node->level,
+                                        rdg_left->position, rdg_right->position);
+                printf("swapping %llx %d and %llx %d\n",
+                       (unsigned long long) rdg_left->position, rdg_left->x,
+                       (unsigned long long) rdg_right->position, rdg_right->x);
+                continue;
+            }
+
+            int rdg_left_right = rdg_left->x + rdg_node_width(rdg_left) 
+                                 + RDG_NODE_X_SPACING;
+
+            if (rdg_left_right > rdg_right->x)
+                rdg_left->x = rdg_right->x - rdg_node_width(rdg_left) - RDG_NODE_X_SPACING;
+            i--;
+        }
+    }
+    // moving right
+    else if (x > rdg_node->x) {
+        int i;
+        rdg_node->x = x;
+
+        i = rdg_node->position;
+        while (i + 1< level_map->size) {
+            printf("i: %d\n", i);
+            struct _index * index = map_fetch(level_map, i);
+            struct _rdg_node * rdg_left;
+            rdg_left = graph_fetch_data(rdg_graph->graph, index->index);
+            index = map_fetch(level_map, i + 1);
+            struct _rdg_node * rdg_right;
+            rdg_right = graph_fetch_data(rdg_graph->graph, index->index);
+
+            // these nodes need to swap position
+            if (rdg_node_center_x(rdg_left) > rdg_node_center_x(rdg_right)) {
+                rdg_swap_node_positions(rdg_graph, rdg_node->level,
+                                        rdg_left->position, rdg_right->position);
+                continue;
+            }
+
+            int rdg_left_right = rdg_left->x + rdg_node_width(rdg_left) 
+                                 + RDG_NODE_X_SPACING;
+
+            if (rdg_left_right > rdg_right->x)
+                rdg_right->x = rdg_left_right;
+
+            i++;
+        }
+    }
+}
+
+
 void rdg_reduce_edge_crossings (struct _rdg_graph * rdg_graph)
 {
-    int level;
-    int crossings;
-    //int new_crossings;
-    int iteration_crossings;
+    int i;
 
-
-    iteration_crossings = rdg_count_edge_crossings(rdg_graph);
+    /*
+    int iteration_crossings = rdg_count_edge_crossings(rdg_graph);
     while (1) {
-
-        // find global solution through random permutation
-        for (level = 0; level < rdg_graph->levels->size; level++)
+        for (i = 0; i < rdg_graph->levels->size; i++) {
             rdg_random_permute(rdg_graph, 64);
-
-        /*
-        // find local solutions
-        for (level = 0; level < rdg_graph->levels->size - 1; level++) {
-
-            crossings = rdg_count_edge_crossings(rdg_graph);
-
-            // try swapping this level
-            int i, j;
-            struct _map * level_map = map_fetch(rdg_graph->levels, level);
-
-            for (i = 0; i < level_map->size; i++) {
-                for (j = 0; j < level_map->size; j++) {
-                    if (i == j)
-                        continue;
-                    rdg_swap_node_positions(rdg_graph, level, i, j);
-
-                    new_crossings = rdg_count_edge_crossings(rdg_graph);
-
-                    if (new_crossings < crossings)
-                        crossings = new_crossings;
-                    else
-                        rdg_swap_node_positions(rdg_graph, level, i, j);
-                    if (crossings == 0)
-                        break;
-                }
-            }
         }
-        */
-
-        crossings = rdg_count_edge_crossings(rdg_graph);
+        int crossings = rdg_count_edge_crossings(rdg_graph);
         if (crossings == iteration_crossings)
             break;
         iteration_crossings = crossings;
     }
-    printf("edge crossings: %d\n", rdg_count_edge_crossings(rdg_graph));
+    */
+
+    for (i = 0; i < rdg_graph->levels->size * 4; i++) {
+        struct _graph_it * it;
+        for (it = graph_iterator(rdg_graph->graph);
+             it != NULL;
+             it = graph_it_next(it)) {
+            struct _rdg_node * rdg_node = graph_it_data(it);
+            int x = rdg_node_adjacent_center(rdg_graph, rdg_node);
+            printf("moving %llx from %d to %d\n",
+                   (unsigned long long) rdg_node->index, rdg_node->x, x);
+            rdg_move_node_to_x(rdg_graph, rdg_node, x);
+        }
+    }
 }
 
 
@@ -1575,18 +1681,10 @@ void rdg_draw_edge (struct _rdg_graph * rdg_graph, struct _graph_edge * edge)
         y4  = y3;
     }
 
-    // if this edge is going straight down, draw a striaght line
-    if ((rdg_head->x == rdg_tail->x)) {
-        cairo_move_to(ctx, x1, y1);
-        cairo_line_to(ctx, x5, y5);
-        cairo_stroke(ctx);
-    }
-    else {
-        cairo_curve_to(ctx, x1, y1, x2, y2, x3, y3);
-        cairo_move_to(ctx, x3, y3);
-        cairo_curve_to(ctx, x3, y3, x4, y4, x5, y5);
-        cairo_stroke(ctx);
-    }
+    cairo_curve_to(ctx, x1, y1, x2, y2, x3, y3);
+    cairo_move_to(ctx, x3, y3);
+    cairo_curve_to(ctx, x3, y3, x4, y4, x5, y5);
+    cairo_stroke(ctx);
 
     // this edge ends in a non-virtual node
     if ((rdg_tail->flags & RDG_NODE_VIRTUAL) == 0) {
@@ -1596,6 +1694,9 @@ void rdg_draw_edge (struct _rdg_graph * rdg_graph, struct _graph_edge * edge)
         else
             rdg_draw_arrow(ctx, x4, y4, x5, y5, arrow_type);
     }
+
+    x1 = x2 + x3 + x4;
+    y1 = y2 + y3 + y4;
 
     cairo_destroy(ctx);
 }

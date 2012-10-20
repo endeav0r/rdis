@@ -141,14 +141,19 @@ void rdg_assign_levels        (struct _graph * graph, uint64_t top_index);
 void rdg_create_virtual_nodes (struct _rdg_graph * rdg_graph);
 void rdg_assign_level_map     (struct _rdg_graph * rdg_graph);
 void rdg_assign_position      (struct _rdg_graph * rdg_graph);
-void rdg_assign_x     (struct _rdg_graph * rdg_graph);
+void rdg_assign_x             (struct _rdg_graph * rdg_graph);
 void rdg_assign_y             (struct _rdg_graph * rdg_graph);
 void rdg_acyclicize           (struct _graph * graph, uint64_t top_index);
 void rdg_acyclicize_pre       (struct _graph * graph, uint64_t index);
 void rdg_set_graph_width      (struct _rdg_graph * rdg_graph);
+void rdg_left_adjust_x        (struct _rdg_graph * rdg_graph);
 
 int  rdg_level_top            (struct _rdg_graph * rdg_graph, int level);
 
+inline void rdg_swap_node_positions (struct _rdg_graph * rdg_graph,
+                                     int level,
+                                     int left,
+                                     int right);
 
 int  rdg_level_count_edge_crossings  (struct _rdg_graph * rdg_graph, int level);
 int  rdg_count_edge_crossings  (struct _rdg_graph * rdg_graph);

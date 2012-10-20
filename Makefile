@@ -2,8 +2,8 @@ CC=gcc
 CFLAGS = -Wall -O2 -g -pg -Werror
 LIB=`pkg-config --cflags --libs gtk+-3.0` -ludis86 -lcairo -lm
 
-_OBJS = elf64.o graph.o index.o instruction.o list.o map.o object.o queue.o rdgraph.o \
-		rdstring.o tree.o util.o x8664.o
+_OBJS = elf32.o elf64.o graph.o index.o instruction.o list.o loader.o map.o \
+		object.o queue.o rdgraph.o rdstring.o tree.o util.o x8664.o x86.o
 _GTK_OBJS = hexwindow.o inswindow.o
 
 SRCDIR = src
@@ -27,3 +27,4 @@ gui : $(OBJS) $(GTK_OBJS) $(SRCDIR)/gui.o
 clean :
 	rm -f $(SRCDIR)/*.o
 	rm -f main
+	rm -f gui
