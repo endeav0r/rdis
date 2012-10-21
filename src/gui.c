@@ -1,4 +1,5 @@
 #include <gtk/gtk.h>
+#include <fontconfig/fontconfig.h>
 
 #include "gui.h"
 
@@ -43,10 +44,10 @@ struct _gui * gui_create (const char * filename)
         return NULL;
     }
 
-    gui->entry         = loader_entry(gui->loader);
-    gui->graph         = loader_graph(gui->loader);
-    gui->function_tree = loader_function_tree(gui->loader);
-    gui->labels        = loader_labels(gui->loader);
+    gui->entry            = loader_entry(gui->loader);
+    gui->graph            = loader_graph(gui->loader);
+    gui->function_tree    = loader_function_tree(gui->loader);
+    gui->labels           = loader_labels(gui->loader);
 
     graph_reduce(gui->graph);
 

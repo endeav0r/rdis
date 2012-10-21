@@ -27,14 +27,16 @@ enum {
     RDG_ARROW_TYPE_FILL
 };
 
-#define RDG_NODE_FONT_SIZE  14.0
-#define RDG_NODE_PADDING    8.0
+#define RDG_NODE_FONT_SIZE 12.0
+#define RDG_NODE_FONT_FACE "monospace"
+#define RDG_NODE_PADDING   8.0
 
-#define RDG_NODE_BG_COLOR    1,   1,   1
-#define RDG_NODE_ADDR_COLOR  0,   0.2, 0.5
-#define RDG_NODE_BYTE_COLOR  0.5, 0.2, 0
-#define RDG_NODE_DESC_COLOR  0,   0,   0
-#define RDG_NODE_LABEL_COLOR 0,   0, 1
+#define RDG_NODE_BG_COLOR      1,   1,   1
+#define RDG_NODE_ADDR_COLOR    0,   0.2, 0.5
+#define RDG_NODE_BYTE_COLOR    0.5, 0.2, 0
+#define RDG_NODE_DESC_COLOR    0,   0,   0
+#define RDG_NODE_LABEL_COLOR   0,   0, 1
+#define RDG_NODE_COMMENT_COLOR 0,   0.5, 0
 
 #define RDG_EDGE_NORMAL_COLOR    0,   0,   0
 #define RDG_EDGE_JUMP_COLOR      0,   0,   0.5
@@ -137,6 +139,18 @@ void                rdg_color_nodes  (struct _rdg_graph * rdg_graph,
                                       struct _graph     * ins_graph,
                                       struct _map       * labels,
                                       struct _list * node_color_list);
+
+// rdg_graph = this graph we want to color
+// ins_graph = a graph, as returned by the loader, which contains the nodes
+//             we want to color
+// labels    = a label map which includes labels for instruction targets
+// node_color_lost = a list of rdg_node_color objects
+// highlight_ins   = an instruction index to highlight
+void                rdg_custom_nodes  (struct _rdg_graph * rdg_graph,
+                                       struct _graph     * ins_graph,
+                                       struct _map       * labels,
+                                       struct _list * node_color_list,
+                                       uint64_t highlight_ins);
 // redraws the entire graph. call this after rdg_color_nodes
 void                rdg_draw      (struct _rdg_graph * rdg_graph);
 
@@ -161,6 +175,12 @@ struct _rdg_node * rdg_node_copy   (struct _rdg_node * node);
 int                rdg_node_cmp    (struct _rdg_node * lhs,
                                     struct _rdg_node * rhs);
 uint64_t rdg_get_node_by_coords (struct _rdg_graph * rdg_graph, int x, int y);
+
+// rdg_graph = the rdg_graph
+// ins_graph = an instruction graph returned by the loader
+uint64_t rdg_get_ins_by_coords (struct _rdg_graph * rdg_graph,
+                                struct _graph * ins_graph,
+                                int x, int y);
 
 int rdg_node_width    (struct _rdg_node * rdg_node);
 int rdg_node_height   (struct _rdg_node * rdg_node);
@@ -205,11 +225,12 @@ int  rdg_level_count_edge_crossings  (struct _rdg_graph * rdg_graph, int level);
 int  rdg_count_edge_crossings  (struct _rdg_graph * rdg_graph);
 void rdg_reduce_edge_crossings (struct _rdg_graph * rdg_graph);
 
-cairo_surface_t * rdg_draw_node_colors (struct _graph_node * node,
-                                        struct _map * labels,
-                                        double bg_red,
-                                        double bg_green,
-                                        double bg_blue);
+cairo_surface_t * rdg_draw_node_full (struct _graph_node * node,
+                                      struct _map * labels,
+                                      double bg_red,
+                                      double bg_green,
+                                      double bg_blue,
+                                      uint64_t highlight_ins);
 cairo_surface_t * rdg_draw_node (struct _graph_node * node, struct _map * labels);
 
 cairo_surface_t * cairo_surface_copy (cairo_surface_t * src);

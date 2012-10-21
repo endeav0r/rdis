@@ -201,6 +201,19 @@ void rdg_color_nodes (struct _rdg_graph * rdg_graph,
                       struct _map       * labels,
                       struct _list * node_color_list)
 {
+    rdg_custom_nodes(rdg_graph, ins_graph, labels, node_color_list, -1);
+}
+
+
+void rdg_custom_nodes (struct _rdg_graph * rdg_graph,
+                       struct _graph     * ins_graph,
+                       struct _map       * labels,
+                       struct _list * node_color_list,
+                       uint64_t highlight_ins)
+{
+    if (node_color_list == NULL)
+        return;
+
     struct _list_it * it;
     for (it = list_iterator(node_color_list); it != NULL; it = it->next) {
         struct _rdg_node_color * rdg_node_color = it->data;
@@ -222,11 +235,12 @@ void rdg_color_nodes (struct _rdg_graph * rdg_graph,
         if (rdg_node->surface != NULL)
             cairo_surface_destroy(rdg_node->surface);
 
-        rdg_node->surface = rdg_draw_node_colors(ins_node,
-                                                 labels,
-                                                 rdg_node_color->red,
-                                                 rdg_node_color->blue,
-                                                 rdg_node_color->green);
+        rdg_node->surface = rdg_draw_node_full(ins_node,
+                                               labels,
+                                               rdg_node_color->red,
+                                               rdg_node_color->blue,
+                                               rdg_node_color->green,
+                                               highlight_ins);
     }
 }
 
@@ -296,6 +310,53 @@ uint64_t rdg_get_node_by_coords (struct _rdg_graph * rdg_graph, int x, int y)
              && (rdg_node->y + RDG_SURFACE_PADDING < y)
              && (rdg_node->y + RDG_SURFACE_PADDING + rdg_node_height(rdg_node) > y))
             return rdg_node->index;
+    }
+
+    return -1;
+}
+
+
+uint64_t rdg_get_ins_by_coords (struct _rdg_graph * rdg_graph,
+                                struct _graph * ins_graph,
+                                int x, int y)
+{
+    uint64_t node_index = rdg_get_node_by_coords(rdg_graph, x, y);
+    if (node_index == -1)
+        return -1;
+
+    struct _graph_node * node = graph_fetch_node(ins_graph, node_index);
+    if (node == NULL)
+        return -1;
+
+    struct _rdg_node * rdg_node = graph_fetch_data(rdg_graph->graph, node_index);
+
+    cairo_t            * ctx;
+    cairo_font_extents_t fe;
+    ctx = cairo_create(rdg_node->surface);
+    cairo_set_source_rgb(ctx, 0.0, 0.0, 0.0);
+    cairo_select_font_face(ctx,
+                           RDG_NODE_FONT_FACE,
+                           CAIRO_FONT_SLANT_NORMAL,
+                           CAIRO_FONT_WEIGHT_NORMAL);
+    cairo_set_font_size(ctx, RDG_NODE_FONT_SIZE);
+    cairo_font_extents(ctx, &fe);
+    cairo_destroy(ctx);
+
+    double bottom = rdg_node->y + (double) RDG_SURFACE_PADDING + RDG_NODE_PADDING + fe.height;
+
+    //printf("%d %d %f %f\n", rdg_node->y, RDG_SURFACE_PADDING, RDG_NODE_PADDING, fe.height);
+
+    //printf("rdg_node->y: %d\n", rdg_node->y);
+
+    struct _list_it * it;
+    for (it = list_iterator(node->data); it != NULL; it = it->next) {
+        bottom = bottom + 1.0;
+        double top = bottom + fe.height + 1.0;
+        if (((double) y >= bottom) && ((double) y <= top)) {
+            struct _ins * ins = it->data;
+            return ins->address;
+        }
+        bottom = top;
     }
 
     return -1;
@@ -1691,28 +1752,34 @@ void rdg_draw_edge (struct _rdg_graph * rdg_graph, struct _graph_edge * edge)
 }
 
 
-cairo_surface_t * rdg_draw_node_colors (struct _graph_node * node,
-                                        struct _map * labels,
-                                        double bg_red,
-                                        double bg_green,
-                                        double bg_blue) {
+cairo_surface_t * rdg_draw_node_full (struct _graph_node * node,
+                                      struct _map * labels,
+                                      double bg_red,
+                                      double bg_green,
+                                      double bg_blue,
+                                      uint64_t highlight_ins) {
     cairo_surface_t    * surface;
     cairo_t            * ctx;
     cairo_text_extents_t te;
     cairo_font_extents_t fe;
 
-    surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 800, 1200);
+    // create a rough approximation of the graph height
+    int number_of_instructions = ((struct _list *) node->data)->size;
+    int height = ((int) RDG_NODE_FONT_SIZE + 6) * number_of_instructions;
+    height += (int) RDG_NODE_PADDING * 2;
+
+    surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 800, height);
     ctx     = cairo_create(surface);
 
     // draw contents
     cairo_set_source_rgb(ctx, 0.0, 0.0, 0.0);
 
     cairo_select_font_face(ctx, 
-                           "monospace",
+                           RDG_NODE_FONT_FACE,
                            CAIRO_FONT_SLANT_NORMAL,
                            CAIRO_FONT_WEIGHT_NORMAL);
 
-    cairo_set_font_size(ctx, 12.0);
+    cairo_set_font_size(ctx, RDG_NODE_FONT_SIZE);
 
     cairo_font_extents(ctx, &fe);
     double top = RDG_NODE_PADDING + fe.height;
@@ -1724,6 +1791,17 @@ cairo_surface_t * rdg_draw_node_colors (struct _graph_node * node,
          list_it = list_it->next) {
 
         struct _ins * ins = list_it->data;
+
+        if (ins->address == highlight_ins)
+            cairo_select_font_face(ctx,
+                                   RDG_NODE_FONT_FACE,
+                                   CAIRO_FONT_SLANT_NORMAL,
+                                   CAIRO_FONT_WEIGHT_BOLD);
+        else
+            cairo_select_font_face(ctx,
+                                   RDG_NODE_FONT_FACE,
+                                   CAIRO_FONT_SLANT_NORMAL,
+                                   CAIRO_FONT_WEIGHT_NORMAL);
 
         int line_x = RDG_NODE_PADDING;
         char tmp[128];
@@ -1774,6 +1852,15 @@ cairo_surface_t * rdg_draw_node_colors (struct _graph_node * node,
                 cairo_text_extents(ctx, tmp, &te);
                 line_x += te.width;
             }
+        }
+
+        if (ins->comment != NULL) {
+            snprintf(tmp, 128, " ; %s", ins->comment);
+            cairo_move_to(ctx, line_x, top);
+            cairo_set_source_rgb(ctx, RDG_NODE_COMMENT_COLOR);
+            cairo_show_text(ctx, tmp);
+            cairo_text_extents(ctx, tmp, &te);
+            line_x += te.width;
         }
 
 
@@ -1829,7 +1916,7 @@ cairo_surface_t * rdg_draw_node_colors (struct _graph_node * node,
 
 cairo_surface_t * rdg_draw_node (struct _graph_node * node, struct _map * labels)
 {
-    return rdg_draw_node_colors(node, labels, RDG_NODE_BG_COLOR);
+    return rdg_draw_node_full(node, labels, RDG_NODE_BG_COLOR, -1);
 }
 
 

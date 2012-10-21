@@ -47,15 +47,9 @@ int main (int argc, char * argv[])
 
     struct _graph * graph = loader_graph(loader);
 
-    if (graph_fetch_node(graph, 0x8049110))
-        printf("4 still have %llx\n", (unsigned long long) 0x8049110);
-
     graph_reduce(graph);
 
-    if (graph_fetch_node(graph, 0x8049110))
-        printf("5 still have %llx\n", (unsigned long long) 0x8049110);
-
-    graph_debug(graph);
+//    graph_debug(graph);
 
     object_delete(graph);
 

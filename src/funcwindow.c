@@ -81,6 +81,10 @@ struct _funcwindow * funcwindow_create (struct _gui * gui)
                       funcwindow->scrolledWindow);
 
     // signals
+    g_signal_connect(funcwindow->window,
+                     "destroy",
+                     G_CALLBACK(funcwindow_destroy_event),
+                     funcwindow);
 
     g_signal_connect(funcwindow->treeView,
                      "row-activated",
@@ -99,7 +103,7 @@ struct _funcwindow * funcwindow_create (struct _gui * gui)
 
 void funcwindow_delete (struct _funcwindow * funcwindow)
 {
-    gtk_widget_destroy(funcwindow->window);
+    //gtk_widget_destroy(funcwindow->window);
     free(funcwindow);
 }
 
@@ -108,6 +112,15 @@ void funcwindow_delete (struct _funcwindow * funcwindow)
 GtkWidget * funcwindow_window (struct _funcwindow * funcwindow)
 {
     return funcwindow->window;
+}
+
+
+
+void funcwindow_destroy_event (GtkWidget * widget,
+                                struct _funcwindow * funcwindow)
+{
+    funcwindow_delete(funcwindow);
+    gtk_main_quit();
 }
 
 

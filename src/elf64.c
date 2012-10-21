@@ -3,6 +3,7 @@
 #include "index.h"
 #include "label.h"
 #include "queue.h"
+#include "tree.h"
 #include "util.h"
 #include "x8664.h"
 

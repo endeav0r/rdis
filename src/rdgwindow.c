@@ -1,6 +1,9 @@
 #include "rdgwindow.h"
 
+#include "instruction.h"
 #include "queue.h"
+
+#include <string.h>
 
 struct _rdgwindow * rdgwindow_create (struct _gui * gui, uint64_t top_index)
 {
@@ -22,7 +25,10 @@ struct _rdgwindow * rdgwindow_create (struct _gui * gui, uint64_t top_index)
     rdgwindow->image_drag_y   = 0;
 
     rdgwindow->selected_node  = -1;
+    rdgwindow->selected_ins   = -1;
     rdgwindow->node_colors    = NULL;
+
+    rdgwindow->editing        = 0;
 
 
     gtk_container_add(GTK_CONTAINER(rdgwindow->imageEventBox),
@@ -33,6 +39,11 @@ struct _rdgwindow * rdgwindow_create (struct _gui * gui, uint64_t top_index)
 
     gtk_container_add(GTK_CONTAINER(rdgwindow->window), rdgwindow->imageEventBox);
 
+
+    g_signal_connect(rdgwindow->window,
+                     "destroy",
+                     G_CALLBACK(rdgwindow_destroy_event),
+                     rdgwindow);
 
     g_signal_connect(rdgwindow->imageEventBox,
                      "motion-notify-event",
@@ -47,6 +58,11 @@ struct _rdgwindow * rdgwindow_create (struct _gui * gui, uint64_t top_index)
     g_signal_connect(rdgwindow->imageEventBox,
                      "key-press-event",
                      G_CALLBACK(rdgwindow_image_key_press_event),
+                     rdgwindow);
+
+    g_signal_connect(rdgwindow->scrolledWindow,
+                     "size-allocate",
+                     G_CALLBACK(rdgwindow_size_allocate_event),
                      rdgwindow);
 
 
@@ -82,7 +98,7 @@ void rdgwindow_delete (struct _rdgwindow * rdgwindow)
     if (rdgwindow->node_colors != NULL)
         object_delete(rdgwindow->node_colors);
 
-    gtk_widget_destroy(rdgwindow->window);
+    //gtk_widget_destroy(rdgwindow->window);
 
     free(rdgwindow);
 }
@@ -104,6 +120,7 @@ void rdgwindow_image_update (struct _rdgwindow * rdgwindow)
                                          rdg_graph_width(rdgwindow->rdg_graph),
                                          rdg_graph_height(rdgwindow->rdg_graph));
     gtk_image_set_from_pixbuf(GTK_IMAGE(rdgwindow->image), pixbuf);
+    g_object_unref(pixbuf);
 }
 
 
@@ -122,8 +139,20 @@ void rdgwindow_graph_update (struct _rdgwindow * rdgwindow)
     rdgwindow->rdg_graph = rdg_graph_create(rdgwindow->top_index,
                                             rdgwindow->currently_displayed_graph,
                                             rdgwindow->gui->labels);
-
+    rdg_custom_nodes(rdgwindow->rdg_graph,
+                     rdgwindow->gui->graph,
+                     rdgwindow->gui->labels,
+                     rdgwindow->node_colors,
+                     rdgwindow->selected_ins);
     rdgwindow_image_update(rdgwindow);
+}
+
+
+
+void rdgwindow_destroy_event (GtkWidget * widget, struct _rdgwindow * rdgwindow)
+{
+    printf("destroy rdgwindow\n");
+    rdgwindow_delete(rdgwindow);
 }
 
 
@@ -177,8 +206,37 @@ gboolean rdgwindow_image_button_press_event  (GtkWidget * widget,
     int image_x = x + (int) gtk_adjustment_get_value(hadjust);
     int image_y = y + (int) gtk_adjustment_get_value(vadjust);
 
-    rdgwindow->selected_node = rdg_get_node_by_coords(rdgwindow->rdg_graph,
-                                                      image_x, image_y);
+    // if the scrolledWindow is larger than the image, we need to adjust for that
+    printf("width: %d %d\n",
+           rdgwindow->scrolledWindow_width,
+           rdg_graph_width(rdgwindow->rdg_graph));
+    printf("height: %d %d\n",
+           rdgwindow->scrolledWindow_height,
+           rdg_graph_height(rdgwindow->rdg_graph));
+
+    if (rdgwindow->scrolledWindow_width > rdg_graph_width(rdgwindow->rdg_graph))
+        image_x -= (rdgwindow->scrolledWindow_width
+                    - rdg_graph_width(rdgwindow->rdg_graph)) / 2;
+    if (rdgwindow->scrolledWindow_height > rdg_graph_height(rdgwindow->rdg_graph))
+        image_y -= (rdgwindow->scrolledWindow_height
+                    - rdg_graph_height(rdgwindow->rdg_graph)) / 2 - 12;
+
+    uint64_t selected_node = rdg_get_node_by_coords(rdgwindow->rdg_graph,
+                                                    image_x, image_y);
+
+    uint64_t selected_ins = rdg_get_ins_by_coords(rdgwindow->rdg_graph,
+                                                  rdgwindow->gui->graph,
+                                                  image_x, image_y);
+
+    printf("selected_ins = %llx\n", (unsigned long long) selected_ins);
+
+    if (selected_ins != -1)
+        rdgwindow->selected_ins = selected_ins;
+
+    if (selected_node == -1)
+        return FALSE;
+
+    rdgwindow->selected_node = selected_node;
 
     printf("image_x: %d, image_y: %d\n", image_x, image_y);
 
@@ -194,11 +252,83 @@ gboolean rdgwindow_image_key_press_event (GtkWidget * widget,
                                           struct _rdgwindow * rdgwindow)
 {
     // key 'p'
+    if ((event->keyval == ';') && (rdgwindow->selected_ins != -1)) {
+        rdgwindow->editing = 1;
+        return FALSE;
+    }
+
+    else if (event->keyval == GDK_KEY_Return) {
+        rdgwindow->editing = 0;
+        return FALSE;
+    }
+
+    if (rdgwindow->editing) {
+        if ((event->keyval >= 0x20) && (event->keyval < 0x7f)) {
+            struct _graph_node * node = graph_fetch_node(rdgwindow->gui->graph,
+                                                         rdgwindow->selected_node);
+            // find the selected instruction
+            struct _list_it * it;
+            struct _list * ins_list = node->data;
+            for (it = list_iterator(ins_list); it != NULL; it = it->next) {
+                struct _ins * ins = it->data;
+                if (ins->address != rdgwindow->selected_ins)
+                    continue;
+
+                char tmpc[4];
+                sprintf(tmpc, "%c", event->keyval);
+                if (ins->comment == NULL) {
+                    ins_s_comment(ins, tmpc);
+                }
+                else {
+                    char * tmp = (char *) malloc(strlen(ins->comment) + 2);
+                    strcpy(tmp, ins->comment);
+                    strcat(tmp, tmpc);
+                    ins_s_comment(ins, tmp);
+                    free(tmp);
+                }
+                break;
+            }
+        }
+        else if (event->keyval == GDK_KEY_BackSpace) {
+            struct _graph_node * node = graph_fetch_node(rdgwindow->gui->graph,
+                                                         rdgwindow->selected_node);
+            struct _list_it * it;
+            struct _list * ins_list = node->data;
+            for (it = list_iterator(ins_list); it != NULL; it = it->next) {
+                struct _ins * ins = it->data;
+                if (ins->address != rdgwindow->selected_ins)
+                    continue;
+
+                if (ins->comment == NULL)
+                    break;
+
+                if (strlen(ins->comment) == 0)
+                    break;
+
+                char * tmp = strdup(ins->comment);
+                tmp[strlen(tmp) - 1] = '\0';
+                ins_s_comment(ins, tmp);
+                free(tmp);
+            }
+        }
+        rdgwindow_graph_update(rdgwindow);
+        return FALSE;
+    }
+
     if (event->keyval == 0x70) {
         rdgwindow_color_node_predecessors(rdgwindow);
     }
 
     return FALSE;
+}
+
+
+void rdgwindow_size_allocate_event (GtkWidget * widget,
+                                    GdkRectangle * allocation,
+                                    struct _rdgwindow * rdgwindow)
+{
+    rdgwindow->scrolledWindow_width  = allocation->width;
+    rdgwindow->scrolledWindow_height = allocation->height;
 }
 
 
@@ -220,7 +350,14 @@ void rdgwindow_reset_node_colors (struct _rdgwindow * rdgwindow)
         object_delete(rdgwindow->node_colors);
     }
 
-    rdgwindow->node_colors = node_colors;
+    rdg_custom_nodes(rdgwindow->rdg_graph,
+                     rdgwindow->currently_displayed_graph,
+                     rdgwindow->gui->labels,
+                     node_colors,
+                     rdgwindow->selected_ins);
+
+    object_delete(node_colors);
+    rdgwindow->node_colors = list_create();
 }
 
 
@@ -233,10 +370,11 @@ void rdgwindow_color_node (struct _rdgwindow * rdgwindow)
                                            RDGWINDOW_NODE_COLOR_SELECT);
     list_append(rdgwindow->node_colors, rdg_node_color);
 
-    rdg_color_nodes(rdgwindow->rdg_graph,
-                    rdgwindow->currently_displayed_graph,
-                    rdgwindow->gui->labels,
-                    rdgwindow->node_colors);
+    rdg_custom_nodes(rdgwindow->rdg_graph,
+                     rdgwindow->currently_displayed_graph,
+                     rdgwindow->gui->labels,
+                     rdgwindow->node_colors,
+                     rdgwindow->selected_ins);
     rdgwindow_image_update(rdgwindow);
 }
 
@@ -263,6 +401,8 @@ void rdgwindow_color_node_predecessors (struct _rdgwindow * rdgwindow)
             queue_pop(queue);
             continue;
         }
+
+        tree_insert(pre_tree, index);
 
         struct _graph_node * node = graph_fetch_node(rdgwindow->gui->graph,
                                                      index->index);
