@@ -129,5 +129,7 @@ void funcwindow_row_activated (GtkTreeView * treeView,
                        COL_INDEX, &index,
                        -1);
 
+    printf("funcwindow_row_activated %llx\n", (unsigned long long) index);
+
     gui_rdgwindow(funcwindow->gui, index);
 }

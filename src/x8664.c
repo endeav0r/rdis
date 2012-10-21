@@ -1,5 +1,8 @@
 #include "x8664.h"
 
+#include "index.h"
+#include "tree.h"
+
 struct _ins * x8664_ins (uint64_t address, ud_t * ud_obj)
 {
     struct _ins * ins;
@@ -9,7 +12,7 @@ struct _ins * x8664_ins (uint64_t address, ud_t * ud_obj)
                      ud_insn_asm(ud_obj),
                      NULL);
 
-    if (ud_obj->operand[0].type == UD_OP_JIMM) {
+    if (udis86_target(address, &(ud_obj->operand[0])) != -1) {
         char * mnemonic_str = NULL;
         switch (ud_obj->mnemonic) {
         case UD_Ijo   : mnemonic_str = "jo"; break;
@@ -30,21 +33,30 @@ struct _ins * x8664_ins (uint64_t address, ud_t * ud_obj)
         case UD_Ijg   : mnemonic_str = "jg"; break;
         case UD_Ijmp  : mnemonic_str = "jmp"; break;
         case UD_Icall : mnemonic_str = "call"; break;
-        default :break;
+        default : break;
         }
 
         if (mnemonic_str != NULL) {
             char tmp[64];
             uint64_t destination;
-            destination  = address + ud_insn_len(ud_obj);
-            destination += udis86_sign_extend_lval(&(ud_obj->operand[0]));
+            destination  = ud_insn_len(ud_obj);
+            destination += udis86_target(address, &(ud_obj->operand[0]));
             snprintf(tmp, 64, "%s %llx", mnemonic_str,
                      (unsigned long long) destination);
             ins_s_description(ins, tmp);
+            ins_s_target(ins, destination);
         }
     }
 
     return ins;
+}
+
+
+uint64_t udis86_target (uint64_t address, struct ud_operand * operand)
+{
+    if (operand->type == UD_OP_JIMM)
+        return address + udis86_sign_extend_lval(operand);
+    return udis86_rip_offset(address, operand);
 }
 
 
@@ -66,6 +78,23 @@ uint64_t udis86_sign_extend_lval (struct ud_operand * operand)
         break;
     }
     return lval;
+}
+
+
+uint64_t udis86_rip_offset (uint64_t address, struct ud_operand * operand)
+{
+    if (    (operand->type  == UD_OP_MEM)
+         && (operand->base  == UD_R_RIP)
+         && (operand->index == 0)
+         && (operand->scale == 0)) {
+        switch (operand->size) {
+            case 8  : return address + operand->lval.ubyte;
+            case 16 : return address + operand->lval.uword;
+            case 32 : return address + operand->lval.udword;
+            case 64 : return address + operand->lval.uqword;
+        }
+    }
+    return -1;
 }
 
 
@@ -93,9 +122,6 @@ void x8664_graph_0 (struct _graph * graph,
     ud_set_input_buffer(&ud_obj, (uint8_t *) &(data[offset]), data_size - offset);
 
     while (continue_disassembling == 1) {
-        // if this instruction has already been disassembled,
-        // quit disassembling
-
         size_t bytes_disassembled = ud_disassemble(&ud_obj);
         if (bytes_disassembled == 0) {
             break;
@@ -285,4 +311,131 @@ struct _graph * x8664_graph (uint64_t address,
     x8664_graph_1(graph, address, offset, data, data_size);
 
     return graph;
+}
+
+
+
+void x8664_functions_r (struct _tree *  tree_functions,
+                        struct _tree *  tree_disassembled,
+                        uint64_t        address,
+                        size_t          offset,
+                        uint8_t *       data,
+                        size_t          data_size)
+{
+    ud_t            ud_obj;
+    int             continue_disassembling = 1;
+
+    if (offset > data_size)
+        return;
+
+    ud_init      (&ud_obj);
+    ud_set_mode  (&ud_obj, 64);
+    ud_set_syntax(&ud_obj, UD_SYN_INTEL);
+    ud_set_input_buffer(&ud_obj, (uint8_t *) &(data[offset]), data_size - offset);
+
+    while (continue_disassembling == 1) {
+        size_t bytes_disassembled = ud_disassemble(&ud_obj);
+        if (bytes_disassembled == 0) {
+            break;
+        }
+
+        struct _index * index;
+        if (    (ud_obj.mnemonic == UD_Icall)
+             && (ud_obj.operand[0].type == UD_OP_JIMM)) {
+
+            index = index_create(address + offset + ud_insn_len(&ud_obj)
+                                 + udis86_sign_extend_lval(&(ud_obj.operand[0])));
+            if (tree_fetch(tree_functions, index) == NULL) {
+                printf("adding function from %llx %s\n",
+                       (unsigned long long) address + offset,
+                       ud_insn_asm(&ud_obj));
+                tree_insert(tree_functions, index);
+            }
+            object_delete(index);
+        }
+        index = index_create(address + offset);
+        if (tree_fetch(tree_disassembled, index) != NULL) {
+            object_delete(index);
+            return;
+        }
+        tree_insert(tree_disassembled, index);
+        object_delete(index);
+
+        // these mnemonics cause us to continue disassembly somewhere else
+        struct ud_operand * operand;
+        switch (ud_obj.mnemonic) {
+        case UD_Ijo   :
+        case UD_Ijno  :
+        case UD_Ijb   :
+        case UD_Ijae  :
+        case UD_Ijz   :
+        case UD_Ijnz  :
+        case UD_Ijbe  :
+        case UD_Ija   :
+        case UD_Ijs   :
+        case UD_Ijns  :
+        case UD_Ijp   :
+        case UD_Ijnp  :
+        case UD_Ijl   :
+        case UD_Ijge  :
+        case UD_Ijle  :
+        case UD_Ijg   :
+        case UD_Ijmp  :
+        case UD_Icall :
+            operand = &(ud_obj.operand[0]);
+
+            if (operand->type == UD_OP_JIMM) {
+                x8664_functions_r(tree_functions,
+                                  tree_disassembled,
+                                  address,
+                                  offset
+                                   + ud_insn_len(&ud_obj)
+                                   + udis86_sign_extend_lval(operand),
+                                  data,
+                                  data_size);
+            }
+            else if (operand->type == UD_OP_MEM) {
+                printf("%s operand->type: UD_OP_MEM, %d, %d, %d, %d\n",
+                        ud_insn_asm(&ud_obj),
+                        ud_obj.operand[0].scale,
+                        ud_obj.operand[0].index,
+                        ud_obj.operand[0].offset,
+                        ud_obj.operand[0].size);
+            }
+            break;
+        default :
+            break;
+        }
+
+        // these mnemonics cause disassembly to stop
+        switch (ud_obj.mnemonic) {
+        case UD_Iret :
+        case UD_Ihlt :
+        case UD_Ijmp :
+            continue_disassembling = 0;
+            break;
+        default :
+            break;
+        }
+
+        offset += bytes_disassembled;
+    }
+}
+
+
+
+struct _tree * x8664_functions (uint64_t address,
+                                size_t offset,
+                                void * data,
+                                size_t data_size)
+{
+
+    struct _tree * tree_functions    = tree_create();
+    struct _tree * tree_disassembled = tree_create();
+
+    x8664_functions_r(tree_functions, tree_disassembled, address, offset, data, data_size);
+
+    object_delete(tree_disassembled);
+
+    return tree_functions;
 }

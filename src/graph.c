@@ -293,7 +293,6 @@ void graph_reduce (struct _graph * graph)
         object_delete(successors);
 
         // remove tail node from graph
-
         tree_delete_node(graph->nodes, tail_node);
 
         // continue processing this node
@@ -525,7 +524,6 @@ void graph_bfs (struct _graph * graph,
         }
         object_delete(index);
 
-        printf("graph_bfs node: %p graph: %p\n", node, graph);
         callback(graph, node);
 
         // add successors to the queue

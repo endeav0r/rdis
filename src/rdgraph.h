@@ -6,6 +6,7 @@
 
 #include "graph.h"
 #include "index.h"
+#include "list.h"
 #include "map.h"
 #include "object.h"
 #include "tree.h"
@@ -29,10 +30,11 @@ enum {
 #define RDG_NODE_FONT_SIZE  14.0
 #define RDG_NODE_PADDING    8.0
 
-#define RDG_NODE_BG_COLOR   1, 1,   1
-#define RDG_NODE_ADDR_COLOR 0,   0.2, 0.5
-#define RDG_NODE_BYTE_COLOR 0.5, 0.2, 0
-#define RDG_NODE_DESC_COLOR 0,   0,   0
+#define RDG_NODE_BG_COLOR    1,   1,   1
+#define RDG_NODE_ADDR_COLOR  0,   0.2, 0.5
+#define RDG_NODE_BYTE_COLOR  0.5, 0.2, 0
+#define RDG_NODE_DESC_COLOR  0,   0,   0
+#define RDG_NODE_LABEL_COLOR 0,   0, 1
 
 #define RDG_EDGE_NORMAL_COLOR    0,   0,   0
 #define RDG_EDGE_JUMP_COLOR      0,   0,   0.5
@@ -99,22 +101,66 @@ struct _rdg_node {
     int flags;
 };
 
+struct _rdg_node_color {
+    const struct _object * object;
+    uint64_t index;
+    double red;
+    double green;
+    double blue;
+};
+
 void rdg_debug (struct _rdg_graph * rdg_graph);
 
-struct _rdg_graph * rdg_graph_create (uint64_t top_index, struct _graph * graph);
+/*
+* rdg_graph functions
+*/
+// top_index = is the index of the top node in this graph
+// graph     = an instruction graph from a loader
+// labels    = a label map which has labels for instruction targets
+struct _rdg_graph * rdg_graph_create (uint64_t top_index,
+                                      struct _graph * graph,
+                                      struct _map * labels);
 void                rdg_graph_delete (struct _rdg_graph * rdg_graph);
 struct _rdg_graph * rdg_graph_copy   (struct _rdg_graph * rdg_graph);
 
-void       rdg_graph_reduce_and_draw (struct _rdg_graph * rdg_graph);
+void                rdg_graph_reduce_and_draw (struct _rdg_graph * rdg_graph);
 
-int rdg_graph_width  (struct _rdg_graph * rdg_graph);
-int rdg_graph_height (struct _rdg_graph * rdg_graph);
+int                 rdg_graph_width  (struct _rdg_graph * rdg_graph);
+int                 rdg_graph_height (struct _rdg_graph * rdg_graph);
 
+// rdg_graph = this graph we want to color
+// ins_graph = a graph, as returned by the loader, which contains the nodes
+//             we want to color
+// labels    = a label map which includes labels for instruction targets
+// node_color_lost = a list of rdg_node_color objects
+void                rdg_color_nodes  (struct _rdg_graph * rdg_graph,
+                                      struct _graph     * ins_graph,
+                                      struct _map       * labels,
+                                      struct _list * node_color_list);
+// redraws the entire graph. call this after rdg_color_nodes
+void                rdg_draw      (struct _rdg_graph * rdg_graph);
+
+
+/*
+* rdg_node_color functions
+*/
+struct _rdg_node_color * rdg_node_color_create (uint64_t index,
+                                                double red,
+                                                double green,
+                                                double blue);
+void                     rdg_node_color_delete (struct _rdg_node_color *);
+struct _rdg_node_color * rdg_node_color_copy   (struct _rdg_node_color *);
+int                      rdg_node_color_cmp    (struct _rdg_node_color *,
+                                                struct _rdg_node_color *);
+/*
+* rdg_node functions
+*/
 struct _rdg_node * rdg_node_create (uint64_t index, cairo_surface_t * surface);
 void               rdg_node_delete (struct _rdg_node * node);
 struct _rdg_node * rdg_node_copy   (struct _rdg_node * node);
 int                rdg_node_cmp    (struct _rdg_node * lhs,
                                     struct _rdg_node * rhs);
+uint64_t rdg_get_node_by_coords (struct _rdg_graph * rdg_graph, int x, int y);
 
 int rdg_node_width    (struct _rdg_node * rdg_node);
 int rdg_node_height   (struct _rdg_node * rdg_node);
@@ -134,7 +180,7 @@ int rdg_node_sink_y (struct _rdg_graph * rdg_graph,
                      struct _rdg_node * src_node,
                      struct _rdg_node * dst_node);
 
-
+// utility functions
 void rdg_node_level_zero      (struct _graph_node * node);
 void rdg_node_assign_level    (struct _graph * graph, struct _graph_node * node);
 void rdg_assign_levels        (struct _graph * graph, uint64_t top_index);
@@ -159,11 +205,15 @@ int  rdg_level_count_edge_crossings  (struct _rdg_graph * rdg_graph, int level);
 int  rdg_count_edge_crossings  (struct _rdg_graph * rdg_graph);
 void rdg_reduce_edge_crossings (struct _rdg_graph * rdg_graph);
 
-void rdg_draw                 (struct _rdg_graph * rdg_graph);
+cairo_surface_t * rdg_draw_node_colors (struct _graph_node * node,
+                                        struct _map * labels,
+                                        double bg_red,
+                                        double bg_green,
+                                        double bg_blue);
+cairo_surface_t * rdg_draw_node (struct _graph_node * node, struct _map * labels);
 
 cairo_surface_t * cairo_surface_copy (cairo_surface_t * src);
 
-cairo_surface_t * rdgraph_draw_graph_node (struct _graph_node * node);
 void              rdgraph_draw_node_test (const char * filename,
                                           struct _graph_node * node);
 #endif

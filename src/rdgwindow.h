@@ -12,6 +12,8 @@
 #define RDGWINDOW_MAX_DEFAULT_WIDTH  880
 #define RDGWINDOW_MAX_DEFAULT_HEIGHT 600
 
+#define RDGWINDOW_NODE_COLOR_SELECT 1.0, 0.9, 0.9
+
 struct _rdgwindow {
     GtkWidget         * window;
     GtkWidget         * scrolledWindow;
@@ -27,6 +29,9 @@ struct _rdgwindow {
 
     double image_drag_x;
     double image_drag_y;
+
+    uint64_t 	   selected_node;
+    struct _list * node_colors;
 };
 
 
@@ -39,7 +44,8 @@ GtkWidget *         rdgwindow_window (struct _rdgwindow * rdgwindow);
 // redraws the rdg_graph
 void rdgwindow_image_update (struct _rdgwindow * rdgwindow);
 // recreates the currently_displayed_graph from gui->graph,
-// then redraws the graph
+// recreates the rdg_graph from the currently_displayed_graph,
+// and redraws the graph
 void rdgwindow_graph_update (struct _rdgwindow * rdgwindow);
 
 gboolean rdgwindow_image_motion_notify_event (GtkWidget * widget,
@@ -48,4 +54,8 @@ gboolean rdgwindow_image_motion_notify_event (GtkWidget * widget,
 gboolean rdgwindow_image_button_press_event  (GtkWidget * widget,
                                               GdkEventButton * event,
                                               struct _rdgwindow * inswindow);
+
+// resets colors in node_colors, then recreates based of selected_node
+void rdgwindow_color_node (struct _rdgwindow * rdgwindow);
+
 #endif

@@ -19,10 +19,8 @@ int main (int argc, char * argv[])
         return -1;
     }
 
-    struct _inswindow  * inswindow  = inswindow_create(gui);
     struct _funcwindow * funcwindow = funcwindow_create(gui);
 
-    gtk_widget_show(inswindow_window(inswindow));
     gtk_widget_show(funcwindow_window(funcwindow));
 
     gtk_main();

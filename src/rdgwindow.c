@@ -20,6 +20,9 @@ struct _rdgwindow * rdgwindow_create (struct _gui * gui, uint64_t top_index)
     rdgwindow->image_drag_x   = 0;
     rdgwindow->image_drag_y   = 0;
 
+    rdgwindow->selected_node  = -1;
+    rdgwindow->node_colors    = NULL;
+
 
     gtk_container_add(GTK_CONTAINER(rdgwindow->imageEventBox),
                       rdgwindow->scrolledWindow);
@@ -70,6 +73,9 @@ void rdgwindow_delete (struct _rdgwindow * rdgwindow)
     if (rdgwindow->currently_displayed_graph != NULL)
         object_delete(rdgwindow->currently_displayed_graph);
 
+    if (rdgwindow->node_colors != NULL)
+        object_delete(rdgwindow->node_colors);
+
     gtk_widget_destroy(rdgwindow->window);
 
     free(rdgwindow);
@@ -84,12 +90,7 @@ GtkWidget * rdgwindow_window (struct _rdgwindow * rdgwindow)
 
 void rdgwindow_image_update (struct _rdgwindow * rdgwindow)
 {
-    if (rdgwindow->rdg_graph != NULL)
-        object_delete(rdgwindow->rdg_graph);
-
-    rdgwindow->rdg_graph = rdg_graph_create(rdgwindow->top_index,
-                                            rdgwindow->currently_displayed_graph);
-
+    rdg_draw(rdgwindow->rdg_graph);
     GdkPixbuf * pixbuf;
     pixbuf = gdk_pixbuf_get_from_surface(rdgwindow->rdg_graph->surface,
                                          0,
@@ -108,6 +109,13 @@ void rdgwindow_graph_update (struct _rdgwindow * rdgwindow)
         object_delete(rdgwindow->currently_displayed_graph);
     rdgwindow->currently_displayed_graph = graph_family(rdgwindow->gui->graph,
                                                         rdgwindow->top_index);
+
+    if (rdgwindow->rdg_graph != NULL)
+        object_delete(rdgwindow->rdg_graph);
+
+    rdgwindow->rdg_graph = rdg_graph_create(rdgwindow->top_index,
+                                            rdgwindow->currently_displayed_graph,
+                                            rdgwindow->gui->labels);
 
     rdgwindow_image_update(rdgwindow);
 }
@@ -153,7 +161,56 @@ gboolean rdgwindow_image_button_press_event  (GtkWidget * widget,
 
     rdgwindow->image_drag_x = x;
     rdgwindow->image_drag_y = y;
+
+    GtkAdjustment * hadjust = gtk_scrolled_window_get_hadjustment(
+                          GTK_SCROLLED_WINDOW(rdgwindow->scrolledWindow));
+    GtkAdjustment * vadjust = gtk_scrolled_window_get_vadjustment(
+                          GTK_SCROLLED_WINDOW(rdgwindow->scrolledWindow));
+
+    // these are the x,y coords inside the image
+    int image_x = x + (int) gtk_adjustment_get_value(hadjust);
+    int image_y = y + (int) gtk_adjustment_get_value(vadjust);
+
+    rdgwindow->selected_node = rdg_get_node_by_coords(rdgwindow->rdg_graph,
+                                                      image_x, image_y);
+
+    printf("image_x: %d, image_y: %d\n", image_x, image_y);
+
+    printf("selected node: %llx\n", (unsigned long long) rdgwindow->selected_node);
+    rdgwindow_color_node(rdgwindow);
+
     return 0;
+}
+
+
+void rdgwindow_color_node (struct _rdgwindow * rdgwindow)
+{
+    struct _list * node_colors = list_create();
+
+    if (rdgwindow->node_colors != NULL) {
+        struct _list_it * it;
+        for (it = list_iterator(rdgwindow->node_colors); it != NULL; it = it->next) {
+            struct _rdg_node_color * rdg_node_color = it->data;
+
+            struct _rdg_node_color * new;
+            new = rdg_node_color_create(rdg_node_color->index, RDG_NODE_BG_COLOR);
+            list_append(node_colors, new);
+            object_delete(new);
+        }
+        object_delete(rdgwindow->node_colors);
+    }
+
+    struct _rdg_node_color * rdg_node_color;
+    rdg_node_color = rdg_node_color_create(rdgwindow->selected_node,
+                                                  RDGWINDOW_NODE_COLOR_SELECT);
+    list_append(node_colors, rdg_node_color);
+
+    rdgwindow->node_colors = node_colors;
+    rdg_color_nodes(rdgwindow->rdg_graph,
+                    rdgwindow->currently_displayed_graph,
+                    rdgwindow->gui->labels,
+                    node_colors);
+    rdgwindow_image_update(rdgwindow);
 }
 
 

@@ -4,39 +4,15 @@
 #include <inttypes.h>
 #include <stdlib.h>
 
-#include "object.h"
+#include "graph.h"
 #include "tree.h"
 
-struct _function {
-	const struct _object * object;
-	uint64_t address;
-	char *   name;
-};
 
-struct _memory_segment {
-    uint64_t address;
-    uint64_t size;
-};
-
-
-struct _byte_table_t {
-    uint64_t address;
-    uint8_t  byte;
-};
-
-
-struct _byte_table {
-    size_t size;
-    struct _byte_table_t * table;
-};
-
-struct _function * function_create (uint64_t address, char * name);
-void			   function_delete (struct _function * function);
-struct _function * function_copy   (struct _function * function);
-int 			   function_cmp	   (struct _function * lhs,
-									struct _function * rhs);
-
-struct _byte_table * byte_table_create  ();
-void                 byte_table_destroy (struct _byte_table * byte_table);
+/*
+* For each function in functions, gets the corresponding graph node and removes
+* predecessors to that node from the graph.
+* This fixes issues with compiler optimizations jumping directly to functions
+*/
+void remove_function_predecessors (struct _graph * graph, struct _tree * functions);
 
 #endif

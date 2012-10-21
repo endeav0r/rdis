@@ -19,6 +19,13 @@ struct _graph * x8664_graph (uint64_t address,
                              void * data,
                              size_t data_size);
 
-uint64_t udis86_sign_extend_lval (struct ud_operand * operand);
+struct _tree * x8664_functions (uint64_t address,
+                                size_t offset,
+                                void * data,
+                                size_t data_size);
 
+uint64_t udis86_target 			 (uint64_t address, struct ud_operand * operand);
+uint64_t udis86_sign_extend_lval (struct ud_operand * operand);
+uint64_t udis86_rip_offset 		 (uint64_t address,
+								  struct ud_operand * operand);
 #endif

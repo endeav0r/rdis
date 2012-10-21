@@ -29,6 +29,7 @@ struct _ins * ins_create  (uint64_t address,
     ins->object = &ins_object;
 
     ins->address = address;
+    ins->target  = -1;
 
     ins->bytes = malloc(size);
     memcpy(ins->bytes, bytes, size);

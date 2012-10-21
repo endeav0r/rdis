@@ -20,4 +20,10 @@ struct _graph * x86_graph (uint64_t address,
                            void * data,
                            size_t data_size);
 
+
+struct _tree * x86_functions (uint64_t address,
+                              size_t offset,
+                              void * data,
+                              size_t data_size);
+
 #endif

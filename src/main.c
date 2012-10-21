@@ -46,13 +46,17 @@ int main (int argc, char * argv[])
     printf("entry: %llx\n", (unsigned long long) loader_entry(loader));
 
     struct _graph * graph = loader_graph(loader);
+
+    if (graph_fetch_node(graph, 0x8049110))
+        printf("4 still have %llx\n", (unsigned long long) 0x8049110);
+
     graph_reduce(graph);
 
-    struct _graph * family = graph_family(graph, 0x403160);
+    if (graph_fetch_node(graph, 0x8049110))
+        printf("5 still have %llx\n", (unsigned long long) 0x8049110);
 
-    graph_debug(family);
+    graph_debug(graph);
 
-    object_delete(family);
     object_delete(graph);
 
     object_delete(loader);

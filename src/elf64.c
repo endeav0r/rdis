@@ -2,6 +2,7 @@
 
 #include "index.h"
 #include "label.h"
+#include "queue.h"
 #include "util.h"
 #include "x8664.h"
 
@@ -49,7 +50,8 @@ struct _elf64 * elf64_create (const char * filename)
     fclose(fh);
 
     // make sure this is a 64-bit ELF
-    if (    (elf64->ehdr->e_ident[EI_MAG0] != ELFMAG0)
+    if (    (elf64->data_size < 0x200)
+         || (elf64->ehdr->e_ident[EI_MAG0] != ELFMAG0)
          || (elf64->ehdr->e_ident[EI_MAG1] != ELFMAG1)
          || (elf64->ehdr->e_ident[EI_MAG2] != ELFMAG2)
          || (elf64->ehdr->e_ident[EI_MAG3] != ELFMAG3)
@@ -142,6 +144,9 @@ const char * elf64_sym_name_by_address (struct _elf64 * elf64, uint64_t address)
             Elf64_Sym * sym = elf64_section_element(elf64, shdr_i, sym_i);
             if (sym->st_value != address)
                 continue;
+            // no section symbols
+            if (ELF64_ST_TYPE(sym->st_info) == STT_SECTION)
+                continue;
             // found matching symbol
             return elf64_strtab_str(elf64, shdr->sh_link, sym->st_name);
         }
@@ -193,42 +198,6 @@ uint64_t elf64_vaddr_to_offset (struct _elf64 * elf64, uint64_t address)
 
 
 
-struct _graph * elf64_dis_symtab (struct _elf64 * elf64, int section)
-{
-    Elf64_Shdr * shdr = elf64_shdr(elf64, section);
-    int sym_i;
-
-    struct _graph * graph;
-    struct _graph * sym_graph;
-
-    graph = graph_create();
-
-    for (sym_i = 0; sym_i < shdr->sh_size / shdr->sh_entsize; sym_i++) {
-        Elf64_Sym * sym = elf64_section_element(elf64, section, sym_i);
-        if (ELF64_ST_TYPE(sym->st_info) == STT_FUNC) {
-            if (sym->st_value == 0)
-                continue;
-            uint64_t offset = elf64_vaddr_to_offset(elf64, sym->st_value);
-            if (offset == -1)
-                continue;
-            /*
-            if (strcmp("tree_node_insert", elf64_strtab_str(elf64, shdr->sh_link, sym->st_name)))
-                continue;
-            */
-            sym_graph = x8664_graph(elf64_base_address(elf64),
-                                    sym->st_value - elf64_base_address(elf64),
-                                    elf64->data,
-                                    elf64->data_size);
-            graph_merge(graph, sym_graph);
-            graph_delete(sym_graph);
-        }
-    }
-
-    return graph;
-}
-
-
-
 struct _graph * elf64_graph (struct _elf64 * elf64)
 {
     struct _graph * graph;
@@ -239,42 +208,29 @@ struct _graph * elf64_graph (struct _elf64 * elf64)
                         elf64->data,
                         elf64->data_size);
 
-    // check for __libc_start_main loader
-    struct _list * ins_list;
-    ins_list = graph_fetch_data(graph, elf64_entry(elf64) + 0x1d);
-    if (ins_list != NULL) {
-        struct _ins * ins = list_first(ins_list);
-        if (ins != NULL) {
-            ud_t ud_obj;
-            ud_init      (&ud_obj);
-            ud_set_mode  (&ud_obj, 64);
-            ud_set_input_buffer(&ud_obj, ins->bytes, ins->size);
-            ud_disassemble(&ud_obj);
-            if (    (ud_obj.mnemonic == UD_Imov)
-                 && (ud_obj.operand[0].base == UD_R_RDI)) {
-                struct _graph * main_graph;
-                main_graph = x8664_graph(elf64_base_address(elf64),
-                                         udis86_sign_extend_lval(&(ud_obj.operand[1]))
-                                          - elf64_base_address(elf64),
-                                         elf64->data,
-                                         elf64->data_size);
-                graph_merge(graph, main_graph);
-                graph_delete(main_graph);
-            }
-        }
+    // disassemble all functions from elf64_function_tree
+    struct _tree * function_tree = elf64_function_tree(elf64);
+    struct _tree_it * tit;
+
+    for (tit = tree_iterator(function_tree);
+         tit != NULL;
+         tit  = tree_it_next(tit)) {
+        struct _index * index = tree_it_data(tit);
+        printf("elf64 graphing %llx\n", (unsigned long long) index->index);
+        struct _graph * func_graph = x8664_graph(elf64_base_address(elf64),
+                                      index->index - elf64_base_address(elf64),
+                                                 elf64->data,
+                                                 elf64->data_size);
+        graph_merge(graph, func_graph);
+        object_delete(func_graph);
     }
 
-    // find symtab sections
-    int si;
-    for (si = 0; si < elf64->ehdr->e_shnum; si++) {
-        Elf64_Shdr * shdr = elf64_shdr(elf64, si);
-        if (shdr->sh_type == SHT_SYMTAB) {
-            struct _graph * sym_graph = elf64_dis_symtab(elf64, si);
-            graph_merge(graph, sym_graph);
-            graph_delete(sym_graph);
-        }
-    }
+    remove_function_predecessors(graph, function_tree);
+    object_delete(function_tree);
 
+
+    // remove edges into the PLT
+    /*
     Elf64_Shdr * plt_shdr = elf64_shdr_by_name(elf64, ".plt");
     if (plt_shdr == NULL)
         return graph;
@@ -282,20 +238,28 @@ struct _graph * elf64_graph (struct _elf64 * elf64)
     uint64_t plt_bottom = plt_shdr->sh_addr;
     uint64_t plt_top = plt_bottom + plt_shdr->sh_size;
 
-    // remove edges into the PLT
-    struct _graph_it * it;
-    for (it = graph_iterator(graph); it != NULL; it = graph_it_next(it)) {
-        struct _graph_node * node = graph_it_node(it);
+    struct _queue * queue = queue_create();
+
+    struct _graph_it * git;
+    for (git = graph_iterator(graph); git != NULL; git = graph_it_next(git)) {
+        struct _graph_node * node = graph_it_node(git);
         struct _list_it * eit;
         for (eit = list_iterator(node->edges); eit != NULL; eit = eit->next) {
             struct _graph_edge * edge = eit->data;
             if ((edge->tail < plt_top) && (edge->tail >= plt_bottom)) {
-                eit = list_remove(node->edges, eit);
-                if (eit == NULL)
-                    break;
+                queue_push(queue, edge);
             }
         }
     }
+
+    while (queue->size > 0) {
+        struct _graph_edge * edge = queue_peek(queue);
+        graph_remove_edge(graph, edge->head, edge->tail);
+        queue_pop(queue);
+    }
+
+    object_delete(queue);
+    */
 
     return graph;
 }
@@ -334,6 +298,44 @@ struct _tree * elf64_function_tree (struct _elf64 * elf64)
         }
     }
 
+    // check for __libc_start_main loader
+    uint64_t target_offset = elf64_entry(elf64) - elf64_base_address(elf64) + 0x1d;
+    if (target_offset + 0x10 > elf64->data_size)
+        return tree;
+
+    uint8_t * data = &(elf64->data[target_offset]);
+    size_t    size = elf64->data_size - target_offset;
+
+    ud_t ud_obj;
+    ud_init      (&ud_obj);
+    ud_set_mode  (&ud_obj, 64);
+    ud_set_syntax(&ud_obj, UD_SYN_INTEL);
+    ud_set_input_buffer(&ud_obj, data, size);
+    ud_disassemble(&ud_obj);
+    if (    (ud_obj.mnemonic == UD_Imov)
+         && (ud_obj.operand[0].base == UD_R_RDI)) {
+        printf("found __libc_start_main loader\n");
+        struct _tree * recursive_function_tree;
+        recursive_function_tree = x8664_functions(elf64_base_address(elf64),
+                                  udis86_sign_extend_lval(&(ud_obj.operand[1]))
+                                   - elf64_base_address(elf64),
+                                                  elf64->data,
+                                                  elf64->data_size);
+        struct _tree_it * it;
+        for (it = tree_iterator(recursive_function_tree);
+             it != NULL;
+             it = tree_it_next(it)) {
+            struct _index * index = tree_it_data(it);
+            if (tree_fetch(tree, index) == NULL)
+                tree_insert(tree, index);
+        }
+        object_delete(recursive_function_tree);
+    }
+    else
+        printf("disassembled: %s\n disassembled at %llx\n",
+               ud_insn_asm(&ud_obj),
+               (unsigned long long) target_offset);
+
     return tree;
 }
 
@@ -346,12 +348,88 @@ struct _map * elf64_labels (struct _elf64 * elf64)
 
     struct _map * labels_map = map_create();
 
+    // set labels for relocations
+    int shdr_i;
+    for (shdr_i = 0; shdr_i < elf64->ehdr->e_shnum; shdr_i++) {
+        Elf64_Shdr * shdr = elf64_shdr(elf64, shdr_i);
+        if (shdr->sh_type != SHT_RELA)
+            continue;
+        Elf64_Shdr * shdr_sym = elf64_shdr(elf64, shdr->sh_link);
+        int rela_i;
+        for (rela_i = 0; rela_i < shdr->sh_size / shdr->sh_entsize; rela_i++) {
+            Elf64_Rela * rela = elf64_section_element(elf64, shdr_i, rela_i);
+            if (ELF64_R_SYM(rela->r_info) == STN_UNDEF)
+                continue;
+
+            if (map_fetch(labels_map, rela->r_offset) != NULL)
+                continue;
+
+            Elf64_Sym * sym = elf64_section_element(elf64,
+                                                    shdr->sh_link,
+                                                    ELF64_R_SYM(rela->r_info));
+
+            struct _label * label;
+            // rela->r_offset needs to be fixed for relocatable objects
+            const char * name = elf64_strtab_str(elf64,
+                                                 shdr_sym->sh_link,
+                                                 sym->st_name);
+            label = label_create(rela->r_offset, name, LABEL_NONE);
+            map_insert(labels_map, rela->r_offset, label);
+            object_delete(label);
+        }
+    }
+
+    Elf64_Shdr * plt_shdr = elf64_shdr_by_name(elf64, ".plt");
+    uint64_t plt_bottom;
+    uint64_t plt_top;
+
+    if (plt_shdr == NULL) {
+        plt_bottom = -1;
+        plt_top = -1;
+    }
+    else {
+        plt_bottom = plt_shdr->sh_addr;
+        plt_top    = plt_bottom + plt_shdr->sh_size;
+    }
+    
+    
     // look through all functions in function tree and add a label for each
     struct _tree_it * it;
     for (it = tree_iterator(function_tree); it != NULL; it = tree_it_next(it)) {
         struct _index * index = tree_it_data(it);
+
+        // plt functions are a special case, as we try to identify their targets
+        // in the got
+        if (    (index->index >= plt_bottom)
+             && (index->index <  plt_top)) {
+            uint8_t * data      = &(elf64->data[index->index 
+                                  - elf64_base_address(elf64)]);
+            ud_t ud_obj;
+            ud_init(&ud_obj);
+            ud_set_mode  (&ud_obj, 64);
+            ud_set_input_buffer(&ud_obj, data, 0x10);
+            ud_disassemble(&ud_obj);
+
+            if (    (ud_obj.mnemonic == UD_Ijmp)
+                 && (udis86_rip_offset(index->index, &(ud_obj.operand[0])) != -1)) {
+                uint64_t target = udis86_rip_offset(index->index,
+                                                    &(ud_obj.operand[0]));
+                target += ud_insn_len(&ud_obj);
+                struct _label * label = map_fetch(labels_map, target);
+                if (label != NULL) {
+                    char plttmp[256];
+                    snprintf(plttmp, 256, "%s@plt", label->text);
+                    label = label_create(index->index, plttmp, LABEL_FUNCTION);
+                    map_insert(labels_map, index->index, label);
+                    object_delete(label);
+                    continue;
+                }
+
+            }
+        }
+
         const char * name = elf64_sym_name_by_address(elf64, index->index);
-        if (name == NULL) {
+        if ((name == NULL) || (strcmp(name, "") == 0)) {
             char tmp[128];
             snprintf(tmp, 128, "fun_%llx", (unsigned long long) index->index);
             name = tmp;
@@ -364,83 +442,4 @@ struct _map * elf64_labels (struct _elf64 * elf64)
 
     object_delete(function_tree);
     return labels_map;
-}
-
-
-
-int elf64_memory (struct _elf64 * elf64, uint64_t address)
-{
-    uint64_t offset = elf64_vaddr_to_offset(elf64, address);
-    if (offset == -1)
-        return -1;
-    if (offset > elf64->data_size)
-        return -1;
-
-    return elf64->data[offset];
-}
-
-
-
-struct _memory_segment * elf64_memory_segments_contains (struct _list * list,
-                                                  Elf64_Phdr * phdr)
-{
-    struct _list_it * it;
-    struct _memory_segment * mem_seg;
-
-    for (it = list_iterator(list); it != NULL; it = it->next) {
-        mem_seg = (struct _memory_segment *) it->data;
-        if (    (mem_seg->address <= phdr->p_vaddr)
-             && (mem_seg->address + mem_seg->size >= phdr->p_vaddr))
-            return it->data;
-        else if (    (phdr->p_vaddr <= mem_seg->address)
-                  && (phdr->p_vaddr + phdr->p_memsz >= mem_seg->address))
-            return it->data;
-    }
-    return NULL;
-}
-
-
-
-struct _list * elf64_memory_segments (struct _elf64 * elf64)
-{
-    struct _list * list = list_create();
-    Elf64_Phdr   * phdr;
-    int            phdr_i;
-    struct _memory_segment * mem_seg_ptr;
-    struct _memory_segment mem_seg;
-
-    for (phdr_i = 0; phdr_i < elf64->ehdr->e_phnum; phdr_i++) {
-        phdr = elf64_phdr(elf64, phdr_i);
-        if (phdr->p_memsz == 0)
-            continue;
-        // if this phdr falls within the bounds of an existing memory segment
-        mem_seg_ptr = elf64_memory_segments_contains(list, phdr);
-        if (mem_seg_ptr != NULL) {
-            // create a new mem_seg with correct address and size
-            if (phdr->p_vaddr < mem_seg_ptr->address)
-                mem_seg.address = phdr->p_vaddr;
-            else
-                mem_seg.address = mem_seg_ptr->address;
-
-            if (mem_seg_ptr->address + mem_seg_ptr->size
-                > phdr->p_vaddr + phdr->p_memsz)
-                mem_seg.size = mem_seg_ptr->address 
-                               + mem_seg_ptr->size
-                               - mem_seg.address;
-            else
-                mem_seg.size = phdr->p_vaddr
-                               + phdr->p_memsz
-                               - mem_seg.address;
-            // copy over correct values
-            mem_seg_ptr->address = mem_seg.address;
-            mem_seg_ptr->size    = mem_seg.size;
-        }
-        else {
-            mem_seg.address = phdr->p_vaddr;
-            mem_seg.size    = phdr->p_memsz;
-            //list_append(list, &mem_seg, sizeof(struct _memory_segment));
-        }
-    }
-
-    return list;
 }

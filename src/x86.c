@@ -1,4 +1,6 @@
-#include "x8664.h"
+#include "x86.h"
+
+#include "index.h"
 
 struct _ins * x86_ins (uint64_t address, ud_t * ud_obj)
 {
@@ -264,4 +266,131 @@ struct _graph * x86_graph (uint64_t address,
     x86_graph_1(graph, address, offset, data, data_size);
 
     return graph;
+}
+
+
+
+void x86_functions_r (struct _tree *  tree_functions,
+                        struct _tree *  tree_disassembled,
+                        uint64_t        address,
+                        size_t          offset,
+                        uint8_t *       data,
+                        size_t          data_size)
+{
+    ud_t            ud_obj;
+    int             continue_disassembling = 1;
+
+    if (offset > data_size)
+        return;
+
+    ud_init      (&ud_obj);
+    ud_set_mode  (&ud_obj, 32);
+    ud_set_syntax(&ud_obj, UD_SYN_INTEL);
+    ud_set_input_buffer(&ud_obj, (uint8_t *) &(data[offset]), data_size - offset);
+
+    while (continue_disassembling == 1) {
+        size_t bytes_disassembled = ud_disassemble(&ud_obj);
+        if (bytes_disassembled == 0) {
+            break;
+        }
+
+        struct _index * index;
+        if (    (ud_obj.mnemonic == UD_Icall)
+             && (ud_obj.operand[0].type == UD_OP_JIMM)) {
+
+            index = index_create(address + offset + ud_insn_len(&ud_obj)
+                                 + udis86_sign_extend_lval(&(ud_obj.operand[0])));
+            if (tree_fetch(tree_functions, index) == NULL) {
+                printf("adding function from %llx %s\n",
+                       (unsigned long long) address + offset,
+                       ud_insn_asm(&ud_obj));
+                tree_insert(tree_functions, index);
+            }
+            object_delete(index);
+        }
+        index = index_create(address + offset);
+        if (tree_fetch(tree_disassembled, index) != NULL) {
+            object_delete(index);
+            return;
+        }
+        tree_insert(tree_disassembled, index);
+        object_delete(index);
+
+        // these mnemonics cause us to continue disassembly somewhere else
+        struct ud_operand * operand;
+        switch (ud_obj.mnemonic) {
+        case UD_Ijo   :
+        case UD_Ijno  :
+        case UD_Ijb   :
+        case UD_Ijae  :
+        case UD_Ijz   :
+        case UD_Ijnz  :
+        case UD_Ijbe  :
+        case UD_Ija   :
+        case UD_Ijs   :
+        case UD_Ijns  :
+        case UD_Ijp   :
+        case UD_Ijnp  :
+        case UD_Ijl   :
+        case UD_Ijge  :
+        case UD_Ijle  :
+        case UD_Ijg   :
+        case UD_Ijmp  :
+        case UD_Icall :
+            operand = &(ud_obj.operand[0]);
+
+            if (operand->type == UD_OP_JIMM) {
+                x86_functions_r(tree_functions,
+                                tree_disassembled,
+                                address,
+                                offset
+                                 + ud_insn_len(&ud_obj)
+                                 + udis86_sign_extend_lval(operand),
+                                data,
+                                data_size);
+            }
+            else if (operand->type == UD_OP_MEM) {
+                printf("%s operand->type: UD_OP_MEM, %d, %d, %d, %d\n",
+                        ud_insn_asm(&ud_obj),
+                        ud_obj.operand[0].scale,
+                        ud_obj.operand[0].index,
+                        ud_obj.operand[0].offset,
+                        ud_obj.operand[0].size);
+            }
+            break;
+        default :
+            break;
+        }
+
+        // these mnemonics cause disassembly to stop
+        switch (ud_obj.mnemonic) {
+        case UD_Iret :
+        case UD_Ihlt :
+        case UD_Ijmp :
+            continue_disassembling = 0;
+            break;
+        default :
+            break;
+        }
+
+        offset += bytes_disassembled;
+    }
+}
+
+
+
+struct _tree * x86_functions (uint64_t address,
+                              size_t offset,
+                              void * data,
+                              size_t data_size)
+{
+
+    struct _tree * tree_functions    = tree_create();
+    struct _tree * tree_disassembled = tree_create();
+
+    x86_functions_r(tree_functions, tree_disassembled, address, offset, data, data_size);
+
+    object_delete(tree_disassembled);
+
+    return tree_functions;
 }

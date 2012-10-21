@@ -5,6 +5,5 @@
 
 #include "util.h"
 
-GtkWidget * hexwindow (struct _byte_table * byte_table);
 
 #endif

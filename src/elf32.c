@@ -2,6 +2,8 @@
 
 #include "index.h"
 #include "label.h"
+#include "queue.h"
+#include "tree.h"
 #include "util.h"
 #include "x86.h"
 
@@ -49,7 +51,8 @@ struct _elf32 * elf32_create (const char * filename)
     fclose(fh);
 
     // make sure this is a 32-bit ELF
-    if (    (elf32->ehdr->e_ident[EI_MAG0]  != ELFMAG0)
+    if (    (elf32->data_size < 0x200)
+         || (elf32->ehdr->e_ident[EI_MAG0]  != ELFMAG0)
          || (elf32->ehdr->e_ident[EI_MAG1]  != ELFMAG1)
          || (elf32->ehdr->e_ident[EI_MAG2]  != ELFMAG2)
          || (elf32->ehdr->e_ident[EI_MAG3]  != ELFMAG3)
@@ -193,39 +196,6 @@ uint64_t elf32_vaddr_to_offset (struct _elf32 * elf32, uint64_t address)
 
 
 
-struct _graph * elf32_dis_symtab (struct _elf32 * elf32, int section)
-{
-    Elf32_Shdr * shdr = elf32_shdr(elf32, section);
-    int sym_i;
-
-    struct _graph * graph;
-    struct _graph * sym_graph;
-
-    graph = graph_create();
-
-    for (sym_i = 0; sym_i < shdr->sh_size / shdr->sh_entsize; sym_i++) {
-        Elf32_Sym * sym = elf32_section_element(elf32, section, sym_i);
-        if (ELF32_ST_TYPE(sym->st_info) == STT_FUNC) {
-            if (sym->st_value == 0)
-                continue;
-            uint64_t offset = elf32_vaddr_to_offset(elf32, sym->st_value);
-            if (offset == -1)
-                continue;
-
-            sym_graph = x86_graph(elf32_base_address(elf32),
-                                  sym->st_value - elf32_base_address(elf32),
-                                  elf32->data,
-                                  elf32->data_size);
-            graph_merge(graph, sym_graph);
-            graph_delete(sym_graph);
-        }
-    }
-
-    return graph;
-}
-
-
-
 struct _graph * elf32_graph (struct _elf32 * elf32)
 {
     struct _graph * graph;
@@ -236,44 +206,27 @@ struct _graph * elf32_graph (struct _elf32 * elf32)
                       elf32->data,
                       elf32->data_size);
 
-    /*
-    // check for __libc_start_main loader
-    struct _list * ins_list;
-    ins_list = graph_fetch_data(graph, elf32_entry(elf32) + 0x1d);
-    if (ins_list != NULL) {
-        struct _ins * ins = list_first(ins_list);
-        if (ins != NULL) {
-            ud_t ud_obj;
-            ud_init      (&ud_obj);
-            ud_set_mode  (&ud_obj, 64);
-            ud_set_input_buffer(&ud_obj, ins->bytes, ins->size);
-            ud_disassemble(&ud_obj);
-            if (    (ud_obj.mnemonic == UD_Imov)
-                 && (ud_obj.operand[0].base == UD_R_RDI)) {
-                struct _graph * main_graph;
-                main_graph = x8664_graph(elf32_base_address(elf32),
-                                         udis86_sign_extend_lval(&(ud_obj.operand[1]))
-                                          - elf32_base_address(elf32),
-                                         elf32->data,
-                                         elf32->data_size);
-                graph_merge(graph, main_graph);
-                graph_delete(main_graph);
-            }
-        }
-    }
-    */
+    // disassemble all functions from elf64_function_tree
+    struct _tree * function_tree = elf32_function_tree(elf32);
+    struct _tree_it * tit;
 
-    // find symtab sections
-    int si;
-    for (si = 0; si < elf32->ehdr->e_shnum; si++) {
-        Elf32_Shdr * shdr = elf32_shdr(elf32, si);
-        if (shdr->sh_type == SHT_SYMTAB) {
-            struct _graph * sym_graph = elf32_dis_symtab(elf32, si);
-            graph_merge(graph, sym_graph);
-            graph_delete(sym_graph);
-        }
+    for (tit = tree_iterator(function_tree);
+         tit != NULL;
+         tit  = tree_it_next(tit)) {
+        struct _index * index = tree_it_data(tit);
+        printf("elf64 graphing %llx\n", (unsigned long long) index->index);
+        struct _graph * func_graph = x86_graph(elf32_base_address(elf32),
+                                      index->index - elf32_base_address(elf32),
+                                                 elf32->data,
+                                                 elf32->data_size);
+        graph_merge(graph, func_graph);
+        object_delete(func_graph);
     }
 
+    //remove_function_predecessors(graph, function_tree);
+    object_delete(function_tree);
+
+    // remove edges into the PLT
     Elf32_Shdr * plt_shdr = elf32_shdr_by_name(elf32, ".plt");
     if (plt_shdr == NULL)
         return graph;
@@ -281,20 +234,27 @@ struct _graph * elf32_graph (struct _elf32 * elf32)
     uint64_t plt_bottom = plt_shdr->sh_addr;
     uint64_t plt_top = plt_bottom + plt_shdr->sh_size;
 
-    // remove edges into the PLT
-    struct _graph_it * it;
-    for (it = graph_iterator(graph); it != NULL; it = graph_it_next(it)) {
-        struct _graph_node * node = graph_it_node(it);
+    struct _queue * queue = queue_create();
+
+    struct _graph_it * git;
+    for (git = graph_iterator(graph); git != NULL; git = graph_it_next(git)) {
+        struct _graph_node * node = graph_it_node(git);
         struct _list_it * eit;
         for (eit = list_iterator(node->edges); eit != NULL; eit = eit->next) {
             struct _graph_edge * edge = eit->data;
             if ((edge->tail < plt_top) && (edge->tail >= plt_bottom)) {
-                eit = list_remove(node->edges, eit);
-                if (eit == NULL)
-                    break;
+                queue_push(queue, edge);
             }
         }
     }
+
+    while (queue->size > 0) {
+        struct _graph_edge * edge = queue_peek(queue);
+        graph_remove_edge(graph, edge->head, edge->tail);
+        queue_pop(queue);
+    }
+
+    object_delete(queue);
 
     return graph;
 }
@@ -304,7 +264,6 @@ struct _graph * elf32_graph (struct _elf32 * elf32)
 struct _tree * elf32_function_tree (struct _elf32 * elf32)
 {
     struct _tree     * tree = tree_create();
-    struct _function * function;
 
     int sec_i;
     // symbols are easy
@@ -325,13 +284,51 @@ struct _tree * elf32_function_tree (struct _elf32 * elf32)
             char * name = elf32_strtab_str(elf32, shdr->sh_link, sym->st_name);
             printf("found function %s at %llx\n",
                    name, (unsigned long long) sym->st_value);
-            function = function_create(sym->st_value, name);
-            if (tree_fetch(tree, function) == NULL)
-                tree_insert(tree, function);
+
+            struct _index * index = index_create(sym->st_value);
+            if (tree_fetch(tree, index) == NULL)
+                tree_insert(tree, index);
                 
-            object_delete(function);
+            object_delete(index);
         }
     }
+
+    // check for __libc_start_main loader
+    uint64_t target_offset = elf32_entry(elf32) - elf32_base_address(elf32) + 0x17;
+    if (target_offset + 0x10 > elf32->data_size)
+        return tree;
+
+    uint8_t * data = &(elf32->data[target_offset]);
+    size_t    size = elf32->data_size - target_offset;
+
+    ud_t ud_obj;
+    ud_init      (&ud_obj);
+    ud_set_mode  (&ud_obj, 32);
+    ud_set_syntax(&ud_obj, UD_SYN_INTEL);
+    ud_set_input_buffer(&ud_obj, data, size);
+    ud_disassemble(&ud_obj);
+    if (ud_obj.mnemonic == UD_Ipush) {
+        printf("found __libc_start_main loader\n");
+        struct _tree * recursive_function_tree;
+        recursive_function_tree = x86_functions(elf32_base_address(elf32),
+                                  udis86_sign_extend_lval(&(ud_obj.operand[0]))
+                                   - elf32_base_address(elf32),
+                                                  elf32->data,
+                                                  elf32->data_size);
+        struct _tree_it * it;
+        for (it = tree_iterator(recursive_function_tree);
+             it != NULL;
+             it = tree_it_next(it)) {
+            struct _index * index = tree_it_data(it);
+            if (tree_fetch(tree, index) == NULL)
+                tree_insert(tree, index);
+        }
+        object_delete(recursive_function_tree);
+    }
+    else
+        printf("disassembled: %s\n disassembled at %llx\n",
+               ud_insn_asm(&ud_obj),
+               (unsigned long long) target_offset);
 
     return tree;
 }
@@ -343,12 +340,100 @@ struct _map * elf32_labels (struct _elf32 * elf32)
     // start by getting an address of all the functions
     struct _tree * function_tree = elf32_function_tree(elf32);
 
-    struct _map  * labels_map = map_create();
+    struct _map * labels_map = map_create();
 
+    // set labels for relocations
+    int shdr_i;
+    for (shdr_i = 0; shdr_i < elf32->ehdr->e_shnum; shdr_i++) {
+        Elf32_Shdr * shdr = elf32_shdr(elf32, shdr_i);
+        if (shdr->sh_type != SHT_REL)
+            continue;
+        Elf32_Shdr * shdr_sym = elf32_shdr(elf32, shdr->sh_link);
+        int rel_i;
+        for (rel_i = 0; rel_i < shdr->sh_size / shdr->sh_entsize; rel_i++) {
+            Elf32_Rel * rel = elf32_section_element(elf32, shdr_i, rel_i);
+            if (ELF32_R_SYM(rel->r_info) == STN_UNDEF)
+                continue;
+
+            if (map_fetch(labels_map, rel->r_offset) != NULL)
+                continue;
+
+            Elf32_Sym * sym = elf32_section_element(elf32,
+                                                    shdr->sh_link,
+                                                    ELF32_R_SYM(rel->r_info));
+
+            struct _label * label;
+            // rela->r_offset needs to be fixed for relocatable objects
+            const char * name = elf32_strtab_str(elf32,
+                                                 shdr_sym->sh_link,
+                                                 sym->st_name);
+            label = label_create(rel->r_offset, name, LABEL_NONE);
+            map_insert(labels_map, rel->r_offset, label);
+            object_delete(label);
+        }
+    }
+
+    // remove edges into the PLT
+    Elf32_Shdr * plt_shdr = elf32_shdr_by_name(elf32, ".plt");
+    uint64_t plt_bottom;
+    uint64_t plt_top;
+
+    if (plt_shdr == NULL) {
+        plt_bottom = -1;
+        plt_top = -1;
+    }
+    else {
+        plt_bottom = plt_shdr->sh_addr;
+        plt_top    = plt_bottom + plt_shdr->sh_size;
+    }
+    
+    
     // look through all functions in function tree and add a label for each
     struct _tree_it * it;
     for (it = tree_iterator(function_tree); it != NULL; it = tree_it_next(it)) {
         struct _index * index = tree_it_data(it);
+
+        // plt functions are a special case, as we try to identify their targets
+        // in the got
+        if (    (index->index >= plt_bottom)
+             && (index->index <  plt_top)) {
+            printf("in plt, disassembling at %llx\n",
+                   (unsigned long long) index->index - elf32_base_address(elf32));
+            uint8_t * data      = &(elf32->data[index->index 
+                                  - elf32_base_address(elf32)]);
+            ud_t ud_obj;
+            ud_init(&ud_obj);
+            ud_set_mode  (&ud_obj, 32);
+            ud_set_syntax(&ud_obj, UD_SYN_INTEL);
+            ud_set_input_buffer(&ud_obj, data, 0x20);
+            ud_disassemble(&ud_obj);
+            printf("plt ins: %s\n", ud_insn_asm(&ud_obj));
+            if (    (ud_obj.mnemonic == UD_Ijmp)
+                 && (udis86_sign_extend_lval(&(ud_obj.operand[0])) != -1)) {
+                uint64_t target = udis86_sign_extend_lval(&(ud_obj.operand[0]));
+
+                printf("plt target: %llx\n", (unsigned long long) target);
+
+                struct _label * label = map_fetch(labels_map, target);
+                printf("label: %p\n", label);
+                if (label != NULL) {
+                    char plttmp[256];
+                    snprintf(plttmp, 256, "%s@plt", label->text);
+                    label = label_create(index->index, plttmp, LABEL_FUNCTION);
+                    map_insert(labels_map, index->index, label);
+                    object_delete(label);
+                    continue;
+                }
+            }
+            else {
+                printf("disassembled: %s\n", ud_insn_asm(&ud_obj));
+                if (ud_obj.operand[0].type == UD_OP_MEM)
+                    printf("UD_OP_MEM\n");
+                printf("%llx\n",
+                       (unsigned long long) udis86_sign_extend_lval(&(ud_obj.operand[0])));
+            }
+        }
+
         const char * name = elf32_sym_name_by_address(elf32, index->index);
         if (name == NULL) {
             char tmp[128];
@@ -363,83 +448,4 @@ struct _map * elf32_labels (struct _elf32 * elf32)
 
     object_delete(function_tree);
     return labels_map;
-}
-
-
-
-int elf32_memory (struct _elf32 * elf32, uint64_t address)
-{
-    uint64_t offset = elf32_vaddr_to_offset(elf32, address);
-    if (offset == -1)
-        return -1;
-    if (offset > elf32->data_size)
-        return -1;
-
-    return elf32->data[offset];
-}
-
-
-
-struct _memory_segment * elf32_memory_segments_contains (struct _list * list,
-                                                         Elf32_Phdr * phdr)
-{
-    struct _list_it * it;
-    struct _memory_segment * mem_seg;
-
-    for (it = list_iterator(list); it != NULL; it = it->next) {
-        mem_seg = (struct _memory_segment *) it->data;
-        if (    (mem_seg->address <= phdr->p_vaddr)
-             && (mem_seg->address + mem_seg->size >= phdr->p_vaddr))
-            return it->data;
-        else if (    (phdr->p_vaddr <= mem_seg->address)
-                  && (phdr->p_vaddr + phdr->p_memsz >= mem_seg->address))
-            return it->data;
-    }
-    return NULL;
-}
-
-
-
-struct _list * elf32_memory_segments (struct _elf32 * elf32)
-{
-    struct _list * list = list_create();
-    Elf32_Phdr   * phdr;
-    int            phdr_i;
-    struct _memory_segment * mem_seg_ptr;
-    struct _memory_segment mem_seg;
-
-    for (phdr_i = 0; phdr_i < elf32->ehdr->e_phnum; phdr_i++) {
-        phdr = elf32_phdr(elf32, phdr_i);
-        if (phdr->p_memsz == 0)
-            continue;
-        // if this phdr falls within the bounds of an existing memory segment
-        mem_seg_ptr = elf32_memory_segments_contains(list, phdr);
-        if (mem_seg_ptr != NULL) {
-            // create a new mem_seg with correct address and size
-            if (phdr->p_vaddr < mem_seg_ptr->address)
-                mem_seg.address = phdr->p_vaddr;
-            else
-                mem_seg.address = mem_seg_ptr->address;
-
-            if (mem_seg_ptr->address + mem_seg_ptr->size
-                > phdr->p_vaddr + phdr->p_memsz)
-                mem_seg.size = mem_seg_ptr->address 
-                               + mem_seg_ptr->size
-                               - mem_seg.address;
-            else
-                mem_seg.size = phdr->p_vaddr
-                               + phdr->p_memsz
-                               - mem_seg.address;
-            // copy over correct values
-            mem_seg_ptr->address = mem_seg.address;
-            mem_seg_ptr->size    = mem_seg.size;
-        }
-        else {
-            mem_seg.address = phdr->p_vaddr;
-            mem_seg.size    = phdr->p_memsz;
-            //list_append(list, &mem_seg, sizeof(struct _memory_segment));
-        }
-    }
-
-    return list;
 }
