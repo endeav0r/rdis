@@ -13,6 +13,7 @@
 #define RDGWINDOW_MAX_DEFAULT_HEIGHT 600
 
 #define RDGWINDOW_NODE_COLOR_SELECT 1.0, 0.9, 0.9
+#define RDGWINDOW_NODE_COLOR_PRE    0.9, 0.9, 1.0
 
 struct _rdgwindow {
     GtkWidget         * window;
@@ -53,9 +54,13 @@ gboolean rdgwindow_image_motion_notify_event (GtkWidget * widget,
                                               struct _rdgwindow * rdgwindow);
 gboolean rdgwindow_image_button_press_event  (GtkWidget * widget,
                                               GdkEventButton * event,
-                                              struct _rdgwindow * inswindow);
+                                              struct _rdgwindow * rdgwindow);
+gboolean rdgwindow_image_key_press_event     (GtkWidget * widget,
+                                              GdkEventKey * event,
+                                              struct _rdgwindow * rdgwindow);
 
-// resets colors in node_colors, then recreates based of selected_node
-void rdgwindow_color_node (struct _rdgwindow * rdgwindow);
+void rdgwindow_reset_node_colors (struct _rdgwindow * rdgwindow);
+void rdgwindow_color_node 		 (struct _rdgwindow * rdgwindow);
+void rdgwindow_color_node_predecessors (struct _rdgwindow * rdgwindow);
 
 #endif

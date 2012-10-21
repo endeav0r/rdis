@@ -1,5 +1,6 @@
 #include "rdgwindow.h"
 
+#include "queue.h"
 
 struct _rdgwindow * rdgwindow_create (struct _gui * gui, uint64_t top_index)
 {
@@ -41,6 +42,11 @@ struct _rdgwindow * rdgwindow_create (struct _gui * gui, uint64_t top_index)
     g_signal_connect(rdgwindow->imageEventBox,
                      "button-press-event",
                      G_CALLBACK(rdgwindow_image_button_press_event),
+                     rdgwindow);
+
+    g_signal_connect(rdgwindow->imageEventBox,
+                     "key-press-event",
+                     G_CALLBACK(rdgwindow_image_key_press_event),
                      rdgwindow);
 
 
@@ -148,7 +154,7 @@ gboolean rdgwindow_image_motion_notify_event (GtkWidget * widget,
     rdgwindow->image_drag_x = event->x;
     rdgwindow->image_drag_y = event->y;
 
-    return 0;
+    return FALSE;
 }
 
 
@@ -179,11 +185,25 @@ gboolean rdgwindow_image_button_press_event  (GtkWidget * widget,
     printf("selected node: %llx\n", (unsigned long long) rdgwindow->selected_node);
     rdgwindow_color_node(rdgwindow);
 
-    return 0;
+    return FALSE;
 }
 
 
-void rdgwindow_color_node (struct _rdgwindow * rdgwindow)
+gboolean rdgwindow_image_key_press_event (GtkWidget * widget,
+                                          GdkEventKey * event,
+                                          struct _rdgwindow * rdgwindow)
+{
+    // key 'p'
+    if (event->keyval == 0x70) {
+        rdgwindow_color_node_predecessors(rdgwindow);
+    }
+
+    return FALSE;
+}
+
+
+// sets rdgwindow->node_colors to a list that resets all nodes to the neutral color
+void rdgwindow_reset_node_colors (struct _rdgwindow * rdgwindow)
 {
     struct _list * node_colors = list_create();
 
@@ -200,16 +220,86 @@ void rdgwindow_color_node (struct _rdgwindow * rdgwindow)
         object_delete(rdgwindow->node_colors);
     }
 
+    rdgwindow->node_colors = node_colors;
+}
+
+
+void rdgwindow_color_node (struct _rdgwindow * rdgwindow)
+{
+    rdgwindow_reset_node_colors(rdgwindow);
+
     struct _rdg_node_color * rdg_node_color;
     rdg_node_color = rdg_node_color_create(rdgwindow->selected_node,
-                                                  RDGWINDOW_NODE_COLOR_SELECT);
-    list_append(node_colors, rdg_node_color);
+                                           RDGWINDOW_NODE_COLOR_SELECT);
+    list_append(rdgwindow->node_colors, rdg_node_color);
 
-    rdgwindow->node_colors = node_colors;
     rdg_color_nodes(rdgwindow->rdg_graph,
                     rdgwindow->currently_displayed_graph,
                     rdgwindow->gui->labels,
-                    node_colors);
+                    rdgwindow->node_colors);
+    rdgwindow_image_update(rdgwindow);
+}
+
+
+void rdgwindow_color_node_predecessors (struct _rdgwindow * rdgwindow)
+{
+    if (rdgwindow->selected_node == -1)
+        return;
+
+    struct _tree  * pre_tree = tree_create();
+    struct _queue * queue    = queue_create();
+
+    // add currently selected node to queue
+    struct _index * index = index_create(rdgwindow->selected_node);
+    queue_push(queue, index);
+    object_delete(index);
+
+    // add predecessors to the queue
+    while (queue->size > 0) {
+        index = queue_peek(queue);
+        
+        // if we've already added this node, skip it
+        if (tree_fetch(pre_tree, index) != NULL) {
+            queue_pop(queue);
+            continue;
+        }
+
+        struct _graph_node * node = graph_fetch_node(rdgwindow->gui->graph,
+                                                     index->index);
+        struct _list * predecessors = graph_node_predecessors(node);
+        struct _list_it * it;
+        for (it = list_iterator(predecessors); it != NULL; it = it->next) {
+            struct _graph_edge * edge = it->data;
+            index = index_create(edge->head);
+            queue_push(queue, index);
+            index_delete(index);
+        }
+
+        queue_pop(queue);
+    }
+
+    object_delete(queue);
+
+    rdgwindow_reset_node_colors(rdgwindow);
+
+    // add predecessors to node_colors
+    struct _tree_it * it;
+    for (it = tree_iterator(pre_tree); it != NULL; it = tree_it_next(it)) {
+        index = tree_it_data(it);
+
+        struct _rdg_node_color * rdg_node_color;
+        rdg_node_color = rdg_node_color_create(index->index,
+                                               RDGWINDOW_NODE_COLOR_PRE);
+        list_append(rdgwindow->node_colors, rdg_node_color);
+        object_delete(rdg_node_color);
+    }
+
+    object_delete(pre_tree);
+
+    rdg_color_nodes(rdgwindow->rdg_graph,
+                    rdgwindow->currently_displayed_graph,
+                    rdgwindow->gui->labels,
+                    rdgwindow->node_colors);
     rdgwindow_image_update(rdgwindow);
 }
 
