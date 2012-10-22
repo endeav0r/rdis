@@ -46,6 +46,7 @@ int main (int argc, char * argv[])
     printf("entry: %llx\n", (unsigned long long) loader_entry(loader));
 
     struct _graph * graph = loader_graph(loader);
+    printf("have graph\n");
 
     graph_reduce(graph);
 

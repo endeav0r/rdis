@@ -5,6 +5,7 @@
 #include "queue.h"
 #include "tree.h"
 #include "util.h"
+#include "wqueue.h"
 #include "x8664.h"
 
 #include <elf.h>
@@ -201,7 +202,8 @@ uint64_t elf64_vaddr_to_offset (struct _elf64 * elf64, uint64_t address)
 
 struct _graph * elf64_graph (struct _elf64 * elf64)
 {
-    struct _graph * graph;
+    struct _graph  * graph;
+    struct _wqueue * wqueue;
 
     // disassemble from entry point
     graph = x8664_graph(elf64_base_address(elf64),
@@ -213,18 +215,29 @@ struct _graph * elf64_graph (struct _elf64 * elf64)
     struct _tree * function_tree = elf64_function_tree(elf64);
     struct _tree_it * tit;
 
+    wqueue = wqueue_create();
     for (tit = tree_iterator(function_tree);
          tit != NULL;
          tit  = tree_it_next(tit)) {
         struct _index * index = tree_it_data(tit);
-        printf("elf64 graphing %llx\n", (unsigned long long) index->index);
-        struct _graph * func_graph = x8664_graph(elf64_base_address(elf64),
-                                      index->index - elf64_base_address(elf64),
-                                                 elf64->data,
-                                                 elf64->data_size);
-        graph_merge(graph, func_graph);
-        object_delete(func_graph);
+
+        struct _x8664_graph_wqueue * xgw;
+        xgw = x8664_graph_wqueue_create(elf64_base_address(elf64),
+                                        index->index - elf64_base_address(elf64),
+                                        elf64->data,
+                                        elf64->data_size);
+        wqueue_push(wqueue, WQUEUE_CALLBACK(x8664_graph_wqueue), xgw);
+        object_delete(xgw);
     }
+
+    wqueue_wait(wqueue);
+
+    while (wqueue_peek(wqueue) != NULL) {
+        graph_merge(graph, wqueue_peek(wqueue));
+        wqueue_pop(wqueue);
+    }
+
+    object_delete(wqueue);
 
     remove_function_predecessors(graph, function_tree);
     object_delete(function_tree);
