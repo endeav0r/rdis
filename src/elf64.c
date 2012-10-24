@@ -284,6 +284,11 @@ struct _tree * elf64_function_tree (struct _elf64 * elf64)
 {
     struct _tree     * tree = tree_create();
 
+    // add the entry point
+    struct _index * index = index_create(elf64_entry(elf64));
+    tree_insert(tree, index);
+    object_delete(index);
+
     int sec_i;
     // symbols are easy
     for (sec_i = 0; sec_i < elf64->ehdr->e_shnum; sec_i++) {
@@ -299,10 +304,6 @@ struct _tree * elf64_function_tree (struct _elf64 * elf64)
 
             if (sym->st_value == 0)
                 continue;
-
-            char * name = elf64_strtab_str(elf64, shdr->sh_link, sym->st_name);
-            printf("found function %s at %llx\n",
-                   name, (unsigned long long) sym->st_value);
 
             struct _index * index = index_create(sym->st_value);
             if (tree_fetch(tree, index) == NULL)
@@ -328,7 +329,16 @@ struct _tree * elf64_function_tree (struct _elf64 * elf64)
     ud_disassemble(&ud_obj);
     if (    (ud_obj.mnemonic == UD_Imov)
          && (ud_obj.operand[0].base == UD_R_RDI)) {
-        printf("found __libc_start_main loader\n");
+        printf("found __libc_start_main loader, main at %llx\n",
+           (unsigned long long) udis86_sign_extend_lval(&(ud_obj.operand[1])));
+
+        // add main to function tree
+        struct _index * index;
+        index = index_create(udis86_sign_extend_lval(&(ud_obj.operand[1])));
+        if (tree_fetch(tree, index) == NULL)
+            tree_insert(tree, index);
+        object_delete(index);
+
         struct _tree * recursive_function_tree;
         recursive_function_tree = x8664_functions(elf64_base_address(elf64),
                                   udis86_sign_extend_lval(&(ud_obj.operand[1]))

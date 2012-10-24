@@ -2,6 +2,16 @@
 
 #include "index.h"
 
+
+void * x86_graph_wqueue (struct _x86_graph_wqueue * x86_graph_wqueue)
+{
+    return x86_graph(x86_graph_wqueue->address,
+                     x86_graph_wqueue->offset,
+                     x86_graph_wqueue->data,
+                     x86_graph_wqueue->data_size);
+}
+
+
 struct _ins * x86_ins (uint64_t address, ud_t * ud_obj)
 {
     struct _ins * ins;
@@ -256,9 +266,9 @@ void x86_graph_1 (struct _graph * graph,
 
 
 struct _graph * x86_graph (uint64_t address,
-                             size_t offset,
-                             void * data,
-                             size_t data_size)
+                           size_t offset,
+                           void * data,
+                           size_t data_size)
 {
     struct _graph * graph;
 
@@ -303,9 +313,6 @@ void x86_functions_r (struct _tree *  tree_functions,
             index = index_create(address + offset + ud_insn_len(&ud_obj)
                                  + udis86_sign_extend_lval(&(ud_obj.operand[0])));
             if (tree_fetch(tree_functions, index) == NULL) {
-                printf("adding function from %llx %s\n",
-                       (unsigned long long) address + offset,
-                       ud_insn_asm(&ud_obj));
                 tree_insert(tree_functions, index);
             }
             object_delete(index);
@@ -350,14 +357,6 @@ void x86_functions_r (struct _tree *  tree_functions,
                                  + udis86_sign_extend_lval(operand),
                                 data,
                                 data_size);
-            }
-            else if (operand->type == UD_OP_MEM) {
-                printf("%s operand->type: UD_OP_MEM, %d, %d, %d, %d\n",
-                        ud_insn_asm(&ud_obj),
-                        ud_obj.operand[0].scale,
-                        ud_obj.operand[0].index,
-                        ud_obj.operand[0].offset,
-                        ud_obj.operand[0].size);
             }
             break;
         default :

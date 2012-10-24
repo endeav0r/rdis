@@ -6,7 +6,7 @@
 
 #include "graph.h"
 #include "gui.h"
-#include "rdgraph.h"
+#include "rdg.h"
 #include "tree.h"
 
 #define RDGWINDOW_MAX_DEFAULT_WIDTH  880
@@ -24,7 +24,7 @@ struct _rdgwindow {
     struct _gui       * gui;
 
     uint64_t            top_index;
-    struct _rdg_graph * rdg_graph;
+    struct _rdg       * rdg;
 
     struct _graph     * currently_displayed_graph;
 
@@ -34,7 +34,7 @@ struct _rdgwindow {
     int scrolledWindow_width;
     int scrolledWindow_height;
 
-    uint64_t 	   selected_node;
+    uint64_t 	     selected_node;
     uint64_t       selected_ins;
     struct _list * node_colors;
 

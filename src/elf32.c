@@ -5,6 +5,7 @@
 #include "queue.h"
 #include "tree.h"
 #include "util.h"
+#include "wqueue.h"
 #include "x86.h"
 
 #include <elf.h>
@@ -198,7 +199,9 @@ uint64_t elf32_vaddr_to_offset (struct _elf32 * elf32, uint64_t address)
 
 struct _graph * elf32_graph (struct _elf32 * elf32)
 {
-    struct _graph * graph;
+
+    struct _graph  * graph;
+    struct _wqueue * wqueue;
 
     // disassemble from entry point
     graph = x86_graph(elf32_base_address(elf32),
@@ -210,51 +213,32 @@ struct _graph * elf32_graph (struct _elf32 * elf32)
     struct _tree * function_tree = elf32_function_tree(elf32);
     struct _tree_it * tit;
 
+    wqueue = wqueue_create();
     for (tit = tree_iterator(function_tree);
          tit != NULL;
          tit  = tree_it_next(tit)) {
         struct _index * index = tree_it_data(tit);
-        printf("elf64 graphing %llx\n", (unsigned long long) index->index);
-        struct _graph * func_graph = x86_graph(elf32_base_address(elf32),
-                                      index->index - elf32_base_address(elf32),
-                                                 elf32->data,
-                                                 elf32->data_size);
-        graph_merge(graph, func_graph);
-        object_delete(func_graph);
+
+        struct _x86_graph_wqueue * xgw;
+        xgw = x86_graph_wqueue_create(elf32_base_address(elf32),
+                                        index->index - elf32_base_address(elf32),
+                                        elf32->data,
+                                        elf32->data_size);
+        wqueue_push(wqueue, WQUEUE_CALLBACK(x86_graph_wqueue), xgw);
+        object_delete(xgw);
     }
 
-    //remove_function_predecessors(graph, function_tree);
+    wqueue_wait(wqueue);
+
+    while (wqueue_peek(wqueue) != NULL) {
+        graph_merge(graph, wqueue_peek(wqueue));
+        wqueue_pop(wqueue);
+    }
+
+    object_delete(wqueue);
+
+    remove_function_predecessors(graph, function_tree);
     object_delete(function_tree);
-
-    // remove edges into the PLT
-    Elf32_Shdr * plt_shdr = elf32_shdr_by_name(elf32, ".plt");
-    if (plt_shdr == NULL)
-        return graph;
-
-    uint64_t plt_bottom = plt_shdr->sh_addr;
-    uint64_t plt_top = plt_bottom + plt_shdr->sh_size;
-
-    struct _queue * queue = queue_create();
-
-    struct _graph_it * git;
-    for (git = graph_iterator(graph); git != NULL; git = graph_it_next(git)) {
-        struct _graph_node * node = graph_it_node(git);
-        struct _list_it * eit;
-        for (eit = list_iterator(node->edges); eit != NULL; eit = eit->next) {
-            struct _graph_edge * edge = eit->data;
-            if ((edge->tail < plt_top) && (edge->tail >= plt_bottom)) {
-                queue_push(queue, edge);
-            }
-        }
-    }
-
-    while (queue->size > 0) {
-        struct _graph_edge * edge = queue_peek(queue);
-        graph_remove_edge(graph, edge->head, edge->tail);
-        queue_pop(queue);
-    }
-
-    object_delete(queue);
 
     return graph;
 }
@@ -264,6 +248,11 @@ struct _graph * elf32_graph (struct _elf32 * elf32)
 struct _tree * elf32_function_tree (struct _elf32 * elf32)
 {
     struct _tree     * tree = tree_create();
+
+    // add the entry point
+    struct _index * index = index_create(elf32_entry(elf32));
+    tree_insert(tree, index);
+    object_delete(index);
 
     int sec_i;
     // symbols are easy
@@ -280,10 +269,6 @@ struct _tree * elf32_function_tree (struct _elf32 * elf32)
 
             if (sym->st_value == 0)
                 continue;
-
-            char * name = elf32_strtab_str(elf32, shdr->sh_link, sym->st_name);
-            printf("found function %s at %llx\n",
-                   name, (unsigned long long) sym->st_value);
 
             struct _index * index = index_create(sym->st_value);
             if (tree_fetch(tree, index) == NULL)
@@ -308,7 +293,16 @@ struct _tree * elf32_function_tree (struct _elf32 * elf32)
     ud_set_input_buffer(&ud_obj, data, size);
     ud_disassemble(&ud_obj);
     if (ud_obj.mnemonic == UD_Ipush) {
-        printf("found __libc_start_main loader\n");
+        printf("found __libc_start_main loader, main at %llx\n",
+           (unsigned long long) udis86_sign_extend_lval(&(ud_obj.operand[0])));
+
+        // add main to function tree
+        struct _index * index;
+        index = index_create(udis86_sign_extend_lval(&(ud_obj.operand[0])));
+        if (tree_fetch(tree, index) == NULL)
+            tree_insert(tree, index);
+        object_delete(index);
+
         struct _tree * recursive_function_tree;
         recursive_function_tree = x86_functions(elf32_base_address(elf32),
                                   udis86_sign_extend_lval(&(ud_obj.operand[0]))
@@ -397,8 +391,6 @@ struct _map * elf32_labels (struct _elf32 * elf32)
         // in the got
         if (    (index->index >= plt_bottom)
              && (index->index <  plt_top)) {
-            printf("in plt, disassembling at %llx\n",
-                   (unsigned long long) index->index - elf32_base_address(elf32));
             uint8_t * data      = &(elf32->data[index->index 
                                   - elf32_base_address(elf32)]);
             ud_t ud_obj;
@@ -407,15 +399,12 @@ struct _map * elf32_labels (struct _elf32 * elf32)
             ud_set_syntax(&ud_obj, UD_SYN_INTEL);
             ud_set_input_buffer(&ud_obj, data, 0x20);
             ud_disassemble(&ud_obj);
-            printf("plt ins: %s\n", ud_insn_asm(&ud_obj));
+
             if (    (ud_obj.mnemonic == UD_Ijmp)
                  && (udis86_sign_extend_lval(&(ud_obj.operand[0])) != -1)) {
                 uint64_t target = udis86_sign_extend_lval(&(ud_obj.operand[0]));
 
-                printf("plt target: %llx\n", (unsigned long long) target);
-
                 struct _label * label = map_fetch(labels_map, target);
-                printf("label: %p\n", label);
                 if (label != NULL) {
                     char plttmp[256];
                     snprintf(plttmp, 256, "%s@plt", label->text);

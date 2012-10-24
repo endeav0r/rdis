@@ -70,6 +70,8 @@ void graph_add_node (struct _graph * graph,
                      uint64_t        index,
                      void *          data);
 
+void graph_remove_node (struct _graph * graph, uint64_t index);
+
 struct _graph_node * graph_fetch_node  (struct _graph * graph,
                                         uint64_t        index);
 

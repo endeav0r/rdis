@@ -18,7 +18,7 @@ struct _rdgwindow * rdgwindow_create (struct _gui * gui, uint64_t top_index)
     rdgwindow->gui            = gui;
 
     rdgwindow->top_index      = top_index;
-    rdgwindow->rdg_graph      = NULL;
+    rdgwindow->rdg            = NULL;
     rdgwindow->currently_displayed_graph = NULL;
 
     rdgwindow->image_drag_x   = 0;
@@ -73,8 +73,8 @@ struct _rdgwindow * rdgwindow_create (struct _gui * gui, uint64_t top_index)
 
     rdgwindow_graph_update(rdgwindow);
 
-    int width  = rdg_graph_width(rdgwindow->rdg_graph);
-    int height = rdg_graph_width(rdgwindow->rdg_graph);
+    int width  = rdg_width(rdgwindow->rdg);
+    int height = rdg_height(rdgwindow->rdg);
 
     if (width > RDGWINDOW_MAX_DEFAULT_WIDTH)
         width = RDGWINDOW_MAX_DEFAULT_WIDTH;
@@ -89,8 +89,8 @@ struct _rdgwindow * rdgwindow_create (struct _gui * gui, uint64_t top_index)
 
 void rdgwindow_delete (struct _rdgwindow * rdgwindow)
 {
-    if (rdgwindow->rdg_graph != NULL)
-        object_delete(rdgwindow->rdg_graph);
+    if (rdgwindow->rdg != NULL)
+        object_delete(rdgwindow->rdg);
 
     if (rdgwindow->currently_displayed_graph != NULL)
         object_delete(rdgwindow->currently_displayed_graph);
@@ -112,13 +112,13 @@ GtkWidget * rdgwindow_window (struct _rdgwindow * rdgwindow)
 
 void rdgwindow_image_update (struct _rdgwindow * rdgwindow)
 {
-    rdg_draw(rdgwindow->rdg_graph);
+    rdg_draw(rdgwindow->rdg);
     GdkPixbuf * pixbuf;
-    pixbuf = gdk_pixbuf_get_from_surface(rdgwindow->rdg_graph->surface,
+    pixbuf = gdk_pixbuf_get_from_surface(rdgwindow->rdg->surface,
                                          0,
                                          0,
-                                         rdg_graph_width(rdgwindow->rdg_graph),
-                                         rdg_graph_height(rdgwindow->rdg_graph));
+                                         rdg_width(rdgwindow->rdg),
+                                         rdg_height(rdgwindow->rdg));
     gtk_image_set_from_pixbuf(GTK_IMAGE(rdgwindow->image), pixbuf);
     g_object_unref(pixbuf);
 }
@@ -126,20 +126,19 @@ void rdgwindow_image_update (struct _rdgwindow * rdgwindow)
 
 void rdgwindow_graph_update (struct _rdgwindow * rdgwindow)
 {
-
     // set currently_displayed_graph to top_index's node's family
     if (rdgwindow->currently_displayed_graph != NULL)
         object_delete(rdgwindow->currently_displayed_graph);
     rdgwindow->currently_displayed_graph = graph_family(rdgwindow->gui->graph,
                                                         rdgwindow->top_index);
 
-    if (rdgwindow->rdg_graph != NULL)
-        object_delete(rdgwindow->rdg_graph);
+    if (rdgwindow->rdg != NULL)
+        object_delete(rdgwindow->rdg);
 
-    rdgwindow->rdg_graph = rdg_graph_create(rdgwindow->top_index,
-                                            rdgwindow->currently_displayed_graph,
-                                            rdgwindow->gui->labels);
-    rdg_custom_nodes(rdgwindow->rdg_graph,
+    rdgwindow->rdg = rdg_create(rdgwindow->top_index,
+                                rdgwindow->currently_displayed_graph,
+                                rdgwindow->gui->labels);
+    rdg_custom_nodes(rdgwindow->rdg,
                      rdgwindow->gui->graph,
                      rdgwindow->gui->labels,
                      rdgwindow->node_colors,
@@ -209,22 +208,23 @@ gboolean rdgwindow_image_button_press_event  (GtkWidget * widget,
     // if the scrolledWindow is larger than the image, we need to adjust for that
     printf("width: %d %d\n",
            rdgwindow->scrolledWindow_width,
-           rdg_graph_width(rdgwindow->rdg_graph));
+           rdg_width(rdgwindow->rdg));
     printf("height: %d %d\n",
            rdgwindow->scrolledWindow_height,
-           rdg_graph_height(rdgwindow->rdg_graph));
+           rdg_height(rdgwindow->rdg));
 
-    if (rdgwindow->scrolledWindow_width > rdg_graph_width(rdgwindow->rdg_graph))
+    if (rdgwindow->scrolledWindow_width > rdg_width(rdgwindow->rdg))
         image_x -= (rdgwindow->scrolledWindow_width
-                    - rdg_graph_width(rdgwindow->rdg_graph)) / 2;
-    if (rdgwindow->scrolledWindow_height > rdg_graph_height(rdgwindow->rdg_graph))
-        image_y -= (rdgwindow->scrolledWindow_height
-                    - rdg_graph_height(rdgwindow->rdg_graph)) / 2 - 12;
+                    - rdg_width(rdgwindow->rdg)) / 2;
 
-    uint64_t selected_node = rdg_get_node_by_coords(rdgwindow->rdg_graph,
+    if (rdgwindow->scrolledWindow_height > rdg_height(rdgwindow->rdg))
+        image_y -= (rdgwindow->scrolledWindow_height
+                    - rdg_height(rdgwindow->rdg)) / 2 - 12;
+
+    uint64_t selected_node = rdg_get_node_by_coords(rdgwindow->rdg,
                                                     image_x, image_y);
 
-    uint64_t selected_ins = rdg_get_ins_by_coords(rdgwindow->rdg_graph,
+    uint64_t selected_ins = rdg_get_ins_by_coords(rdgwindow->rdg,
                                                   rdgwindow->gui->graph,
                                                   image_x, image_y);
 
@@ -350,7 +350,7 @@ void rdgwindow_reset_node_colors (struct _rdgwindow * rdgwindow)
         object_delete(rdgwindow->node_colors);
     }
 
-    rdg_custom_nodes(rdgwindow->rdg_graph,
+    rdg_custom_nodes(rdgwindow->rdg,
                      rdgwindow->currently_displayed_graph,
                      rdgwindow->gui->labels,
                      node_colors,
@@ -370,7 +370,7 @@ void rdgwindow_color_node (struct _rdgwindow * rdgwindow)
                                            RDGWINDOW_NODE_COLOR_SELECT);
     list_append(rdgwindow->node_colors, rdg_node_color);
 
-    rdg_custom_nodes(rdgwindow->rdg_graph,
+    rdg_custom_nodes(rdgwindow->rdg,
                      rdgwindow->currently_displayed_graph,
                      rdgwindow->gui->labels,
                      rdgwindow->node_colors,
@@ -436,7 +436,7 @@ void rdgwindow_color_node_predecessors (struct _rdgwindow * rdgwindow)
 
     object_delete(pre_tree);
 
-    rdg_color_nodes(rdgwindow->rdg_graph,
+    rdg_color_nodes(rdgwindow->rdg,
                     rdgwindow->currently_displayed_graph,
                     rdgwindow->gui->labels,
                     rdgwindow->node_colors);

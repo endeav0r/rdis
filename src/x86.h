@@ -7,6 +7,13 @@
 #include "graph.h"
 #include "x8664.h"
 
+#define _x86_graph_wqueue       _x8664_graph_wqueue
+#define x86_graph_wqueue_create x8664_graph_wqueue_create
+#define x86_graph_wqueue_delete x8664_graph_wqueue_delete
+#define x86_graph_wqueue_copy   x8664_graph_wqueue_copy
+
+void * x86_graph_wqueue (struct _x86_graph_wqueue * x86_graph_wqueue);
+
 struct _ins *   x86_ins   (uint64_t address, ud_t * ud_obj);
 
 /*

@@ -371,6 +371,39 @@ void graph_add_node (struct _graph * graph, uint64_t index, void * data)
 
 
 
+void graph_remove_node (struct _graph * graph, uint64_t index)
+{
+    struct _graph_node * node = graph_fetch_node(graph, index);
+    if (node == NULL)
+        return;
+
+    // remove all edges to/from this node
+    /*
+    struct _queue * queue = queue_create();
+    struct _list_it * eit;
+    for (eit = list_iterator(node->edges); eit != NULL; eit = eit->next) {
+        queue_push(queue, eit->data);
+    }
+
+    while (queue->size > 0) {
+        struct _graph_edge * edge = queue_peek(queue);
+        printf("graph_remove_node removing %llx's edge %llx->%llx\n",
+               (unsigned long long) index,
+               (unsigned long long) edge->head,
+               (unsigned long long) edge->tail);
+        fflush(stdout);
+        graph_remove_edge(graph, edge->head, edge->tail);
+        queue_pop(queue);
+    }
+
+    object_delete(queue);
+    */
+
+    graph_node_delete(node);
+}
+
+
+
 struct _graph_node * graph_fetch_node (struct _graph * graph,
                                        uint64_t index)
 {

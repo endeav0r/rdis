@@ -9,6 +9,7 @@
 #include "list.h"
 #include "map.h"
 #include "object.h"
+#include "rdg_node.h"
 #include "tree.h"
 
 char * rdgraph_graphviz_string (struct _graph * graph);
@@ -77,12 +78,12 @@ enum {
 */
 
 /*
-* rdg_graph->levels
+* rdg->levels
 * this is a map of maps of struct _index, where the map at position N contains
 * the index of all nodes at level N.
-* rdg_graph->levels is NULL until instantiated and filled
+* rdg->levels is NULL until instantiated and filled
 */
-struct _rdg_graph {
+struct _rdg {
     const struct _object * object;
     cairo_surface_t      * surface;
     uint64_t               top_index;
@@ -90,17 +91,6 @@ struct _rdg_graph {
     struct _map          * levels;
     int width;
     int height;
-};
-
-struct _rdg_node {
-    const struct _object * object;
-    uint64_t               index;
-    cairo_surface_t      * surface;
-    int level;
-    int position;
-    int x;
-    int y;
-    int flags;
 };
 
 struct _rdg_node_color {
@@ -111,48 +101,48 @@ struct _rdg_node_color {
     double blue;
 };
 
-void rdg_debug (struct _rdg_graph * rdg_graph);
+void rdg_debug (struct _rdg * rdg);
 
 /*
-* rdg_graph functions
+* rdg functions
 */
 // top_index = is the index of the top node in this graph
 // graph     = an instruction graph from a loader
 // labels    = a label map which has labels for instruction targets
-struct _rdg_graph * rdg_graph_create (uint64_t top_index,
-                                      struct _graph * graph,
-                                      struct _map * labels);
-void                rdg_graph_delete (struct _rdg_graph * rdg_graph);
-struct _rdg_graph * rdg_graph_copy   (struct _rdg_graph * rdg_graph);
+struct _rdg * rdg_create (uint64_t        top_index,
+                          struct _graph * graph,
+                          struct _map   * labels);
+void          rdg_delete (struct _rdg * rdg);
+struct _rdg * rdg_copy   (struct _rdg * rdg);
 
-void                rdg_graph_reduce_and_draw (struct _rdg_graph * rdg_graph);
+void          rdg_reduce_and_draw (struct _rdg * rdg);
 
-int                 rdg_graph_width  (struct _rdg_graph * rdg_graph);
-int                 rdg_graph_height (struct _rdg_graph * rdg_graph);
+int           rdg_width  (struct _rdg * rdg);
+int           rdg_height (struct _rdg * rdg);
 
-// rdg_graph = this graph we want to color
+// rdg       = this graph we want to color
 // ins_graph = a graph, as returned by the loader, which contains the nodes
 //             we want to color
 // labels    = a label map which includes labels for instruction targets
 // node_color_lost = a list of rdg_node_color objects
-void                rdg_color_nodes  (struct _rdg_graph * rdg_graph,
+void                rdg_color_nodes  (struct _rdg * rdg,
                                       struct _graph     * ins_graph,
                                       struct _map       * labels,
                                       struct _list * node_color_list);
 
-// rdg_graph = this graph we want to color
+// rdg       = this graph we want to color
 // ins_graph = a graph, as returned by the loader, which contains the nodes
 //             we want to color
 // labels    = a label map which includes labels for instruction targets
 // node_color_lost = a list of rdg_node_color objects
 // highlight_ins   = an instruction index to highlight
-void                rdg_custom_nodes  (struct _rdg_graph * rdg_graph,
+void                rdg_custom_nodes  (struct _rdg * rdg,
                                        struct _graph     * ins_graph,
                                        struct _map       * labels,
                                        struct _list * node_color_list,
                                        uint64_t highlight_ins);
 // redraws the entire graph. call this after rdg_color_nodes
-void                rdg_draw      (struct _rdg_graph * rdg_graph);
+void                rdg_draw      (struct _rdg * rdg);
 
 
 /*
@@ -169,61 +159,53 @@ int                      rdg_node_color_cmp    (struct _rdg_node_color *,
 /*
 * rdg_node functions
 */
-struct _rdg_node * rdg_node_create (uint64_t index, cairo_surface_t * surface);
-void               rdg_node_delete (struct _rdg_node * node);
-struct _rdg_node * rdg_node_copy   (struct _rdg_node * node);
-int                rdg_node_cmp    (struct _rdg_node * lhs,
-                                    struct _rdg_node * rhs);
-uint64_t rdg_get_node_by_coords (struct _rdg_graph * rdg_graph, int x, int y);
+uint64_t rdg_get_node_by_coords (struct _rdg * rdg, int x, int y);
 
-// rdg_graph = the rdg_graph
+// rdg       = the rdg
 // ins_graph = an instruction graph returned by the loader
-uint64_t rdg_get_ins_by_coords (struct _rdg_graph * rdg_graph,
+uint64_t rdg_get_ins_by_coords (struct _rdg * rdg,
                                 struct _graph * ins_graph,
                                 int x, int y);
 
-int rdg_node_width    (struct _rdg_node * rdg_node);
-int rdg_node_height   (struct _rdg_node * rdg_node);
-int rdg_node_center_x (struct _rdg_node * rdg_node);
-int rdg_node_center_y (struct _rdg_node * rdg_node);
-
-int rdg_node_source_x (struct _rdg_graph * rdg_graph,
+int rdg_node_source_x (struct _rdg * rdg,
                        struct _rdg_node * src_node,
                        struct _rdg_node * dst_node);
-int rdg_node_source_y (struct _rdg_graph * rdg_graph,
+int rdg_node_source_y (struct _rdg * rdg,
                        struct _rdg_node * src_node,
                        struct _rdg_node * dst_node);
-int rdg_node_sink_x (struct _rdg_graph * rdg_graph,
-                     struct _rdg_node * src_node,
-                     struct _rdg_node * dst_node);
-int rdg_node_sink_y (struct _rdg_graph * rdg_graph,
-                     struct _rdg_node * src_node,
-                     struct _rdg_node * dst_node);
+int rdg_node_sink_x   (struct _rdg * rdg,
+                       struct _rdg_node * src_node,
+                       struct _rdg_node * dst_node);
+int rdg_node_sink_y   (struct _rdg * rdg,
+                       struct _rdg_node * src_node,
+                       struct _rdg_node * dst_node);
 
 // utility functions
-void rdg_node_level_zero      (struct _graph_node * node);
-void rdg_node_assign_level    (struct _graph * graph, struct _graph_node * node);
-void rdg_assign_levels        (struct _graph * graph, uint64_t top_index);
-void rdg_create_virtual_nodes (struct _rdg_graph * rdg_graph);
-void rdg_assign_level_map     (struct _rdg_graph * rdg_graph);
-void rdg_assign_position      (struct _rdg_graph * rdg_graph);
-void rdg_assign_x             (struct _rdg_graph * rdg_graph);
-void rdg_assign_y             (struct _rdg_graph * rdg_graph);
-void rdg_acyclicize           (struct _graph * graph, uint64_t top_index);
-void rdg_acyclicize_pre       (struct _graph * graph, uint64_t index);
-void rdg_set_graph_width      (struct _rdg_graph * rdg_graph);
-void rdg_left_adjust_x        (struct _rdg_graph * rdg_graph);
+void rdg_acyclicize     (struct _graph * graph, uint64_t top_index);
+void rdg_acyclicize_pre (struct _graph * graph, uint64_t index);
 
-int  rdg_level_top            (struct _rdg_graph * rdg_graph, int level);
 
-inline void rdg_swap_node_positions (struct _rdg_graph * rdg_graph,
+void rdg_node_level_zero         (struct _graph_node * node);
+void rdg_assign_levels           (struct _graph * graph, uint64_t top_index);
+
+void rdg_assign_initial_position (struct _rdg * rdg);
+
+void rdg_create_virtual_nodes  (struct _rdg * rdg);
+void rdg_remove_virtual_nodes (struct _rdg * rdg);
+
+void rdg_assign_level_map     (struct _rdg * rdg);
+void rdg_assign_x             (struct _rdg * rdg);
+void rdg_assign_y             (struct _rdg * rdg);
+void rdg_set_graph_width      (struct _rdg * rdg);
+
+int  rdg_level_top            (struct _rdg * rdg, int level);
+
+inline void rdg_swap_node_positions (struct _rdg * rdg,
                                      int level,
                                      int left,
                                      int right);
 
-int  rdg_level_count_edge_crossings  (struct _rdg_graph * rdg_graph, int level);
-int  rdg_count_edge_crossings  (struct _rdg_graph * rdg_graph);
-void rdg_reduce_edge_crossings (struct _rdg_graph * rdg_graph);
+void rdg_reduce_edge_crossings (struct _rdg * rdg);
 
 cairo_surface_t * rdg_draw_node_full (struct _graph_node * node,
                                       struct _map * labels,

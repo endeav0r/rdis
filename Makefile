@@ -3,7 +3,7 @@ CFLAGS = -Wall -O2 -g -Werror
 LIB=`pkg-config --cflags --libs gtk+-3.0` -ludis86 -lcairo -lm -lfontconfig -pthread
 
 _OBJS = elf32.o elf64.o graph.o index.o instruction.o label.o list.o loader.o map.o \
-		object.o queue.o rdgraph.o rdstring.o tree.o util.o wqueue.o x8664.o x86.o
+		object.o queue.o rdg.o rdg_node.o rdstring.o tree.o util.o wqueue.o x8664.o x86.o
 _GTK_OBJS = hexwindow.o inswindow.o funcwindow.o rdgwindow.o
 
 SRCDIR = src

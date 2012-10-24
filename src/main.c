@@ -3,7 +3,7 @@
 #include "graph.h"
 #include "instruction.h"
 #include "list.h"
-#include "rdgraph.h"
+#include "rdg.h"
 #include "rdstring.h"
 #include "util.h"
 
@@ -12,25 +12,6 @@
 
 #include <stdio.h>
 #include <string.h>
-
-
-void graphviz_out (struct _graph * graph)
-{
-    char * graphviz_string = rdgraph_graphviz_string(graph);
-
-    FILE * fh;
-    fh = fopen("graph.dot", "w");
-    if (fh == NULL) {
-        fprintf(stderr, "could not open file graph.dot\n");
-        exit(-1);
-    }
-
-    fwrite(graphviz_string, 1, strlen(graphviz_string), fh);
-
-    fclose(fh);
-
-    free(graphviz_string);
-}
 
 
 int main (int argc, char * argv[])
@@ -46,7 +27,6 @@ int main (int argc, char * argv[])
     printf("entry: %llx\n", (unsigned long long) loader_entry(loader));
 
     struct _graph * graph = loader_graph(loader);
-    printf("have graph\n");
 
     graph_reduce(graph);
 

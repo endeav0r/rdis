@@ -108,12 +108,16 @@ struct _list_it * list_remove (struct _list * list, struct _list_it * iterator)
 
     if (iterator->prev != NULL)
         iterator->prev->next = iterator->next;
+
     if (iterator->next != NULL)
         iterator->next->prev = iterator->prev;
+
     if (list->first == iterator)
         list->first = iterator->next;
+
     if (list->last == iterator)
         list->last = iterator->prev;
+    
     object_delete(iterator->data);
     free(iterator);
 
