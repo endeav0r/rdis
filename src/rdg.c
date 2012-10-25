@@ -95,9 +95,6 @@ struct _rdg * rdg_create (uint64_t        top_index,
              list_it = list_it->next) {
             struct _graph_edge * edge = list_it->data;
 
-            printf("rdg adding edge: %llx -> %llx\n",
-                   (unsigned long long) edge->head,
-                   (unsigned long long) edge->tail);
             graph_add_edge(rdg->graph, edge->head, edge->tail, edge->data);
             graph_add_edge(acyclic_graph, edge->head, edge->tail, edge->data);
         }
@@ -123,7 +120,7 @@ struct _rdg * rdg_create (uint64_t        top_index,
     rdg_assign_level_map(rdg);
     rdg_assign_initial_position(rdg);
     rdg_reduce_edge_crossings(rdg);
-    rdg_remove_virtual_nodes(rdg);
+    //rdg_remove_virtual_nodes(rdg);
 
     rdg_reduce_and_draw (rdg);
 
@@ -465,9 +462,6 @@ void rdg_acyclicize (struct _graph * graph, uint64_t index)
 
     while (queue->size > 0) {
         struct _graph_edge * edge = queue_peek(queue);
-        printf("acyclicize removing edge %llx -> %llx\n",
-               (unsigned long long) edge->head,
-               (unsigned long long) edge->tail);
         graph_remove_edge(graph, edge->head, edge->tail);
         queue_pop(queue);
     }
@@ -510,9 +504,6 @@ void rdg_acyclicize_pre (struct _graph * graph, uint64_t index)
 
     while (queue->size > 0) {
         struct _graph_edge * edge = queue_peek(queue);
-        printf("acyclicize pre removing edge %llx -> %llx\n",
-               (unsigned long long) edge->head,
-               (unsigned long long) edge->tail);
         graph_remove_edge(graph, edge->head, edge->tail);
         queue_pop(queue);
     }
@@ -545,10 +536,6 @@ void rdg_node_assign_level (struct _graph * graph, struct _graph_node * node)
     if (rdg_node->flags & RDG_NODE_LEVEL_SET)
         return;
 
-    printf("rdg_node_assign_level node %p %p %llx\n",
-           node, node->graph,
-           (unsigned long long) rdg_node->index);
-
     // get highest level of predecessors
     struct _list * predecessors = graph_node_predecessors(node);
     for (it = list_iterator(predecessors); it != NULL; it = it->next) {
@@ -559,17 +546,9 @@ void rdg_node_assign_level (struct _graph * graph, struct _graph_node * node)
         if (edge->head == edge->tail)
             continue;
 
-        printf("%llx -> %llx\n",
-               (unsigned long long) edge->head,
-               (unsigned long long) edge->tail);
-
         // if this predecessor has not had its level assigned yet, conduct a
         // recursive call to assign its predecessors and then itself
         if ((pre_node->flags & RDG_NODE_LEVEL_SET) == 0) {
-            printf("node %llx says predecessor %llx not set\n",
-                   (unsigned long long) edge->tail,
-                   (unsigned long long) edge->head);
-
             rdg_node_assign_level(graph, graph_fetch_node(graph, edge->head));
         }
 
@@ -582,17 +561,10 @@ void rdg_node_assign_level (struct _graph * graph, struct _graph_node * node)
                 new_level = pre_node->level + 1;
             }
         }
-        else {
-            printf("node %llx says predecessor %llx still not set\n",
-                   (unsigned long long) edge->tail,
-                   (unsigned long long) edge->head);
-        }
     }
     object_delete(predecessors);
 
     if (rdg_node->flags & RDG_NODE_LEVEL_SET) {
-        printf("final level for %llx: %d\n",
-               (unsigned long long) rdg_node->index, new_level);
         rdg_node->level = new_level;
     }
 }
@@ -607,10 +579,6 @@ void rdg_node_assign_level_by_successor (struct _graph_node * node)
 
     if (rdg_node->flags & RDG_NODE_LEVEL_SET)
         return;
-
-    printf("rdg_node_assign_level_by_successor node %p %p %llx\n",
-           node, node->graph,
-           (unsigned long long) rdg_node->index);
 
     // get lowest level of predecessors
     struct _list * successors = graph_node_successors(node);
@@ -629,11 +597,6 @@ void rdg_node_assign_level_by_successor (struct _graph_node * node)
         // if this successor has not had its level assigned yet, conduct a
         // recursive call to assign its sucessors and then itself
         if ((suc_node->flags & RDG_NODE_LEVEL_SET) == 0) {
-            printf("node %llx says successor %llx not set %d\n",
-                   (unsigned long long) rdg_node->index,
-                   (unsigned long long) suc_node->index,
-                   suc_node->flags);
-
             rdg_node_assign_level_by_successor(
                                     graph_fetch_node(node->graph, edge->tail));
         }
@@ -646,14 +609,8 @@ void rdg_node_assign_level_by_successor (struct _graph_node * node)
             else if (suc_node->level - 1 < new_level)
                 new_level = suc_node->level - 1;
         }
-        else {
-            printf("node %llx says successor %llx still not set\n",
-                   (unsigned long long) edge->tail,
-                   (unsigned long long) edge->head);
-        }
     }
     object_delete(successors);
-    printf("done\n");
 
     rdg_node->level = new_level;
 }
@@ -959,10 +916,6 @@ void rdg_assign_node_x (struct _rdg * rdg, int level, int position, int x)
 
         left_node->x = center - rdg_node_width(left_node) - (RDG_NODE_X_SPACING / 2);
         rdg_node->x  = center + (RDG_NODE_X_SPACING / 2);
-
-        printf("moving left node, %llx left->x: %d, %llx right->x: %d\n",
-               (unsigned long long) left_node->index, left_node->x,
-               (unsigned long long) rdg_node->index, rdg_node->x);
     }
     else {
         rdg_node-> x = x;
@@ -987,8 +940,6 @@ void rdg_assign_node_x (struct _rdg * rdg, int level, int position, int x)
             left_node->x = right_node->x
                             - RDG_NODE_X_SPACING
                             - rdg_node_width(left_node);
-            printf("adjusting %llx to %d\n",
-                   (unsigned long long) left_node->index, left_node->x);
         }
         else
             break;
@@ -1063,10 +1014,6 @@ void rdg_assign_x (struct _rdg * rdg)
 
             // where do we WANT to place this node
             int node_x = above_avg - (rdg_node_width(rdg_node) / 2);
-
-            printf("node %llx level %d position %d above_sum %d above_n %d above_avg %d node_x %d\n",
-                   (unsigned long long) rdg_node->index,
-                   level_i, position_i, above_sum, above_n, above_avg, node_x);
 
             rdg_assign_node_x(rdg, level_i, position_i, node_x);
         }
@@ -1390,7 +1337,7 @@ double rdg_node_adjacent_center (struct _rdg * rdg, struct _rdg_node * rdg_node)
 
 void rdg_reduce_edge_crossings (struct _rdg * rdg)
 {
-    int keep_looping = 20;
+    int keep_looping = 32;
 
     while (keep_looping--) {
         // for every node in the graph

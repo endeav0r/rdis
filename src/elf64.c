@@ -289,8 +289,27 @@ struct _tree * elf64_function_tree (struct _elf64 * elf64)
     tree_insert(tree, index);
     object_delete(index);
 
-    int sec_i;
+    // recursively disassemble from entry point
+    struct _tree * recursive_function_tree;
+    recursive_function_tree = x8664_functions(elf64_base_address(elf64),
+                                              elf64_entry(elf64)
+                                              - elf64_base_address(elf64),
+                                              elf64->data,
+                                              elf64->data_size);
+
+    struct _tree_it * it;
+    for (it = tree_iterator(recursive_function_tree);
+         it != NULL;
+         it = tree_it_next(it)) {
+        struct _index * index = tree_it_data(it);
+        if (tree_fetch(tree, index) == NULL)
+            tree_insert(tree, index);
+    }
+
+    object_delete(recursive_function_tree);
+
     // symbols are easy
+    int sec_i;
     for (sec_i = 0; sec_i < elf64->ehdr->e_shnum; sec_i++) {
         Elf64_Shdr * shdr = elf64_shdr(elf64, sec_i);
         if (shdr->sh_type != SHT_SYMTAB)

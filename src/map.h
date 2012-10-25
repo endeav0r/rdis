@@ -11,7 +11,7 @@
 struct _map_node {
     const struct _object * object;
     uint64_t key;
-    void *   value;
+    void   * value;
 };
 
 
@@ -19,6 +19,11 @@ struct _map {
     const struct _object * object;
     size_t size;
     struct _tree * tree;
+};
+
+
+struct _map_it {
+	struct _tree_it * it;
 };
 
 
@@ -37,6 +42,11 @@ struct _map_node * map_node_create (uint64_t key, void * value);
 void               map_node_delete (struct _map_node *);
 struct _map_node * map_node_copy   (struct _map_node *);
 int                map_node_cmp    (struct _map_node *, struct _map_node *);
+
+struct _map_it * map_iterator  (struct _map * map);
+struct _map_it * map_it_next   (struct _map_it * map_it);
+void *           map_it_data   (struct _map_it * map_it);
+void             map_it_delete (struct _map_it * map_it);
 
 
 #endif

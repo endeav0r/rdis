@@ -5,6 +5,11 @@
 
 void * x86_graph_wqueue (struct _x86_graph_wqueue * x86_graph_wqueue)
 {
+    printf("x86_graph_wqueue %llx %llx %p %llx\n",
+           (unsigned long long) x86_graph_wqueue->address,
+           (unsigned long long) x86_graph_wqueue->offset,
+           x86_graph_wqueue->data,
+           (unsigned long long) x86_graph_wqueue->data_size);
     return x86_graph(x86_graph_wqueue->address,
                      x86_graph_wqueue->offset,
                      x86_graph_wqueue->data,
@@ -53,6 +58,7 @@ struct _ins * x86_ins (uint64_t address, ud_t * ud_obj)
             snprintf(tmp, 64, "%s %llx", mnemonic_str,
                      (unsigned long long) destination);
             ins_s_description(ins, tmp);
+            ins_s_target(ins, destination);
         }
     }
 
@@ -197,10 +203,10 @@ void x86_graph_0 (struct _graph * graph,
 * targets
 */
 void x86_graph_1 (struct _graph * graph,
-                    uint64_t        address,
-                    size_t          offset,
-                    uint8_t *       data,
-                    size_t          data_size)
+                  uint64_t        address,
+                  size_t          offset,
+                  uint8_t *       data,
+                  size_t          data_size)
 {
     struct _graph_it * it;
     ud_t               ud_obj;

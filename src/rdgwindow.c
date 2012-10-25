@@ -83,6 +83,10 @@ struct _rdgwindow * rdgwindow_create (struct _gui * gui, uint64_t top_index)
 
     gtk_window_set_default_size(GTK_WINDOW(rdgwindow->window), width, height);
 
+    rdgwindow->callback_identifier = rdis_add_callback(rdgwindow->gui->rdis,
+                                        RDIS_CALLBACK(rdgwindow_rdis_callback),
+                                        rdgwindow);
+
     return rdgwindow;
 }
 
@@ -97,6 +101,8 @@ void rdgwindow_delete (struct _rdgwindow * rdgwindow)
 
     if (rdgwindow->node_colors != NULL)
         object_delete(rdgwindow->node_colors);
+
+    rdis_remove_callback(rdgwindow->gui->rdis, rdgwindow->callback_identifier);
 
     //gtk_widget_destroy(rdgwindow->window);
 
@@ -121,6 +127,8 @@ void rdgwindow_image_update (struct _rdgwindow * rdgwindow)
                                          rdg_height(rdgwindow->rdg));
     gtk_image_set_from_pixbuf(GTK_IMAGE(rdgwindow->image), pixbuf);
     g_object_unref(pixbuf);
+    while (gtk_events_pending())
+        gtk_main_iteration();
 }
 
 
@@ -129,7 +137,7 @@ void rdgwindow_graph_update (struct _rdgwindow * rdgwindow)
     // set currently_displayed_graph to top_index's node's family
     if (rdgwindow->currently_displayed_graph != NULL)
         object_delete(rdgwindow->currently_displayed_graph);
-    rdgwindow->currently_displayed_graph = graph_family(rdgwindow->gui->graph,
+    rdgwindow->currently_displayed_graph = graph_family(rdgwindow->gui->rdis->graph,
                                                         rdgwindow->top_index);
 
     if (rdgwindow->rdg != NULL)
@@ -137,10 +145,10 @@ void rdgwindow_graph_update (struct _rdgwindow * rdgwindow)
 
     rdgwindow->rdg = rdg_create(rdgwindow->top_index,
                                 rdgwindow->currently_displayed_graph,
-                                rdgwindow->gui->labels);
+                                rdgwindow->gui->rdis->labels);
     rdg_custom_nodes(rdgwindow->rdg,
-                     rdgwindow->gui->graph,
-                     rdgwindow->gui->labels,
+                     rdgwindow->gui->rdis->graph,
+                     rdgwindow->gui->rdis->labels,
                      rdgwindow->node_colors,
                      rdgwindow->selected_ins);
     rdgwindow_image_update(rdgwindow);
@@ -225,7 +233,7 @@ gboolean rdgwindow_image_button_press_event  (GtkWidget * widget,
                                                     image_x, image_y);
 
     uint64_t selected_ins = rdg_get_ins_by_coords(rdgwindow->rdg,
-                                                  rdgwindow->gui->graph,
+                                                  rdgwindow->gui->rdis->graph,
                                                   image_x, image_y);
 
     printf("selected_ins = %llx\n", (unsigned long long) selected_ins);
@@ -264,7 +272,7 @@ gboolean rdgwindow_image_key_press_event (GtkWidget * widget,
 
     if (rdgwindow->editing) {
         if ((event->keyval >= 0x20) && (event->keyval < 0x7f)) {
-            struct _graph_node * node = graph_fetch_node(rdgwindow->gui->graph,
+            struct _graph_node * node = graph_fetch_node(rdgwindow->gui->rdis->graph,
                                                          rdgwindow->selected_node);
             // find the selected instruction
             struct _list_it * it;
@@ -290,7 +298,7 @@ gboolean rdgwindow_image_key_press_event (GtkWidget * widget,
             }
         }
         else if (event->keyval == GDK_KEY_BackSpace) {
-            struct _graph_node * node = graph_fetch_node(rdgwindow->gui->graph,
+            struct _graph_node * node = graph_fetch_node(rdgwindow->gui->rdis->graph,
                                                          rdgwindow->selected_node);
             struct _list_it * it;
             struct _list * ins_list = node->data;
@@ -311,7 +319,8 @@ gboolean rdgwindow_image_key_press_event (GtkWidget * widget,
                 free(tmp);
             }
         }
-        rdgwindow_graph_update(rdgwindow);
+        // this callback will cause us to redraw the graph
+        rdis_callback(rdgwindow->gui->rdis);
         return FALSE;
     }
 
@@ -352,7 +361,7 @@ void rdgwindow_reset_node_colors (struct _rdgwindow * rdgwindow)
 
     rdg_custom_nodes(rdgwindow->rdg,
                      rdgwindow->currently_displayed_graph,
-                     rdgwindow->gui->labels,
+                     rdgwindow->gui->rdis->labels,
                      node_colors,
                      rdgwindow->selected_ins);
 
@@ -372,7 +381,7 @@ void rdgwindow_color_node (struct _rdgwindow * rdgwindow)
 
     rdg_custom_nodes(rdgwindow->rdg,
                      rdgwindow->currently_displayed_graph,
-                     rdgwindow->gui->labels,
+                     rdgwindow->gui->rdis->labels,
                      rdgwindow->node_colors,
                      rdgwindow->selected_ins);
     rdgwindow_image_update(rdgwindow);
@@ -404,7 +413,7 @@ void rdgwindow_color_node_predecessors (struct _rdgwindow * rdgwindow)
 
         tree_insert(pre_tree, index);
 
-        struct _graph_node * node = graph_fetch_node(rdgwindow->gui->graph,
+        struct _graph_node * node = graph_fetch_node(rdgwindow->gui->rdis->graph,
                                                      index->index);
         struct _list * predecessors = graph_node_predecessors(node);
         struct _list_it * it;
@@ -438,9 +447,15 @@ void rdgwindow_color_node_predecessors (struct _rdgwindow * rdgwindow)
 
     rdg_color_nodes(rdgwindow->rdg,
                     rdgwindow->currently_displayed_graph,
-                    rdgwindow->gui->labels,
+                    rdgwindow->gui->rdis->labels,
                     rdgwindow->node_colors);
     rdgwindow_image_update(rdgwindow);
+}
+
+
+void rdgwindow_rdis_callback (struct _rdgwindow * rdgwindow)
+{
+    rdgwindow_graph_update(rdgwindow);
 }
 
 

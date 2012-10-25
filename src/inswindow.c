@@ -51,7 +51,7 @@ struct _inswindow * inswindow_create (struct _gui * gui)
 
     // add all the instructions to the listStore
     struct _graph_it * graph_it;
-    for (graph_it = graph_iterator(inswindow->gui->graph);
+    for (graph_it = graph_iterator(inswindow->gui->rdis->graph);
          graph_it != NULL;
          graph_it = graph_it_next(graph_it)) {
 

@@ -192,7 +192,7 @@ cairo_surface_t * rdg_node_draw_full (struct _graph_node * node,
         if (ins->target != -1) {
             struct _label * label = map_fetch(labels, ins->target);
             if (label != NULL) {
-                snprintf(tmp, 128, " (%s)", label->text);
+                snprintf(tmp, 128, " (%s) ", label->text);
                 cairo_move_to(ctx, line_x, top);
                 cairo_set_source_rgb(ctx, RDG_NODE_LABEL_COLOR);
                 cairo_show_text(ctx, tmp);

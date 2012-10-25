@@ -219,6 +219,8 @@ struct _graph * elf32_graph (struct _elf32 * elf32)
          tit  = tree_it_next(tit)) {
         struct _index * index = tree_it_data(tit);
 
+        printf("graphing %llx\n", (unsigned long long) index->index);
+
         struct _x86_graph_wqueue * xgw;
         xgw = x86_graph_wqueue_create(elf32_base_address(elf32),
                                         index->index - elf32_base_address(elf32),
@@ -254,8 +256,27 @@ struct _tree * elf32_function_tree (struct _elf32 * elf32)
     tree_insert(tree, index);
     object_delete(index);
 
-    int sec_i;
+    // recursively disassemble from entry point
+    struct _tree * recursive_function_tree;
+    recursive_function_tree = x86_functions(elf32_base_address(elf32),
+                                            elf32_entry(elf32)
+                                            - elf32_base_address(elf32),
+                                            elf32->data,
+                                            elf32->data_size);
+
+    struct _tree_it * it;
+    for (it = tree_iterator(recursive_function_tree);
+         it != NULL;
+         it = tree_it_next(it)) {
+        struct _index * index = tree_it_data(it);
+        if (tree_fetch(tree, index) == NULL)
+            tree_insert(tree, index);
+    }
+
+    object_delete(recursive_function_tree);
+
     // symbols are easy
+    int sec_i;
     for (sec_i = 0; sec_i < elf32->ehdr->e_shnum; sec_i++) {
         Elf32_Shdr * shdr = elf32_shdr(elf32, sec_i);
         if (shdr->sh_type != SHT_SYMTAB)

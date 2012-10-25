@@ -22,6 +22,7 @@ struct _rdgwindow {
     GtkWidget         * image;
 
     struct _gui       * gui;
+    uint64_t            callback_identifier;
 
     uint64_t            top_index;
     struct _rdg       * rdg;
@@ -73,5 +74,7 @@ void     rdgwindow_size_allocate_event       (GtkWidget * widget,
 void rdgwindow_reset_node_colors (struct _rdgwindow * rdgwindow);
 void rdgwindow_color_node 		 (struct _rdgwindow * rdgwindow);
 void rdgwindow_color_node_predecessors (struct _rdgwindow * rdgwindow);
+
+void rdgwindow_rdis_callback (struct _rdgwindow * rdgwindow);
 
 #endif

@@ -31,6 +31,7 @@ struct _wqueue {
     struct _wqueue_result * results;
     struct _wqueue_result * results_last;
 
+    int             max_thread_launched;
     int             thread_status[WQUEUE_THREAD_N];
 
     pthread_t       pthreads[WQUEUE_THREAD_N];

@@ -1,20 +1,14 @@
 #ifndef gui_HEADER
 #define gui_HEADER
 
-#include "loader.h"
-#include "graph.h"
-#include "tree.h"
+#include "rdis.h"
 
 struct _gui {
-    _loader * loader;
-    uint64_t        entry;
-    struct _graph * graph;
-    struct _tree  * function_tree;
-    struct _map   * labels;
+    struct _rdis * rdis;
 };
 
 
-struct _gui * gui_create (const char * filename);
+struct _gui * gui_create (struct _rdis * rdis);
 void          gui_delete (struct _gui * gui);
 
 void          gui_rdgwindow  (struct _gui * gui, uint64_t top_index);

@@ -7,18 +7,25 @@
 #include "hexwindow.h"
 #include "inswindow.h"
 #include "rdgwindow.h"
+#include "rdis.h"
 
 int main (int argc, char * argv[])
 {
     gtk_init(&argc, &argv);
 
-    struct _gui * gui;
+    _loader * loader;
 
-    gui = gui_create(argv[1]);
-    if (gui == NULL) {
+    loader = loader_create(argv[1]);
+
+    if (loader == NULL) {
         fprintf(stderr, "could not load %s\n", argv[1]);
         return -1;
     }
+
+    struct _rdis * rdis = rdis_create(loader);
+    graph_reduce(rdis->graph);
+    struct _gui * gui = gui_create(rdis);
+
 
     struct _funcwindow * funcwindow = funcwindow_create(gui);
 
@@ -26,30 +33,20 @@ int main (int argc, char * argv[])
 
     gtk_main();
 
+    rdis_delete(rdis);
     gui_delete(gui);
 
     return 0;
 }
 
 
-struct _gui * gui_create (const char * filename)
+struct _gui * gui_create (struct _rdis * rdis)
 {
     struct _gui * gui;
 
     gui = (struct _gui *) malloc(sizeof(struct _gui));
-    gui->loader = loader_create(filename);
 
-    if (gui->loader == NULL) {
-        free(gui);
-        return NULL;
-    }
-
-    gui->entry            = loader_entry(gui->loader);
-    gui->graph            = loader_graph(gui->loader);
-    gui->function_tree    = loader_function_tree(gui->loader);
-    gui->labels           = loader_labels(gui->loader);
-
-    graph_reduce(gui->graph);
+    gui->rdis = rdis;
 
     return gui;
 }
@@ -57,10 +54,7 @@ struct _gui * gui_create (const char * filename)
 
 void gui_delete (struct _gui * gui)
 {
-    object_delete(gui->loader);
-    object_delete(gui->graph);
-    object_delete(gui->function_tree);
-    object_delete(gui->labels);
+    free(gui);
 }
 
 

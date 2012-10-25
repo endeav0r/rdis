@@ -26,6 +26,7 @@ struct _wqueue * wqueue_create ()
     wqueue->work_queue   = queue_create();
     wqueue->results      = NULL;
     wqueue->results_last = NULL;
+    wqueue->max_thread_launched = -1;
 
     int i;
     for (i = 0; i < WQUEUE_THREAD_N; i++) {
@@ -115,7 +116,7 @@ void wqueue_wait (struct _wqueue * wqueue)
     // all works has been launched by threads, wait for threads
     // to finish
     int i = 0;
-    for (i = 0; i < WQUEUE_THREAD_N; i++) {
+    for (i = 0; i <= wqueue->max_thread_launched; i++) {
         void * status;
         pthread_join(wqueue->pthreads[i], &status);
     }
@@ -182,6 +183,8 @@ void wqueue_run (struct _wqueue * wqueue)
     }
 
     wqueue->thread_status[free_thread] = 1;
+    if (wqueue->max_thread_launched < free_thread)
+        wqueue->max_thread_launched = free_thread;
 
     // get the work item
     struct _wqueue_item * wqueue_item = object_copy(queue_peek(wqueue->work_queue));

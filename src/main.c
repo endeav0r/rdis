@@ -30,6 +30,26 @@ int main (int argc, char * argv[])
 
     graph_reduce(graph);
 
+    struct _graph * family = graph_family(graph, 0x804b070);
+
+    struct _rdg * rdg;
+    struct _map * labels = loader_labels(loader);
+
+    rdg = rdg_create(0x804b070, family, labels);
+    object_delete(rdg);
+    rdg = rdg_create(0x804b070, family, labels);
+    object_delete(rdg);
+    rdg = rdg_create(0x804b070, family, labels);
+    object_delete(rdg);
+    rdg = rdg_create(0x804b070, family, labels);
+    object_delete(rdg);
+    rdg = rdg_create(0x804b070, family, labels);
+    object_delete(rdg);
+    rdg = rdg_create(0x804b070, family, labels);
+    object_delete(rdg);
+    rdg = rdg_create(0x804b070, family, labels);
+    object_delete(rdg);
+
 //    graph_debug(graph);
 
     object_delete(graph);

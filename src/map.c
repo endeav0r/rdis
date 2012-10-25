@@ -143,3 +143,53 @@ int map_node_cmp (struct _map_node * lhs, struct _map_node * rhs)
         return 1;
     return 0;
 }
+
+
+struct _map_it * map_iterator (struct _map * map)
+{
+    struct _map_it * map_it;
+
+    map_it = (struct _map_it *) malloc(sizeof(struct _map_it));
+
+    map_it->it = tree_iterator(map->tree);
+
+    if (map_it->it == NULL) {
+        free(map_it);
+        return NULL;
+    }
+
+    return map_it;
+}
+
+
+struct _map_it * map_it_next (struct _map_it * map_it)
+{
+    map_it->it = tree_it_next(map_it->it);
+
+    if (map_it->it == NULL) {
+        free(map_it);
+        return NULL;
+    }
+
+    return map_it;
+}
+
+
+void * map_it_data (struct _map_it * map_it)
+{
+    struct _map_node * map_node = tree_it_data(map_it->it);
+
+    if (map_node == NULL)
+        return NULL;
+
+    printf("map_it_data, key %llx\n", (unsigned long long) map_node->key);
+
+    return map_node->value;
+}
+
+
+void map_it_delete (struct _map_it * map_it)
+{
+    tree_it_delete(map_it->it);
+    free(map_it);
+}
