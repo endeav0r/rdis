@@ -55,6 +55,40 @@ void * map_fetch (struct _map * map, uint64_t key)
 
 
 
+void * map_fetch_max (struct _map * map, uint64_t key)
+{
+    struct _map_node * needle = map_node_create(key, NULL);
+    struct _map_node * map_node;
+
+    map_node = tree_fetch_max(map->tree, needle);
+
+    object_delete(needle);
+
+    if (map_node == NULL)
+        return NULL;
+    else
+        return map_node->value;
+}
+
+
+
+uint64_t map_fetch_max_key (struct _map * map, uint64_t key)
+{
+    struct _map_node * needle = map_node_create(key, NULL);
+    struct _map_node * map_node;
+
+    map_node = tree_fetch_max(map->tree, needle);
+
+    object_delete(needle);
+
+    if (map_node == NULL)
+        return -1;
+    else
+        return map_node->key;
+}
+
+
+
 int map_remove (struct _map * map, uint64_t key)
 {
     int result = 0;
@@ -111,7 +145,7 @@ struct _map_node * map_node_create (uint64_t key, void * value)
 
     map_node = (struct _map_node *) malloc(sizeof(struct _map_node));
     map_node->object = &map_node_object;
-    map_node->key = key;
+    map_node->key    = key;
     if (value == NULL)
         map_node->value = NULL;
     else
@@ -182,9 +216,18 @@ void * map_it_data (struct _map_it * map_it)
     if (map_node == NULL)
         return NULL;
 
-    printf("map_it_data, key %llx\n", (unsigned long long) map_node->key);
-
     return map_node->value;
+}
+
+
+uint64_t map_it_key (struct _map_it * map_it)
+{
+    struct _map_node * map_node = tree_it_data(map_it->it);
+
+    if (map_node == NULL)
+        return -1;
+
+    return map_node->key;
 }
 
 

@@ -26,9 +26,8 @@ uint64_t        elf64_entry         (struct _elf64 * elf64);
 struct _graph * elf64_graph         (struct _elf64 * elf64);
 struct _tree  * elf64_function_tree (struct _elf64 * elf64);
 struct _map   * elf64_labels        (struct _elf64 * elf64);
-
-struct _list *  elf64_memory_segments (struct _elf64 * elf64);
-int             elf64_memory        (struct _elf64 * elf64, uint64_t address);
+struct _graph * elf64_graph_address (struct _elf64 * elf64, uint64_t address);
+struct _map   * elf64_memory_map    (struct _elf64 * elf64);
 
 
 // internal use

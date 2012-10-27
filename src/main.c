@@ -1,5 +1,6 @@
 #include "elf64.h"
 
+#include "buffer.h"
 #include "graph.h"
 #include "instruction.h"
 #include "list.h"
@@ -24,35 +25,18 @@ int main (int argc, char * argv[])
         return -1;
     }
 
-    printf("entry: %llx\n", (unsigned long long) loader_entry(loader));
+    struct _map * memmap = loader_memory_map(loader);
 
-    struct _graph * graph = loader_graph(loader);
+    struct _map_it * it;
+    for (it = map_iterator(memmap); it != NULL; it = map_it_next(it)) {
+        struct _buffer * buffer = map_it_data(it);
+        uint64_t         addr   = map_it_key(it);
+        printf("%llx -> %llx\n",
+               (unsigned long long) addr,
+               (unsigned long long) addr + buffer->size);
+    }
 
-    graph_reduce(graph);
-
-    struct _graph * family = graph_family(graph, 0x804b070);
-
-    struct _rdg * rdg;
-    struct _map * labels = loader_labels(loader);
-
-    rdg = rdg_create(0x804b070, family, labels);
-    object_delete(rdg);
-    rdg = rdg_create(0x804b070, family, labels);
-    object_delete(rdg);
-    rdg = rdg_create(0x804b070, family, labels);
-    object_delete(rdg);
-    rdg = rdg_create(0x804b070, family, labels);
-    object_delete(rdg);
-    rdg = rdg_create(0x804b070, family, labels);
-    object_delete(rdg);
-    rdg = rdg_create(0x804b070, family, labels);
-    object_delete(rdg);
-    rdg = rdg_create(0x804b070, family, labels);
-    object_delete(rdg);
-
-//    graph_debug(graph);
-
-    object_delete(graph);
+    object_delete(memmap);
 
     object_delete(loader);
 

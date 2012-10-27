@@ -1,5 +1,6 @@
 #include "elf64.h"
 
+#include "buffer.h"
 #include "index.h"
 #include "label.h"
 #include "queue.h"
@@ -22,10 +23,12 @@ static const struct _loader_object elf64_object = {
         NULL,
         NULL,
     },
-    (uint64_t        (*) (void *)) elf64_entry,
-    (struct _graph * (*) (void *)) elf64_graph,
-    (struct _tree *  (*) (void *)) elf64_function_tree,
-    (struct _map  *  (*) (void *)) elf64_labels
+    (uint64_t        (*) (void *))           elf64_entry,
+    (struct _graph * (*) (void *))           elf64_graph,
+    (struct _tree *  (*) (void *))           elf64_function_tree,
+    (struct _map  *  (*) (void *))           elf64_labels,
+    (struct _graph * (*) (void *, uint64_t)) elf64_graph_address,
+    (struct _map *   (*) (void *))           elf64_memory_map
 };
 
 
@@ -485,4 +488,95 @@ struct _map * elf64_labels (struct _elf64 * elf64)
 
     object_delete(function_tree);
     return labels_map;
+}
+
+
+struct _graph * elf64_graph_address (struct _elf64 * elf64, uint64_t address)
+{
+    struct _graph * graph;
+
+    graph = x8664_graph(elf64_base_address(elf64),
+                        address - elf64_base_address(elf64),
+                        elf64->data,
+                        elf64->data_size);
+
+    return graph;
+}
+
+
+struct _map * elf64_memory_map (struct _elf64 * elf64)
+{
+    struct _map * map = map_create();
+
+    int phdr_i;
+    for (phdr_i = 0; phdr_i < elf64->ehdr->e_phnum; phdr_i++) {
+        Elf64_Phdr * phdr = elf64_phdr(elf64, phdr_i);
+
+        uint64_t bottom = phdr->p_vaddr;
+        uint64_t top    = phdr->p_vaddr + phdr->p_memsz;
+
+        if (top - bottom == 0)
+            continue;
+
+        uint8_t * tmp = malloc(phdr->p_memsz);
+        memset(tmp, 0, phdr->p_memsz);
+        memcpy(tmp, &(elf64->data[phdr->p_offset]), phdr->p_filesz);
+
+        struct _buffer * buffer;
+        uint64_t key;
+        // do we already have a buffer that this section overlaps?
+        buffer = map_fetch_max(map, phdr->p_vaddr + phdr->p_memsz);
+        key    = map_fetch_max_key(map, phdr->p_vaddr + phdr->p_memsz);
+
+        if (    (buffer != NULL)
+             && (    ((bottom <= key) && (top >= key))
+                  || ((bottom <= key + buffer->size) && (top >= key + buffer->size))
+                  || ((bottom >= key) && (top <= key + buffer->size)))) {
+            // create a temporary buffer to hold this sections contents.
+
+            // if this section fits inside a previous section, then modify in place
+            if ((bottom >= key) && (top <= key + buffer->size)) {
+                memcpy(&(buffer->bytes[bottom - key]), tmp, phdr->p_memsz);
+            }
+            // if this section comes before a previous section (or contains
+            // previous section)
+            else if (bottom <= key) {
+                uint64_t new_size;
+                new_size = ((key + buffer->size) > top ? (key + buffer->size) : top);
+                new_size -= bottom;
+                uint8_t * tmp2 = malloc(new_size);
+                memcpy(&(tmp2[key - bottom]), buffer->bytes, buffer->size);
+                memcpy(tmp2, tmp, phdr->p_memsz);
+                struct _buffer * new_buffer = buffer_create(tmp2, new_size);
+                map_remove(map, key);
+                map_insert(map, bottom, new_buffer);
+                object_delete(new_buffer);
+                free(tmp2);
+            }
+            // if this section overlaps previous section but starts after
+            // previous section starts
+            else {
+                uint64_t new_size = top - key;
+                uint8_t * tmp2 = malloc(new_size);
+                memcpy(tmp2, buffer->bytes, buffer->size);
+                memcpy(&(tmp2[bottom - key]), tmp, phdr->p_memsz);
+                struct _buffer * new_buffer = buffer_create(tmp2, new_size);
+                map_remove(map, key);
+                map_insert(map, key, new_buffer);
+                object_delete(new_buffer);
+                free(tmp2);
+            }
+
+        }
+        // we don't have a previous section that this buffer overlaps
+        else {
+            struct _buffer * new_buffer = buffer_create(tmp, top - bottom);
+            map_insert(map, bottom, new_buffer);
+            object_delete(new_buffer);
+        }
+
+        free(tmp);
+    }
+
+    return map;
 }

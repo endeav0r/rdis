@@ -8,6 +8,7 @@
 #include "list.h"
 #include "loader.h"
 #include "graph.h"
+#include "tree.h"
 
 struct _elf32 {
     const struct _loader_object * loader_object;
@@ -25,9 +26,8 @@ uint64_t        elf32_entry         (struct _elf32 * elf32);
 struct _graph * elf32_graph         (struct _elf32 * elf32);
 struct _tree  * elf32_function_tree (struct _elf32 * elf32);
 struct _map   * elf32_labels        (struct _elf32 * elf32);
-
-struct _list *  elf32_memory_segments (struct _elf32 * elf32);
-int             elf32_memory          (struct _elf32 * elf32, uint64_t address);
+struct _graph * elf32_graph_address (struct _elf32 * elf32, uint64_t address);
+struct _map   * elf32_memory_map    (struct _elf32 * elf32);
 
 
 // internal use
@@ -44,6 +44,5 @@ const char *    elf32_sym_name_by_address (struct _elf32 * elf32, uint64_t addre
 Elf32_Shdr *    elf32_shdr_by_name    (struct _elf32 * elf32, const char * name);
 struct _graph * elf32_dis_symtab      (struct _elf32 * elf32, int section);
 uint64_t        elf32_vaddr_to_offset (struct _elf32 * elf32, uint64_t address);
-
 
 #endif

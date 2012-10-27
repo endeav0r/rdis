@@ -26,12 +26,18 @@ struct _rdis {
     struct _graph  * graph;
     struct _map    * labels;
     struct _tree   * function_tree;
+    struct _map    * memory_map;
 };
 
 // rdis will assume control of the loader, and rdis will delete the loader
 // when rdis itself is deleted
 struct _rdis * rdis_create (_loader * loader);
 void           rdis_delete (struct _rdis * rdis);
+
+// creates a user function based on the bytes found at address,
+// updates graph, labels and function_tree appropriately
+// and then calls callbacks
+int rdis_user_function (struct _rdis * rdis, uint64_t address);
 
 // returns callback identifier so callback can be removed later
 uint64_t rdis_add_callback    (struct _rdis * rdis,

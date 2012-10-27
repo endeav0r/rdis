@@ -140,10 +140,9 @@ void funcwindow_append_row (struct _funcwindow * funcwindow, uint64_t index)
 
 
 void funcwindow_destroy_event (GtkWidget * widget,
-                                struct _funcwindow * funcwindow)
+                               struct _funcwindow * funcwindow)
 {
     funcwindow_delete(funcwindow);
-    gtk_main_quit();
 }
 
 

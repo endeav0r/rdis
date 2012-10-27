@@ -66,3 +66,27 @@ struct _map * loader_labels (_loader * loader)
 
     return loader_object->labels(loader);
 }
+
+
+struct _graph * loader_graph_address (_loader * loader, uint64_t address)
+{
+    struct _loader_object_ptr * loader_object_ptr;
+    struct _loader_object     * loader_object;
+
+    loader_object_ptr = (struct _loader_object_ptr *) loader;
+    loader_object = loader_object_ptr->loader_object;
+
+    return loader_object->graph_address(loader, address);
+}
+
+
+struct _map * loader_memory_map (_loader * loader)
+{
+    struct _loader_object_ptr * loader_object_ptr;
+    struct _loader_object     * loader_object;
+
+    loader_object_ptr = (struct _loader_object_ptr *) loader;
+    loader_object = loader_object_ptr->loader_object;
+
+    return loader_object->memory_map(loader);
+}

@@ -332,16 +332,19 @@ uint64_t rdg_get_ins_by_coords (struct _rdg * rdg,
     cairo_font_extents(ctx, &fe);
     cairo_destroy(ctx);
 
-    double bottom = rdg_node->y + (double) RDG_SURFACE_PADDING + RDG_NODE_PADDING + fe.height;
 
     //printf("%d %d %f %f\n", rdg_node->y, RDG_SURFACE_PADDING, RDG_NODE_PADDING, fe.height);
 
     //printf("rdg_node->y: %d\n", rdg_node->y);
 
+    double bottom = rdg_node->y 
+                    + (double) RDG_SURFACE_PADDING 
+                    + RDG_NODE_PADDING 
+                    + fe.height - 4.0;
     struct _list_it * it;
     for (it = list_iterator(node->data); it != NULL; it = it->next) {
-        bottom = bottom + 1.0;
-        double top = bottom + fe.height + 1.0;
+        bottom = bottom;//; + 1.0;
+        double top = bottom + fe.height + 2.0;
         if (((double) y >= bottom) && ((double) y <= top)) {
             struct _ins * ins = it->data;
             return ins->address;

@@ -15,11 +15,13 @@
 #define RDGWINDOW_NODE_COLOR_SELECT 1.0, 0.9, 0.9
 #define RDGWINDOW_NODE_COLOR_PRE    0.9, 0.9, 1.0
 
+
 struct _rdgwindow {
     GtkWidget         * window;
     GtkWidget         * scrolledWindow;
     GtkWidget         * imageEventBox;
     GtkWidget         * image;
+    GtkWidget         * menu_popup;
 
     struct _gui       * gui;
     uint64_t            callback_identifier;
@@ -35,7 +37,7 @@ struct _rdgwindow {
     int scrolledWindow_width;
     int scrolledWindow_height;
 
-    uint64_t 	     selected_node;
+    uint64_t       selected_node;
     uint64_t       selected_ins;
     struct _list * node_colors;
 
@@ -56,7 +58,7 @@ void rdgwindow_image_update (struct _rdgwindow * rdgwindow);
 void rdgwindow_graph_update (struct _rdgwindow * rdgwindow);
 
 void     rdgwindow_destroy_event (GtkWidget * widget,
-								  struct _rdgwindow * rdgwindow);
+                                  struct _rdgwindow * rdgwindow);
 
 gboolean rdgwindow_image_motion_notify_event (GtkWidget * widget,
                                               GdkEventMotion * event,
@@ -72,9 +74,13 @@ void     rdgwindow_size_allocate_event       (GtkWidget * widget,
                                               struct _rdgwindow * rdgwindow);
 
 void rdgwindow_reset_node_colors (struct _rdgwindow * rdgwindow);
-void rdgwindow_color_node 		 (struct _rdgwindow * rdgwindow);
+void rdgwindow_color_node        (struct _rdgwindow * rdgwindow);
 void rdgwindow_color_node_predecessors (struct _rdgwindow * rdgwindow);
 
 void rdgwindow_rdis_callback (struct _rdgwindow * rdgwindow);
+
+void rdgwindow_menu_popup    (struct _rdgwindow * rdgwindow);
+void rdgwindow_user_function (GtkMenuItem * menuItem,
+                              struct _rdgwindow * rdgwindow);
 
 #endif

@@ -26,8 +26,7 @@ struct _ins * ins_create  (uint64_t address,
 
     ins = (struct _ins *) malloc(sizeof(struct _ins));
 
-    ins->object = &ins_object;
-
+    ins->object  = &ins_object;
     ins->address = address;
     ins->target  = -1;
 
@@ -95,7 +94,7 @@ void ins_s_comment (struct _ins * ins, const char * comment)
     if (ins->comment != NULL)
         free(ins->comment);
 
-    if (comment == NULL)
+    if ((comment == NULL) || (strlen(comment) == 0))
         ins->comment = NULL;
     else
         ins->comment = strdup(comment);

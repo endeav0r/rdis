@@ -14,6 +14,7 @@ struct _rdgwindow * rdgwindow_create (struct _gui * gui, uint64_t top_index)
     rdgwindow->scrolledWindow = gtk_scrolled_window_new(NULL, NULL);
     rdgwindow->imageEventBox  = gtk_event_box_new();
     rdgwindow->image          = gtk_image_new_from_file("logo.png");
+    rdgwindow->menu_popup     = gtk_menu_new();
 
     rdgwindow->gui            = gui;
 
@@ -29,6 +30,19 @@ struct _rdgwindow * rdgwindow_create (struct _gui * gui, uint64_t top_index)
     rdgwindow->node_colors    = NULL;
 
     rdgwindow->editing        = 0;
+
+
+    // popup menu stuff
+    GtkWidget * menuItem = gtk_menu_item_new_with_label("User Function");
+    g_signal_connect(menuItem,
+                     "activate",
+                     G_CALLBACK(rdgwindow_user_function),
+                     rdgwindow);
+    gtk_menu_shell_append(GTK_MENU_SHELL(rdgwindow->menu_popup), menuItem);
+
+    gtk_widget_show_all(rdgwindow->menu_popup);
+
+
 
 
     gtk_container_add(GTK_CONTAINER(rdgwindow->imageEventBox),
@@ -104,6 +118,8 @@ void rdgwindow_delete (struct _rdgwindow * rdgwindow)
 
     rdis_remove_callback(rdgwindow->gui->rdis, rdgwindow->callback_identifier);
 
+    gtk_widget_destroy(rdgwindow->menu_popup);
+
     //gtk_widget_destroy(rdgwindow->window);
 
     free(rdgwindow);
@@ -158,7 +174,6 @@ void rdgwindow_graph_update (struct _rdgwindow * rdgwindow)
 
 void rdgwindow_destroy_event (GtkWidget * widget, struct _rdgwindow * rdgwindow)
 {
-    printf("destroy rdgwindow\n");
     rdgwindow_delete(rdgwindow);
 }
 
@@ -214,12 +229,14 @@ gboolean rdgwindow_image_button_press_event  (GtkWidget * widget,
     int image_y = y + (int) gtk_adjustment_get_value(vadjust);
 
     // if the scrolledWindow is larger than the image, we need to adjust for that
+    /*
     printf("width: %d %d\n",
            rdgwindow->scrolledWindow_width,
            rdg_width(rdgwindow->rdg));
     printf("height: %d %d\n",
            rdgwindow->scrolledWindow_height,
            rdg_height(rdgwindow->rdg));
+    */
 
     if (rdgwindow->scrolledWindow_width > rdg_width(rdgwindow->rdg))
         image_x -= (rdgwindow->scrolledWindow_width
@@ -236,8 +253,6 @@ gboolean rdgwindow_image_button_press_event  (GtkWidget * widget,
                                                   rdgwindow->gui->rdis->graph,
                                                   image_x, image_y);
 
-    printf("selected_ins = %llx\n", (unsigned long long) selected_ins);
-
     if (selected_ins != -1)
         rdgwindow->selected_ins = selected_ins;
 
@@ -246,10 +261,15 @@ gboolean rdgwindow_image_button_press_event  (GtkWidget * widget,
 
     rdgwindow->selected_node = selected_node;
 
-    printf("image_x: %d, image_y: %d\n", image_x, image_y);
-
-    printf("selected node: %llx\n", (unsigned long long) rdgwindow->selected_node);
     rdgwindow_color_node(rdgwindow);
+
+    // right click for popup menu
+    printf("selected_ins: %llx, event->button: %d\n",
+           (unsigned long long) selected_ins,
+           event->button);
+    if ((selected_ins != -1) && (event->button == 3)) {
+        rdgwindow_menu_popup(rdgwindow);
+    }
 
     return FALSE;
 }
@@ -457,6 +477,30 @@ void rdgwindow_rdis_callback (struct _rdgwindow * rdgwindow)
 {
     rdgwindow_graph_update(rdgwindow);
 }
+
+
+
+void rdgwindow_menu_popup (struct _rdgwindow * rdgwindow)
+{
+    gtk_menu_popup(GTK_MENU(rdgwindow->menu_popup),
+                   NULL, NULL, NULL,
+                   rdgwindow,
+                   0,
+                   gtk_get_current_event_time());
+}
+
+
+
+void rdgwindow_user_function (GtkMenuItem * menuItem,
+                              struct _rdgwindow * rdgwindow)
+{
+    if (rdgwindow->selected_ins != -1)
+    rdis_user_function(rdgwindow->gui->rdis, rdgwindow->selected_ins);
+
+    printf("user function click on %llx\n",
+           (unsigned long long) rdgwindow->selected_ins);
+}
+
 
 
 /*

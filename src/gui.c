@@ -7,6 +7,7 @@
 #include "hexwindow.h"
 #include "inswindow.h"
 #include "rdgwindow.h"
+#include "rdiswindow.h"
 #include "rdis.h"
 
 int main (int argc, char * argv[])
@@ -26,15 +27,10 @@ int main (int argc, char * argv[])
     graph_reduce(rdis->graph);
     struct _gui * gui = gui_create(rdis);
 
-
-    struct _funcwindow * funcwindow = funcwindow_create(gui);
-
-    gtk_widget_show(funcwindow_window(funcwindow));
-
     gtk_main();
 
-    rdis_delete(rdis);
     gui_delete(gui);
+    rdis_delete(rdis);
 
     return 0;
 }
@@ -47,6 +43,8 @@ struct _gui * gui_create (struct _rdis * rdis)
     gui = (struct _gui *) malloc(sizeof(struct _gui));
 
     gui->rdis = rdis;
+    gui->rdiswindow = rdiswindow_create(gui);
+    gtk_widget_show(rdiswindow_window(gui->rdiswindow));
 
     return gui;
 }
@@ -55,6 +53,8 @@ struct _gui * gui_create (struct _rdis * rdis)
 void gui_delete (struct _gui * gui)
 {
     free(gui);
+    // rdis is freed outsite of gui
+    // rdiswindow frees itself
 }
 
 
@@ -62,4 +62,18 @@ void gui_rdgwindow (struct _gui * gui, uint64_t top_index)
 {
     struct _rdgwindow * rdgwindow = rdgwindow_create(gui, top_index);
     gtk_widget_show(rdgwindow_window(rdgwindow));
+}
+
+
+void gui_funcwindow (struct _gui * gui)
+{
+    struct _funcwindow * funcwindow = funcwindow_create(gui);
+    gtk_widget_show(funcwindow_window(funcwindow));
+}
+
+
+void gui_hexwindow (struct _gui * gui)
+{
+    struct _hexwindow * hexwindow = hexwindow_create(gui);
+    gtk_widget_show(hexwindow_window(hexwindow));
 }
