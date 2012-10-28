@@ -1,36 +1,33 @@
 #include "graph.h"
 
+#include "index.h"
 #include "instruction.h"
 #include "queue.h"
 
 #include <stdio.h>
 
-static const struct _object graph_index_object = {
-    (void   (*) (void *))         graph_index_delete, 
-    (void * (*) (void *))         graph_index_copy,
-    (int    (*) (void *, void *)) graph_index_cmp,
-    NULL
-};
-
 static const struct _object graph_edge_object = {
-    (void   (*) (void *))         graph_edge_delete, 
-    (void * (*) (void *))         graph_edge_copy,
-    (int    (*) (void *, void *)) graph_edge_cmp,
-    NULL
+    (void     (*) (void *))         graph_edge_delete, 
+    (void *   (*) (void *))         graph_edge_copy,
+    (int      (*) (void *, void *)) graph_edge_cmp,
+    NULL,
+    (json_t * (*) (void *))         graph_edge_serialize
 };
 
 static const struct _object graph_node_object = {
-    (void   (*) (void *))         graph_node_delete,
-    (void * (*) (void *))         graph_node_copy,
-    (int    (*) (void *, void *)) graph_node_cmp,
+    (void     (*) (void *))         graph_node_delete,
+    (void *   (*) (void *))         graph_node_copy,
+    (int      (*) (void *, void *)) graph_node_cmp,
     NULL,
+    (json_t * (*) (void *))         graph_node_serialize
 };
 
 static const struct _object graph_object = {
-    (void   (*) (void *))         graph_delete,
-    (void * (*) (void *))         graph_copy,
+    (void     (*) (void *))         graph_delete,
+    (void *   (*) (void *))         graph_copy,
     NULL,
-    (void   (*) (void *, void *)) graph_merge,
+    (void     (*) (void *, void *)) graph_merge,
+    (json_t * (*) (void *))         graph_serialize
 };
 
 
@@ -120,6 +117,39 @@ struct _graph * graph_copy (struct _graph * graph)
 }
 
 
+json_t * graph_serialize (struct _graph * graph)
+{
+    json_t * json = json_object();
+
+    json_object_set(json, "ot",    json_integer(SERIALIZE_GRAPH));
+    json_object_set(json, "nodes", object_serialize(graph->nodes));
+
+    return json;
+}
+
+
+struct _graph * graph_deserialize (json_t * json)
+{
+    struct _graph * graph = graph_create();
+
+    object_delete(graph->nodes);
+
+    graph->nodes = deserialize(json_object_get(json, "nodes"));
+
+    if (graph->nodes == NULL) {
+        free(graph);
+        return NULL;
+    }
+
+    struct _tree_it * it;
+    for (it = tree_iterator(graph->nodes); it != NULL; it = tree_it_next(it)) {
+        struct _graph_node * node = tree_it_data(it);
+        node->graph = graph;
+    }
+
+    return graph;
+}
+
 
 void graph_merge_node_edges (struct _graph_node * lhs, struct _graph_node * rhs)
 {
@@ -191,13 +221,13 @@ void graph_reduce (struct _graph * graph)
     // this is a list of the node indexes we need to check
     struct _list        * node_list;
     struct _graph_it    * graph_it;
-    struct _graph_index * index;
+    struct _index * index;
 
     node_list = list_create();
     for (graph_it = graph_iterator(graph);
          graph_it != NULL;
          graph_it = graph_it_next(graph_it)) {
-        index = graph_index_create(graph_it_index(graph_it));
+        index = index_create(graph_it_index(graph_it));
         list_append(node_list, index);
         object_delete(index);
     }
@@ -305,10 +335,10 @@ void graph_reduce (struct _graph * graph)
 struct _graph * graph_family (struct _graph * graph, uint64_t indx)
 {
     struct _graph       * new_graph = graph_create();
-    struct _graph_index * index;
+    struct _index * index;
     struct _queue       * queue = queue_create();
 
-    index = graph_index_create(indx);
+    index = index_create(indx);
     queue_push(queue, index);
     object_delete(index);
 
@@ -342,9 +372,9 @@ struct _graph * graph_family (struct _graph * graph, uint64_t indx)
         for (it = list_iterator(node->edges); it != NULL; it = it->next) {
             struct _graph_edge * edge = it->data;
             if (edge->head == node->index)
-                index = graph_index_create(edge->tail);
+                index = index_create(edge->tail);
             else
-                index = graph_index_create(edge->head);
+                index = index_create(edge->head);
             graph_add_edge(new_graph, edge->head, edge->tail, edge->data);
             queue_push(queue, index);
             object_delete(index);
@@ -534,10 +564,10 @@ void graph_bfs (struct _graph * graph,
 {
     struct _queue       * queue   = queue_create();
     struct _tree        * visited = tree_create();
-    struct _graph_index * index;
+    struct _index * index;
 
     // add the first index to the graph
-    index = graph_index_create(indx);
+    index = index_create(indx);
     queue_push(queue, index);
     object_delete(index);
 
@@ -564,7 +594,7 @@ void graph_bfs (struct _graph * graph,
         struct _list_it * it;
         for (it = list_iterator(successors); it != NULL; it = it->next) {
             struct _graph_edge * edge = it->data;
-            index = graph_index_create(edge->tail);
+            index = index_create(edge->tail);
             queue_push(queue, index);
             object_delete(index);
         }
@@ -573,42 +603,6 @@ void graph_bfs (struct _graph * graph,
     object_delete(queue);
     object_delete(visited);
 }
-
-
-struct _graph_index * graph_index_create (uint64_t index)
-{
-    struct _graph_index * index_ptr;
-    index_ptr = (struct _graph_index *) malloc(sizeof(struct _graph_index));
-    index_ptr->object = &graph_index_object;
-    index_ptr->index = index;
-    return index_ptr;
-}
-
-
-
-void graph_index_delete (struct _graph_index * index)
-{
-    free(index);
-}
-
-
-
-struct _graph_index * graph_index_copy (struct _graph_index * index)
-{
-    return graph_index_create(index->index);
-}
-
-
-
-int graph_index_cmp (struct _graph_index * lhs, struct _graph_index * rhs)
-{
-    if (lhs->index < rhs->index)
-        return -1;
-    else if (lhs->index > rhs->index)
-        return 1;
-    return 0;
-}
-
 
 
 struct _graph_edge * graph_edge_create (uint64_t head, uint64_t tail, void * data)
@@ -657,6 +651,50 @@ int graph_edge_cmp (struct _graph_edge * lhs, struct _graph_edge * rhs)
         return 1;
 }
 
+
+json_t * graph_edge_serialize (struct _graph_edge * edge)
+{
+    json_t * json = json_object();
+
+    json_object_set(json, "ot",   json_integer(SERIALIZE_GRAPH_EDGE));
+    json_object_set(json, "head", json_uint64_t(edge->head));
+    json_object_set(json, "tail", json_uint64_t(edge->tail));
+    if (edge->data == NULL) {
+        json_t * data = json_object();
+        json_object_set(json, "ot", json_integer(SERIALIZE_NULL));
+        json_object_set(json, "data", data);
+    }
+    else
+        json_object_set(json, "data", object_serialize(edge->data));
+
+    return json;
+}
+
+
+struct _graph_edge * graph_edge_deserialize (json_t * json)
+{
+    json_t * head = json_object_get(json, "head");
+    json_t * tail = json_object_get(json, "tail");
+    json_t * data = json_object_get(json, "data");
+
+    if (    (! json_is_uint64_t(head))
+         || (! json_is_uint64_t(tail))
+         || (! json_is_object(data))) {
+        serialize_error = SERIALIZE_GRAPH_EDGE;
+        return NULL;
+    }
+
+    void * data_object = deserialize(data);
+
+    struct _graph_edge * edge = graph_edge_create(json_uint64_t_value(head),
+                                                  json_uint64_t_value(tail),
+                                                  data_object);
+
+    if (data_object != NULL)
+        object_delete(data_object);
+
+    return edge;
+}
 
 
 struct _graph_node * graph_node_create (struct _graph * graph,
@@ -756,6 +794,62 @@ int graph_node_cmp (struct _graph_node * lhs, struct _graph_node * rhs)
     return 0;
 }
 
+
+json_t * graph_node_serialize (struct _graph_node * node)
+{
+    json_t * json = json_object();
+
+    json_object_set(json, "ot",    json_integer(SERIALIZE_GRAPH_NODE));
+    json_object_set(json, "index", json_uint64_t(node->index));
+    json_object_set(json, "edges", object_serialize(node->edges));
+    if (node->data == NULL) {
+        json_t * data = json_object();
+        json_object_set(data, "ot", json_integer(SERIALIZE_NULL));
+        json_object_set(json, "data", data);
+    }
+    else
+        json_object_set(json, "data", object_serialize(node->data));
+
+    return json;
+}
+
+
+struct _graph_node * graph_node_deserialize (json_t * json)
+{
+    json_t * index = json_object_get(json, "index");
+    json_t * data  = json_object_get(json, "data");
+    json_t * edges = json_object_get(json, "edges");
+
+    if (    (! json_is_uint64_t(index))
+         || (! json_is_object(data))
+         || (! json_is_object(edges))) {
+        printf("graph_node_deserialize %d %d %d\n",
+               json_is_uint64_t(index), json_is_object(data), json_is_object(edges));
+        serialize_error = SERIALIZE_GRAPH_NODE;
+        return NULL;
+    }
+
+    void * data_object  = deserialize(data);
+    void * edges_object = deserialize(edges);
+
+    if (edges_object == NULL) {
+        if (data_object != NULL)
+            object_delete(data_object);
+        serialize_error = SERIALIZE_GRAPH_NODE;
+        return NULL;
+    }
+
+    struct _graph_node * node = graph_node_create(NULL,
+                                                  json_uint64_t_value(index),
+                                                  data_object);
+    object_delete(node->edges);
+    node->edges = edges_object;
+
+    if (data_object != NULL)
+        object_delete(data_object);
+
+    return node;
+}
 
 
 inline size_t graph_node_successors_n (struct _graph_node * node)

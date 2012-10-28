@@ -1,6 +1,7 @@
 #include "rdiswindow.h"
 
 #include <stdlib.h>
+#include <string.h>
 
 struct _rdiswindow * rdiswindow_create (struct _gui * gui)
 {
@@ -20,7 +21,24 @@ struct _rdiswindow * rdiswindow_create (struct _gui * gui)
     rdiswindow->consoleView         =
                       gtk_text_view_new_with_buffer(rdiswindow->consoleBuffer);
     rdiswindow->inputEntry          = gtk_entry_new();
+    rdiswindow->menu                = gtk_menu_bar_new();
     rdiswindow->gui                 = gui;
+
+
+    GtkWidget * menuItemFile = gtk_menu_item_new_with_label("File");
+    GtkWidget * menuItemLoad = gtk_menu_item_new_with_label("Load .rdis");
+    GtkWidget * menuItemSave = gtk_menu_item_new_with_label("Save .rdis");
+    GtkWidget * menuFile         = gtk_menu_new();
+
+    gtk_container_add(GTK_CONTAINER(menuFile), menuItemLoad);
+    gtk_container_add(GTK_CONTAINER(menuFile), menuItemSave);
+    gtk_menu_item_set_submenu(GTK_MENU_ITEM(menuItemFile), menuFile);
+    gtk_container_add(GTK_CONTAINER(rdiswindow->menu), menuItemFile);
+
+    gtk_widget_show(menuItemFile);
+    gtk_widget_show(menuItemSave);
+    gtk_widget_show(menuItemLoad);
+    gtk_widget_show(menuFile);
 
 
     g_signal_connect(rdiswindow->functionsButton,
@@ -47,6 +65,9 @@ struct _rdiswindow * rdiswindow_create (struct _gui * gui)
                        FALSE, TRUE, 0);
 
     gtk_box_pack_start(GTK_BOX(rdiswindow->vbox),
+                       rdiswindow->menu,
+                       FALSE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(rdiswindow->vbox),
                        rdiswindow->buttonsBox,
                        FALSE, TRUE, 0);
     gtk_box_pack_start(GTK_BOX(rdiswindow->vbox),
@@ -60,6 +81,7 @@ struct _rdiswindow * rdiswindow_create (struct _gui * gui)
 
     gtk_window_set_default_size(GTK_WINDOW(rdiswindow->window), 600, 400);
 
+    gtk_widget_show(rdiswindow->menu);
     gtk_widget_show(rdiswindow->functionsButton);
     gtk_widget_show(rdiswindow->hexButton);
     gtk_widget_show(rdiswindow->consoleView);
@@ -81,6 +103,15 @@ void rdiswindow_delete (struct _rdiswindow * rdiswindow)
 GtkWidget * rdiswindow_window (struct _rdiswindow * rdiswindow)
 {
     return rdiswindow->window;
+}
+
+
+void rdiswindow_console (struct _rdiswindow * rdiswindow, const char * line)
+{
+    GtkTextIter textIter;
+
+    gtk_text_buffer_get_end_iter(rdiswindow->consoleBuffer, &textIter);
+    gtk_text_buffer_insert(rdiswindow->consoleBuffer, &textIter, line, strlen(line));
 }
 
 

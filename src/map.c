@@ -1,5 +1,7 @@
 #include "map.h"
 
+#include "serialize.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -7,14 +9,16 @@ static const struct _object map_object = {
     (void   (*) (void *))         map_delete, 
     (void * (*) (void *))         map_copy,
     NULL,
-    NULL
+    NULL,
+    (json_t * (*) (void *))       map_serialize
 };
 
 static const struct _object map_node_object = {
     (void   (*) (void *))         map_node_delete, 
     (void * (*) (void *))         map_node_copy,
     (int    (*) (void *, void *)) map_node_cmp,
-    NULL
+    NULL,
+    (json_t * (*) (void *))       map_node_serialize
 };
 
 
@@ -128,6 +132,47 @@ void map_delete (struct _map * map)
 }
 
 
+json_t * map_serialize (struct _map * map)
+{
+    json_t * json = json_object();
+
+    json_object_set(json, "ot",   json_integer(SERIALIZE_MAP));
+    json_object_set(json, "tree", object_serialize(map->tree));
+
+    return json;
+}
+
+
+struct _map * map_deserialize (json_t * json)
+{
+    json_t * tree = json_object_get(json, "tree");
+    if (! json_is_object(tree)) {
+        serialize_error = SERIALIZE_MAP;
+        return NULL;
+    }
+
+    // this is called _cheating_
+    json_t * tree_nodes = json_object_get(tree, "nodes");
+    if (! json_is_array(tree_nodes)) {
+        serialize_error = SERIALIZE_MAP;
+        return NULL;
+    }
+
+    size_t size = json_array_size(tree_nodes);
+
+    struct _map * map = (struct _map *) malloc(sizeof(struct _map));
+    map->object = &map_object;
+    map->size   = size;
+    map->tree   = deserialize(tree);
+    if (map->tree == NULL) {
+        free(map);
+        return NULL;
+    }
+
+    return map;
+}
+
+
 struct _map * map_copy (struct _map * map)
 {
     struct _map * new_map = map_create();
@@ -176,6 +221,47 @@ int map_node_cmp (struct _map_node * lhs, struct _map_node * rhs)
     else if (lhs->key > rhs->key)
         return 1;
     return 0;
+}
+
+
+json_t * map_node_serialize (struct _map_node * map_node)
+{
+    json_t * json = json_object();
+
+    json_object_set(json, "ot",    json_integer(SERIALIZE_MAP_NODE));
+    json_object_set(json, "key",   json_uint64_t(map_node->key));
+    if (map_node->value == NULL) {
+        json_t * value = json_object();
+        json_object_set(value, "ot",    json_integer(SERIALIZE_NULL));
+        json_object_set(json,  "value", value);
+    }
+    else
+        json_object_set(json, "value", object_serialize(map_node->value));
+
+    return json;
+}
+
+
+struct _map_node * map_node_deserialize (json_t * json)
+{
+    json_t * key   = json_object_get(json, "key");
+    json_t * value = json_object_get(json, "value");
+
+    if (    (! json_is_uint64_t(key))
+         || (! json_is_object(value))) {
+        serialize_error = SERIALIZE_MAP_NODE;
+        return NULL;
+    }
+
+    void * value_object = deserialize(value);
+
+    struct _map_node * map_node;
+    map_node = map_node_create(json_uint64_t_value(key), value_object);
+
+    if (value_object != NULL)
+        object_delete(value_object);
+
+    return map_node;
 }
 
 

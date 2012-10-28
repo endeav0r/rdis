@@ -77,3 +77,9 @@ void gui_hexwindow (struct _gui * gui)
     struct _hexwindow * hexwindow = hexwindow_create(gui);
     gtk_widget_show(hexwindow_window(hexwindow));
 }
+
+
+void gui_console (struct _gui * gui, const char * line)
+{
+    rdiswindow_console(gui->rdiswindow, line);
+}

@@ -4,10 +4,11 @@
 #include <string.h>
 
 static const struct _object list_object = {
-    (void   (*) (void *))         list_delete, 
-    (void * (*) (void *))         list_copy,
+    (void     (*) (void *))         list_delete, 
+    (void *   (*) (void *))         list_copy,
     NULL,
-    (void   (*) (void *, void *)) list_append_list
+    (void     (*) (void *, void *)) list_append_list,
+    (json_t * (*) (void *))         list_serialize
 };
 
 struct _list * list_create ()
@@ -40,6 +41,48 @@ void list_delete (struct _list * list)
     }
 
     free(list);
+}
+
+
+json_t * list_serialize (struct _list * list)
+{
+    json_t * json = json_object();
+
+    json_object_set(json, "ot", json_integer(SERIALIZE_LIST));
+
+    json_t * items = json_array();
+    struct _list_it * it;
+    for (it = list_iterator(list); it != NULL; it = it->next) {
+        json_array_append(items, object_serialize(it->data));
+    }
+
+    json_object_set(json, "items", items);
+
+    return json;
+}
+
+
+struct _list * list_deserialize (json_t * json)
+{
+    json_t * array = json_object_get(json, "items");
+    if (! json_is_array(array))
+        return NULL;
+
+    struct _list * list = list_create();
+
+    int i;
+    for (i = 0; i < json_array_size(array); i++) {
+        void * data = deserialize(json_array_get(array, i));
+        if (data == NULL) {
+            serialize_error = SERIALIZE_LIST;
+            object_delete(list);
+            return NULL;
+        }
+        list_append(list, data);
+        object_delete(data);
+    }
+
+    return list;
 }
 
 

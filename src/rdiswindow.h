@@ -16,6 +16,7 @@ struct _rdiswindow {
     GtkTextBuffer   * consoleBuffer;
     GtkWidget       * consoleView;
     GtkWidget       * inputEntry;
+    GtkWidget       * menu;
 
     struct _gui * gui;
 };
@@ -24,8 +25,9 @@ struct _rdiswindow {
 struct _rdiswindow * rdiswindow_create (struct _gui * gui);
 void                 rdiswindow_delete (struct _rdiswindow * rdiswindow);
 
-GtkWidget *          rdiswindow_window (struct _rdiswindow * rdiswindow);
-
+GtkWidget *          rdiswindow_window  (struct _rdiswindow * rdiswindow);
+void                 rdiswindow_console (struct _rdiswindow * rdiswindow,
+                                         const char * line);
 
 void rdiswindow_functions_activate (GtkButton * button,
                                     struct _rdiswindow * rdiswindow);

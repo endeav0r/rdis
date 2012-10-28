@@ -10,10 +10,10 @@
 #include <stdlib.h>
 
 static const struct _object rdis_callback_object = {
-    (void   (*) (void *))         rdis_callback_delete, 
-    (void * (*) (void *))         rdis_callback_copy,
-    (int    (*) (void *, void *)) rdis_callback_cmp,
-    NULL
+    (void     (*) (void *))         rdis_callback_delete, 
+    (void *   (*) (void *))         rdis_callback_copy,
+    (int      (*) (void *, void *)) rdis_callback_cmp,
+    NULL,
 };
 
 
@@ -21,7 +21,8 @@ static const struct _object rdis_object = {
     (void   (*) (void *))         rdis_delete, 
     NULL,
     NULL,
-    NULL
+    NULL,
+    (json_t * (*) (void *))         rdis_serialize
 };
 
 
@@ -48,12 +49,81 @@ struct _rdis * rdis_create (_loader * loader)
 void rdis_delete (struct _rdis * rdis)
 {
     object_delete(rdis->callbacks);
-    object_delete(rdis->loader);
     object_delete(rdis->graph);
     object_delete(rdis->labels);
     object_delete(rdis->function_tree);
     object_delete(rdis->memory_map);
+    
+    if (rdis->loader != NULL)
+        object_delete(rdis->loader);
     free(rdis);
+}
+
+
+json_t * rdis_serialize (struct _rdis * rdis)
+{
+    json_t * json = json_object();
+
+    json_object_set(json, "ot",     json_integer(SERIALIZE_RDIS));
+    json_object_set(json, "graph",  object_serialize(rdis->graph));
+    json_object_set(json, "labels", object_serialize(rdis->labels));
+    json_object_set(json, "function_tree", object_serialize(rdis->function_tree));
+    json_object_set(json, "memory_map", object_serialize(rdis->memory_map));
+
+    return json;
+}
+
+
+struct _rdis * rdis_deserialize (json_t * json)
+{
+    json_t * graph         = json_object_get(json, "graph");
+    json_t * labels        = json_object_get(json, "labels");
+    json_t * function_tree = json_object_get(json, "function_tree");
+    json_t * memory_map    = json_object_get(json, "memory_map");
+
+    if (! json_is_object(graph))
+        return NULL;
+    if (! json_is_object(labels))
+        return NULL;
+    if (! json_is_object(function_tree))
+        return NULL;
+    if (! json_is_object(memory_map))
+        return NULL;
+
+    struct _graph * ggraph = deserialize(graph);
+    if (ggraph == NULL)
+        return NULL;
+    struct _map * llabels = deserialize(labels);
+    if (llabels == NULL) {
+        object_delete(ggraph);
+        return NULL;
+    }
+    struct _tree * ffunction_tree = deserialize(function_tree);
+    if (ffunction_tree == NULL) {
+        object_delete(ggraph);
+        object_delete(llabels);
+        return NULL;
+    }
+    struct _map * mmemory_map = deserialize(memory_map);
+    if (mmemory_map == NULL) {
+        object_delete(ggraph);
+        object_delete(llabels);
+        object_delete(mmemory_map);
+        return NULL;
+    }
+
+    struct _rdis * rdis = (struct _rdis *) malloc(sizeof(struct _rdis));
+
+    rdis->object           = &rdis_object;
+    rdis->callback_counter = 0;
+    rdis->callbacks        = map_create();
+    rdis->loader           = NULL;
+    rdis->graph            = ggraph;
+    rdis->labels           = llabels;
+    rdis->function_tree    = ffunction_tree;
+    rdis->memory_map       = mmemory_map;
+
+    return rdis;
 }
 
 

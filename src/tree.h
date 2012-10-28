@@ -28,10 +28,11 @@ struct _tree {
 };
 
 
-struct _tree * tree_create  ();
-void           tree_delete  (struct _tree * tree);
-
-struct _tree * tree_copy    (struct _tree * tree);
+struct _tree * tree_create      ();
+void           tree_delete      (struct _tree * tree);
+struct _tree * tree_copy        (struct _tree * tree);
+json_t *       tree_serialize   (struct _tree * tree);
+struct _tree * tree_deserialize (json_t * json);
 
 void           tree_map (struct _tree * tree, void (* callback) (void *));
 

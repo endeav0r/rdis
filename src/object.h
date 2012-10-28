@@ -1,11 +1,14 @@
 #ifndef object_HEADER
 #define object_HEADER
 
+#include <jansson.h>
+
 struct _object {
-    void   (* delete) (void *);
-    void * (* copy)   (void *);
-    int    (* cmp)    (void *, void *);
-    void   (* merge)  (void *, void *);
+    void     (* delete)      (void *);
+    void *   (* copy)        (void *);
+    int      (* cmp)         (void *, void *);
+    void     (* merge)       (void *, void *);
+    json_t * (* serialize)   (void *);
 };
 
 struct _object_header {
@@ -20,6 +23,8 @@ struct _object_header {
     (((struct _object_header *) XYX)->object->cmp(XYX, YXY))
 #define object_merge(XYX, YXY) \
     (((struct _object_header *) XYX)->object->merge(XYX, YXY))
+#define object_serialize(XYX) \
+    ((struct _object_header *) XYX)->object->serialize(XYX)
 
 
 //void   object_delete (void * data);

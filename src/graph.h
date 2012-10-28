@@ -5,6 +5,7 @@
 
 #include "list.h"
 #include "object.h"
+#include "serialize.h"
 #include "tree.h"
 
 // generic function pointers that need to be implemented for graph_node->data
@@ -14,14 +15,9 @@ struct _graph_it {
     struct _tree_it * it;
 };
 
-struct _graph_index {
-    const struct _object * object;
-    uint64_t index;
-};
-
 struct _graph_edge {
     const struct _object * object;
-    void * data;
+    void   * data;
     uint64_t head;
     uint64_t tail;
 };
@@ -29,14 +25,14 @@ struct _graph_edge {
 struct _graph_node {
     const struct _object * object;
     struct _graph * graph;
-    uint64_t       index;
-    void         * data;
-    struct _list * edges;
+    uint64_t        index;
+    void          * data;
+    struct _list  * edges;
 };
 
 struct _graph {
     const struct _object * object;
-    struct _tree * nodes;
+    struct _tree         * nodes;
 };
 
 
@@ -46,11 +42,12 @@ void graph_debug (struct _graph * graph);
 /*
 * GRAPH OPERATOR INSTRUCTIONS
 */
-struct _graph * graph_create ();
-void            graph_delete (struct _graph * graph);
-int             graph_cmp    (void * a, void * b);
-struct _graph * graph_copy   (struct _graph * graph);
-
+struct _graph * graph_create      ();
+void            graph_delete      (struct _graph * graph);
+int             graph_cmp         (void * a, void * b);
+struct _graph * graph_copy        (struct _graph * graph);
+json_t *        graph_serialize   (struct _graph * graph);
+struct _graph * graph_deserialize (json_t * json);
 
 /*
 * GENERAL GRAPH METHODS
@@ -100,36 +97,30 @@ void graph_bfs (struct _graph * graph,
                 void  (* callback) (struct _graph *, struct _graph_node *));
 
 /*
-* GRAPH INDEX OPERATOR FUNCTIONS
-*/
-struct _graph_index * graph_index_create (uint64_t index);
-void                  graph_index_delete (struct _graph_index * index);
-struct _graph_index * graph_index_copy   (struct _graph_index * index);
-int                   graph_index_cmp    (struct _graph_index * lhs,
-                                          struct _graph_index * rhs);
-
-/*
 * GRAPH EDGE OPERATOR FUNCTIONS
 */
-struct _graph_edge * graph_edge_create (uint64_t head,
-                                        uint64_t tail,
-                                        void * data);
-void                 graph_edge_delete (struct _graph_edge * edge);
-struct _graph_edge * graph_edge_copy   (struct _graph_edge * edge);
-int                  graph_edge_cmp    (struct _graph_edge * lhs,
-                                        struct _graph_edge * rhs);
+struct _graph_edge * graph_edge_create      (uint64_t head,
+                                             uint64_t tail,
+                                             void * data);
+void                 graph_edge_delete      (struct _graph_edge * edge);
+struct _graph_edge * graph_edge_copy        (struct _graph_edge * edge);
+int                  graph_edge_cmp         (struct _graph_edge * lhs,
+                                             struct _graph_edge * rhs);
+json_t *             graph_edge_serialize   (struct _graph_edge * edge);
+struct _graph_edge * graph_edge_deserialize (json_t * json);
 
 /*
 * GRAPH NODE OPERATOR FUNCTIONS
 */
-struct _graph_node * graph_node_create (struct _graph * graph,
-                                        uint64_t        index,
-                                        void *          data);
-void                 graph_node_delete (struct _graph_node * node);
-struct _graph_node * graph_node_copy   (struct _graph_node * node);
-int                  graph_node_cmp    (struct _graph_node * lhs,
-                                        struct _graph_node * rhs);
-
+struct _graph_node * graph_node_create      (struct _graph * graph,
+                                             uint64_t        index,
+                                             void *          data);
+void                 graph_node_delete      (struct _graph_node * node);
+struct _graph_node * graph_node_copy        (struct _graph_node * node);
+int                  graph_node_cmp         (struct _graph_node * lhs,
+                                             struct _graph_node * rhs);
+json_t *             graph_node_serialize   (struct _graph_node * node);
+struct _graph_node * graph_node_deserialize (json_t * json);
 //void                 graph_node_delete_tree (struct _graph_node * node);
 
 /*

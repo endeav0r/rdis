@@ -1,14 +1,17 @@
 #include "tree.h"
 
+#include "serialize.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 static const struct _object tree_object = {
-    (void   (*) (void *)) tree_delete, 
-    (void * (*) (void *)) tree_copy,
+    (void     (*) (void *)) tree_delete, 
+    (void *   (*) (void *)) tree_copy,
     NULL,
-    NULL
+    NULL,
+    (json_t * (*) (void *)) tree_serialize
 };
 
 struct _tree * tree_create ()
@@ -42,6 +45,49 @@ void tree_delete (struct _tree * tree)
     free(tree); 
 }
 
+
+json_t * tree_serialize (struct _tree * tree)
+{
+    json_t * json = json_object();
+
+    json_object_set(json, "ot", json_integer(SERIALIZE_TREE));
+
+    json_t * nodes = json_array();
+    struct _tree_it * it;
+    for (it = tree_iterator(tree); it != NULL; it = tree_it_next(it)) {
+        json_array_append(nodes, object_serialize(tree_it_data(it)));
+    }
+
+    json_object_set(json, "nodes", nodes);
+
+    return json;
+}
+
+
+struct _tree * tree_deserialize (json_t * json)
+{
+    json_t * nodes = json_object_get(json, "nodes");
+    if (! json_is_array(nodes)) {
+        serialize_error = SERIALIZE_TREE;
+        return NULL;
+    }
+
+    struct _tree * tree = tree_create();
+
+    size_t i;
+    for (i = 0; i < json_array_size(nodes); i++) {
+        void * data = deserialize(json_array_get(nodes, i));
+        if (data == NULL) {
+            serialize_error = SERIALIZE_TREE;
+            object_delete(tree);
+            return NULL;
+        }
+        tree_insert(tree, data);
+        object_delete(data);
+    }
+
+    return tree;
+}
 
 
 struct _tree * tree_copy (struct _tree * tree)

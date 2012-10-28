@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 #include "object.h"
+#include "serialize.h"
 
 struct _list_it {
     void * data;
@@ -18,8 +19,10 @@ struct _list {
     size_t size;
 };
 
-struct _list *    list_create  ();
-void              list_delete (struct _list * list);
+struct _list * list_create      ();
+void           list_delete      (struct _list * list);
+json_t *       list_serialize   (struct _list * list);
+struct _list * list_deserialize (json_t * json);
 
 void              list_append      (struct _list * list, void * data);
 void              list_append_list (struct _list * list, struct _list * rhs);

@@ -6,21 +6,23 @@ static const struct _object ins_object = {
     (void   (*) (void *))         ins_delete, 
     (void * (*) (void *))         ins_copy,
     (int    (*) (void *, void *)) ins_cmp,
-    NULL
+    NULL,
+    (json_t * (*) (void *))       ins_serialize
 };
 
 static const struct _object ins_edge_object = {
     (void   (*) (void *))         ins_edge_delete, 
     (void * (*) (void *))         ins_edge_copy,
     NULL,
-    NULL
+    NULL,
+    (json_t * (*) (void *))       ins_edge_serialize
 };
 
 struct _ins * ins_create  (uint64_t address,
                            uint8_t * bytes,
                            size_t size,
-                           char * description,
-                           char * comment)
+                           const char * description,
+                           const char * comment)
 {
     struct _ins * ins;
 
@@ -75,6 +77,81 @@ struct _ins * ins_copy (struct _ins * ins)
     return new_ins;
 }
 
+
+json_t * ins_serialize (struct _ins * ins)
+{
+    json_t * json = json_object();
+    json_t * bytes = json_array();
+
+    int i;
+    for (i = 0; i < ins->size; i++) {
+        json_array_append(bytes, json_integer(ins->bytes[i]));
+    }
+
+    json_object_set(json, "ot",          json_integer(SERIALIZE_INSTRUCTION));
+    json_object_set(json, "address",     json_uint64_t(ins->address));
+    json_object_set(json, "target",      json_uint64_t(ins->target));
+    json_object_set(json, "bytes",       bytes);
+    if (ins->description == NULL)
+        json_object_set(json, "description", json_string(""));
+    else
+        json_object_set(json, "description", json_string(ins->description));
+    if (ins->comment == NULL)
+        json_object_set(json, "comment", json_string(""));
+    else
+        json_object_set(json, "comment",     json_string(ins->comment));
+    json_object_set(json, "flags",       json_integer(ins->flags));
+
+    return json;
+}
+
+
+struct _ins * ins_deserialize (json_t * json)
+{
+    json_t * address     = json_object_get(json, "address");
+    json_t * target      = json_object_get(json, "target");
+    json_t * bytes       = json_object_get(json, "bytes");
+    json_t * description = json_object_get(json, "description");
+    json_t * comment     = json_object_get(json, "comment");
+    json_t * flags       = json_object_get(json, "flags");
+
+    if (    (! json_is_uint64_t(address))
+         || (! json_is_uint64_t(target))
+         || (! json_is_array(bytes))
+         || (! json_is_string(description))
+         || (! json_is_string(comment))
+         || (! json_is_integer(flags))) {
+        serialize_error = SERIALIZE_INSTRUCTION;
+        return NULL;
+    }
+
+    uint8_t * tmp = (uint8_t *) malloc(json_array_size(bytes));
+    int i;
+    for (i = 0; i < json_array_size(bytes); i++) {
+        tmp[i] = json_integer_value(json_array_get(bytes, i));
+    }
+
+    const char * sdescription = json_string_value(description);
+    const char * scomment     = json_string_value(comment);
+
+    if (strlen(sdescription) == 0)
+        sdescription = NULL;
+    if (strlen(scomment) == 0)
+        scomment = NULL;
+
+    struct _ins * ins = ins_create(json_uint64_t_value(address),
+                                   tmp,
+                                   json_array_size(bytes),
+                                   sdescription,
+                                   scomment);
+
+    ins->target = json_uint64_t_value(target);
+    ins->flags  = json_integer_value(flags);
+
+    free(tmp);
+
+    return ins;
+}
 
 
 void ins_s_description (struct _ins * ins, const char * description)
@@ -139,4 +216,28 @@ void ins_edge_delete (struct _ins_edge * ins_edge)
 struct _ins_edge * ins_edge_copy (struct _ins_edge * ins_edge)
 {
     return ins_edge_create(ins_edge->type);
+}
+
+
+json_t * ins_edge_serialize (struct _ins_edge * ins_edge)
+{
+    json_t * json = json_object();
+
+    json_object_set(json, "ot",   json_integer(SERIALIZE_INSTRUCTION_EDGE));
+    json_object_set(json, "type", json_integer(ins_edge->type));
+
+    return json;
+}
+
+
+struct _ins_edge * ins_edge_deserialize (json_t * json)
+{
+    json_t * type = json_object_get(json, "type");
+
+    if (! json_is_integer(type)) {
+        serialize_error = SERIALIZE_INSTRUCTION_EDGE;
+        return NULL;
+    }
+
+    return ins_edge_create(json_integer_value(type));
 }

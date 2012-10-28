@@ -16,4 +16,6 @@ void gui_rdgwindow  (struct _gui * gui, uint64_t top_index);
 void gui_funcwindow (struct _gui * gui);
 void gui_hexwindow  (struct _gui * gui);
 
+void gui_console (struct _gui * gui, const char * line);
+
 #endif

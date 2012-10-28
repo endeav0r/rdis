@@ -31,8 +31,10 @@ struct _rdis {
 
 // rdis will assume control of the loader, and rdis will delete the loader
 // when rdis itself is deleted
-struct _rdis * rdis_create (_loader * loader);
-void           rdis_delete (struct _rdis * rdis);
+struct _rdis * rdis_create      (_loader * loader);
+void           rdis_delete      (struct _rdis * rdis);
+json_t *       rdis_serialize   (struct _rdis * rdis);
+struct _rdis * rdis_deserialize (json_t * json);
 
 // creates a user function based on the bytes found at address,
 // updates graph, labels and function_tree appropriately
