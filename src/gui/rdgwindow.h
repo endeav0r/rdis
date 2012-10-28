@@ -34,6 +34,7 @@ struct _rdgwindow {
 
     double image_drag_x;
     double image_drag_y;
+    int    image_dragging;
 
     int scrolledWindow_width;
     int scrolledWindow_height;
@@ -61,18 +62,21 @@ void rdgwindow_graph_update (struct _rdgwindow * rdgwindow);
 void     rdgwindow_destroy_event (GtkWidget * widget,
                                   struct _rdgwindow * rdgwindow);
 
-gboolean rdgwindow_image_motion_notify_event (GtkWidget * widget,
-                                              GdkEventMotion * event,
-                                              struct _rdgwindow * rdgwindow);
-gboolean rdgwindow_image_button_press_event  (GtkWidget * widget,
-                                              GdkEventButton * event,
-                                              struct _rdgwindow * rdgwindow);
-gboolean rdgwindow_image_key_press_event     (GtkWidget * widget,
-                                              GdkEventKey * event,
-                                              struct _rdgwindow * rdgwindow);
-void     rdgwindow_size_allocate_event       (GtkWidget * widget,
-                                              GdkRectangle * allocation,
-                                              struct _rdgwindow * rdgwindow);
+gboolean rdgwindow_image_motion_notify_event  (GtkWidget * widget,
+                                               GdkEventMotion * event,
+                                               struct _rdgwindow * rdgwindow);
+gboolean rdgwindow_image_button_press_event   (GtkWidget * widget,
+                                               GdkEventButton * event,
+                                               struct _rdgwindow * rdgwindow);
+gboolean rdgwindow_image_button_release_event (GtkWidget * widget,
+                                               GdkEventButton * event,
+                                               struct _rdgwindow * rdgwindow);
+gboolean rdgwindow_image_key_press_event      (GtkWidget * widget,
+                                               GdkEventKey * event,
+                                               struct _rdgwindow * rdgwindow);
+void     rdgwindow_size_allocate_event        (GtkWidget * widget,
+                                               GdkRectangle * allocation,
+                                               struct _rdgwindow * rdgwindow);
 
 void rdgwindow_reset_node_colors (struct _rdgwindow * rdgwindow);
 void rdgwindow_color_node        (struct _rdgwindow * rdgwindow);

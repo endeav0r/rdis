@@ -8,6 +8,7 @@
 #include "list.h"
 #include "loader.h"
 #include "graph.h"
+#include "serialize.h"
 #include "tree.h"
 
 struct _elf64 {
@@ -30,7 +31,9 @@ struct _tree  * elf64_function_tree (struct _elf64 * elf64);
 struct _map   * elf64_labels        (struct _elf64 * elf64);
 struct _graph * elf64_graph_address (struct _elf64 * elf64, uint64_t address);
 struct _map   * elf64_memory_map    (struct _elf64 * elf64);
+struct _label * elf64_label_address (struct _elf64 * elf64, uint64_t address);
 
+struct _tree *  elf64_function_tree_address (struct _elf64 * elf64, uint64_t address);
 
 // internal use
 uint64_t        elf64_base_address    (struct _elf64 * elf64);
@@ -42,10 +45,10 @@ void *          elf64_section_element (struct _elf64 * elf64,
 char *          elf64_strtab_str      (struct _elf64 * elf64,
                                        unsigned int strtab,
                                        unsigned int offset);
-const char *    elf64_sym_name_by_address (struct _elf64 * elf64, uint64_t address);
 Elf64_Shdr *    elf64_shdr_by_name    (struct _elf64 * elf64, const char * name);
 struct _graph * elf64_dis_symtab      (struct _elf64 * elf64, int section);
 uint64_t        elf64_vaddr_to_offset (struct _elf64 * elf64, uint64_t address);
-
+const char *    elf64_sym_name_by_address (struct _elf64 * elf64, uint64_t address);
+const char *    elf64_rel_name_by_address (struct _elf64 * elf64, uint64_t address);
 
 #endif

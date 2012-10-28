@@ -1,6 +1,8 @@
 #ifndef gui_HEADER
 #define gui_HEADER
 
+#include <gtk/gtk.h>
+
 #include "rdis.h"
 
 struct _gui_window {
@@ -16,8 +18,10 @@ struct _gui {
 };
 
 
-struct _gui * gui_create (struct _rdis * rdis);
+struct _gui * gui_create ();
 void          gui_delete (struct _gui * gui);
+
+void gui_set_rdis (struct _gui * gui, struct _rdis * rdis);
 
 uint64_t gui_add_window    (struct _gui * gui, GtkWidget * window);
 void     gui_remove_window (struct _gui * gui, uint64_t identifier);

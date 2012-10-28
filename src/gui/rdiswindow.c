@@ -206,8 +206,7 @@ void rdiswindow_open (GtkMenuItem * menuItem, struct _rdiswindow * rdiswindow)
             }
             else {
                 gui_close_windows(rdiswindow->gui);
-                object_delete(rdiswindow->gui->rdis);
-                rdiswindow->gui->rdis = rdis;
+                gui_set_rdis(rdiswindow->gui, rdis);
                 snprintf(tmp, 256, "opened file %s", filename);
                 gui_console(rdiswindow->gui, tmp);
             }
@@ -221,9 +220,13 @@ void rdiswindow_open (GtkMenuItem * menuItem, struct _rdiswindow * rdiswindow)
 
 void rdiswindow_save (GtkMenuItem * menuItem, struct _rdiswindow * rdiswindow)
 {
-
     GtkWidget * dialog;
     char tmp[256];
+
+    if (rdiswindow->gui->rdis == NULL) {
+        gui_console(rdiswindow->gui, "no rdis loaded");
+        return;
+    }
 
     dialog = gtk_file_chooser_dialog_new("Save Rdis File",
                                          GTK_WINDOW(rdiswindow->window),
@@ -280,8 +283,7 @@ void rdiswindow_load (GtkMenuItem * menuItem, struct _rdiswindow * rdiswindow)
         else {
             struct _rdis * rdis = rdis_create(loader);
             gui_close_windows(rdiswindow->gui);
-            object_delete(rdiswindow->gui->rdis);
-            rdiswindow->gui->rdis = rdis;
+            gui_set_rdis(rdiswindow->gui, rdis);
             snprintf(tmp, 256, "loaded executable %s", filename);
         }
 

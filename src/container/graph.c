@@ -187,26 +187,30 @@ void graph_merge_node_edges (struct _graph_node * lhs, struct _graph_node * rhs)
 
 void graph_merge (struct _graph * graph, struct _graph * rhs)
 {
-    struct _graph_it * it;
-    struct _graph_node * node;
-    struct _graph_node * node_ptr;
+    struct _queue * queue = queue_create();
 
+    // start by adding all new nodes
+    struct _graph_it   * it;
     for (it = graph_iterator(rhs); it != NULL; it = graph_it_next(it)) {
-        // does this node exist already?
-        node_ptr = graph_fetch_node(graph, graph_it_index(it));
-        if (node_ptr) {
-            // do we have new edges?
-            graph_merge_node_edges(node_ptr, graph_it_node(it));
+        struct _graph_node * node = graph_it_node(it);
+
+        if (graph_fetch_node(graph, node->index) != NULL)
             continue;
+
+        graph_add_node(graph, node->index, node->data);
+
+        // add this node's edge to queue
+        struct _list_it * eit;
+        for (eit = list_iterator(node->edges); eit != NULL; eit = eit->next) {
+            queue_push(queue, eit->data);
         }
+    }
 
-        // node doesn't exist, create it
-        node = graph_node_copy(graph_it_node(it));
-        node->graph = graph;
-
-        tree_insert(graph->nodes, node);
-
-        object_delete(node);
+    // then add all new edges
+    while (queue->size > 0) {
+        struct _graph_edge * edge = queue_peek(queue);
+        graph_add_edge(graph, edge->head, edge->tail, edge->data);
+        queue_pop(queue);
     }
 }
 

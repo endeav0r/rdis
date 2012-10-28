@@ -103,6 +103,14 @@ cairo_surface_t * rdg_node_draw_full (struct _graph_node * node,
                                       double               bg_green,
                                       double               bg_blue,
                                       uint64_t             highlight_ins) {
+
+
+    struct _list * ins_list = node->data;
+    if (ins_list->size == 0) {
+        printf("rdg_node_draw_full instruction == 0 node %llx\n",
+               (unsigned long long) node->index);
+    }
+
     cairo_surface_t    * surface;
     cairo_t            * ctx;
     cairo_text_extents_t te;

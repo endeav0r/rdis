@@ -25,6 +25,7 @@ struct _rdgwindow * rdgwindow_create (struct _gui * gui, uint64_t top_index)
 
     rdgwindow->image_drag_x   = 0;
     rdgwindow->image_drag_y   = 0;
+    rdgwindow->image_dragging = 0;
 
     rdgwindow->selected_node  = -1;
     rdgwindow->selected_ins   = -1;
@@ -68,6 +69,11 @@ struct _rdgwindow * rdgwindow_create (struct _gui * gui, uint64_t top_index)
     g_signal_connect(rdgwindow->imageEventBox,
                      "button-press-event",
                      G_CALLBACK(rdgwindow_image_button_press_event),
+                     rdgwindow);
+
+    g_signal_connect(rdgwindow->imageEventBox,
+                     "button-release-event",
+                     G_CALLBACK(rdgwindow_image_button_release_event),
                      rdgwindow);
 
     g_signal_connect(rdgwindow->imageEventBox,
@@ -185,6 +191,9 @@ gboolean rdgwindow_image_motion_notify_event (GtkWidget * widget,
                                               GdkEventMotion * event,
                                               struct _rdgwindow * rdgwindow)
 {
+    if (rdgwindow->image_dragging == 0)
+        return TRUE;
+
     GtkAdjustment * hadjust = gtk_scrolled_window_get_hadjustment(
                           GTK_SCROLLED_WINDOW(rdgwindow->scrolledWindow));
     GtkAdjustment * vadjust = gtk_scrolled_window_get_vadjustment(
@@ -217,6 +226,9 @@ gboolean rdgwindow_image_button_press_event  (GtkWidget * widget,
 {
     int x = (int) event->x;
     int y = (int) event->y;
+
+    if ((event->type == GDK_BUTTON_PRESS) && (event->button == 1))
+        rdgwindow->image_dragging = 1;
 
     rdgwindow->image_drag_x = x;
     rdgwindow->image_drag_y = y;
@@ -272,6 +284,16 @@ gboolean rdgwindow_image_button_press_event  (GtkWidget * widget,
     if ((selected_ins != -1) && (event->button == 3)) {
         rdgwindow_menu_popup(rdgwindow);
     }
+
+    return FALSE;
+}
+
+
+gboolean rdgwindow_image_button_release_event (GtkWidget * widget,
+                                               GdkEventButton * event,
+                                               struct _rdgwindow * rdgwindow)
+{
+    rdgwindow->image_dragging = 0;
 
     return FALSE;
 }

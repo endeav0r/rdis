@@ -127,8 +127,12 @@ void funcwindow_append_row (struct _funcwindow * funcwindow, uint64_t index)
     GtkTreeIter treeIter;
     struct _label * label = map_fetch(funcwindow->gui->rdis->labels, index);
 
-    if (label == NULL)
+
+    if (label == NULL) {
+        printf("funcwindow null label for %llx\n",
+               (unsigned long long) index);
         return;
+    }
 
     char addrText[64];
     snprintf(addrText, 64, "%04llx", (unsigned long long) index);

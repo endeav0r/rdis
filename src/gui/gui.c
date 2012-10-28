@@ -1,6 +1,3 @@
-#include <gtk/gtk.h>
-#include <fontconfig/fontconfig.h>
-
 #include "gui.h"
 
 #include "funcwindow.h"
@@ -21,39 +18,13 @@ static const struct _object gui_window_object = {
 };
 
 
-int main (int argc, char * argv[])
-{
-    gtk_init(&argc, &argv);
-
-    _loader * loader;
-
-    loader = loader_create(argv[1]);
-
-    if (loader == NULL) {
-        fprintf(stderr, "could not load %s\n", argv[1]);
-        return -1;
-    }
-
-    struct _rdis * rdis = rdis_create(loader);
-    graph_reduce(rdis->graph);
-    struct _gui * gui = gui_create(rdis);
-
-    gtk_main();
-
-    gui_delete(gui);
-    rdis_delete(rdis);
-
-    return 0;
-}
-
-
-struct _gui * gui_create (struct _rdis * rdis)
+struct _gui * gui_create ()
 {
     struct _gui * gui;
 
     gui = (struct _gui *) malloc(sizeof(struct _gui));
     
-    gui->rdis              = rdis;
+    gui->rdis              = NULL;
     gui->rdiswindow        = rdiswindow_create(gui);
     gui->windows           = map_create();
     gui->next_window_index = 0;
@@ -66,10 +37,19 @@ struct _gui * gui_create (struct _rdis * rdis)
 
 void gui_delete (struct _gui * gui)
 {
+    if (gui->rdis != NULL)
+        object_delete(gui->rdis);
     object_delete(gui->windows);
     free(gui);
-    // rdis is freed outsite of gui
     // rdiswindow frees itself
+}
+
+
+void gui_set_rdis (struct _gui * gui, struct _rdis * rdis)
+{
+    if (gui->rdis != NULL)
+        object_delete(gui->rdis);
+    gui->rdis = rdis;
 }
 
 
@@ -114,6 +94,10 @@ void gui_close_windows (struct _gui * gui){
 
 void gui_rdgwindow (struct _gui * gui, uint64_t top_index)
 {
+    if (gui->rdis == NULL) {
+        gui_console(gui, "can't create rdgwindow, no rdis loaded");
+        return;
+    }
     struct _rdgwindow * rdgwindow = rdgwindow_create(gui, top_index);
     gtk_widget_show(rdgwindow_window(rdgwindow));
 }
@@ -121,6 +105,10 @@ void gui_rdgwindow (struct _gui * gui, uint64_t top_index)
 
 void gui_funcwindow (struct _gui * gui)
 {
+    if (gui->rdis == NULL) {
+        gui_console(gui, "can't create funcwindow, no rdis loaded");
+        return;
+    }
     struct _funcwindow * funcwindow = funcwindow_create(gui);
     gtk_widget_show(funcwindow_window(funcwindow));
 }
@@ -128,6 +116,10 @@ void gui_funcwindow (struct _gui * gui)
 
 void gui_hexwindow (struct _gui * gui)
 {
+    if (gui->rdis == NULL) {
+        gui_console(gui, "can't create hexwindow, no rdis loaded");
+        return;
+    }
     struct _hexwindow * hexwindow = hexwindow_create(gui);
     gtk_widget_show(hexwindow_window(hexwindow));
 }

@@ -129,87 +129,107 @@ struct _rdis * rdis_deserialize (json_t * json)
 int rdis_user_function (struct _rdis * rdis, uint64_t address)
 {
     printf("rdis_user_function %llx\n", (unsigned long long) address);
-    // create an index and label for this function
+
+    // get a tree of all functions reachable at this address
+    struct _tree * function_tree;
+    function_tree = loader_function_tree_address(rdis->loader, address);
+
+    // add in this address as a new function as well
     struct _index * index = index_create(address);
-    // no double dipping
-    if (tree_fetch(rdis->function_tree, index) != NULL) {
-        object_delete(index);
-        return -1;
-    }
-    tree_insert(rdis->function_tree, index);
+    tree_insert(function_tree, index);
     object_delete(index);
 
-    char tmp[128];
-    snprintf(tmp, 128, "ufun_%llx", (unsigned long long) address);
+    // for each newly reachable function
+    struct _tree_it * fit;
+    for (fit = tree_iterator(function_tree); fit != NULL; fit = tree_it_next(fit)) {
+        struct _index * index = tree_it_data(fit);
+        uint64_t fitaddress = index->index;
 
-    struct _label * label = label_create(address, tmp, LABEL_FUNCTION);
-    map_insert(rdis->labels, address, label);
-    object_delete(label);
+        printf("adding user function: %llx\n", (unsigned long long) fitaddress);
 
-    // if this function is already in our graph, all we need to do is make
-    // sure its a separate node and then remove function predecessors
-    struct _graph_node * node = graph_fetch_node_max(rdis->graph, address);
-    if (node != NULL) {
+        // if we already have this function, skip it
+        if (tree_fetch(rdis->function_tree, index) != NULL)
+            continue;
 
-        // already a node, remove function predecessors
-        if (node->index == address) {
-            remove_function_predecessors(rdis->graph, rdis->function_tree);
-            rdis_callback(rdis);
-            return 0;
-        }
+        printf("a\n");
 
-        // search for instruction with given address
-        struct _list    * ins_list = node->data;
-        struct _list_it * it;
-        for (it = list_iterator(ins_list); it != NULL; it = it->next) {
-            struct _ins * ins = it->data;
-            // found instruction
-            if (ins->address == address) {
-                // create a new instruction list.
-                // add remaining instructions to new list while removing them from
-                // the current list
-                struct _list * new_ins_list = list_create();
-                while (1) {
-                    list_append(new_ins_list, it->data);
-                    it = list_remove(ins_list, it);
-                    if (it == NULL)
-                        break;
-                }
-                // create a new graph node for this new function
-                graph_add_node(rdis->graph, address, new_ins_list);
-                // all graph successors from old node are added to new node
-                struct _queue   * queue      = queue_create();
-                struct _list    * successors = graph_node_successors(node);
-                struct _list_it * sit;
-                for (sit = list_iterator(successors);
-                     sit != NULL;
-                     sit = sit->next) {
-                    struct _graph_edge * edge = sit->data;
-                    graph_add_edge(rdis->graph, address, edge->tail, edge->data);
-                    queue_push(queue, edge);
-                }
-                object_delete(successors);
+        // add this function to the rdis->function_tree
+        tree_insert(rdis->function_tree, index);
 
-                // and removed from old node
-                while (queue->size > 0) {
-                    struct _graph_edge * edge = queue_peek(queue);
-                    graph_remove_edge(rdis->graph, edge->head, edge->tail);
-                    queue_pop(queue);
-                }
-                object_delete(queue);
+        // add label
+        struct _label * label = loader_label_address(rdis->loader, fitaddress);
+        map_insert(rdis->labels, fitaddress, label);
+        object_delete(label);
 
-                // that was easy
-                rdis_callback(rdis);
-                return 0;
+        // if this function is already in our graph, all we need to do is make
+        // sure its a separate node and then remove function predecessors
+        struct _graph_node * node = graph_fetch_node_max(rdis->graph, fitaddress);
+        if (node != NULL) {
+
+            // already a node, remove function predecessors
+            if (node->index == address) {
+                remove_function_predecessors(rdis->graph, rdis->function_tree);
+                continue;
             }
+
+            // search for instruction with given address
+            struct _list    * ins_list = node->data;
+            struct _list_it * it;
+            for (it = list_iterator(ins_list); it != NULL; it = it->next) {
+                struct _ins * ins = it->data;
+                // found instruction
+                if (ins->address == fitaddress) {
+                    // create a new instruction list.
+                    // add remaining instructions to new list while removing them from
+                    // the current list
+                    struct _list * new_ins_list = list_create();
+                    while (1) {
+                        list_append(new_ins_list, it->data);
+                        it = list_remove(ins_list, it);
+                        if (it == NULL)
+                            break;
+                    }
+                    // create a new graph node for this new function
+                    graph_add_node(rdis->graph, fitaddress, new_ins_list);
+                    // all graph successors from old node are added to new node
+                    struct _queue   * queue      = queue_create();
+                    struct _list    * successors = graph_node_successors(node);
+                    struct _list_it * sit;
+                    for (sit = list_iterator(successors);
+                         sit != NULL;
+                         sit = sit->next) {
+                        struct _graph_edge * edge = sit->data;
+                        graph_add_edge(rdis->graph,
+                                       fitaddress,
+                                       edge->tail,
+                                       edge->data);
+                        queue_push(queue, edge);
+                    }
+                    object_delete(successors);
+
+                    // and removed from old node
+                    while (queue->size > 0) {
+                        struct _graph_edge * edge = queue_peek(queue);
+                        graph_remove_edge(rdis->graph, edge->head, edge->tail);
+                        queue_pop(queue);
+                    }
+                    object_delete(queue);
+
+                    // that was easy
+                    break;
+                }
+            }
+            if (it != NULL)
+                continue;
         }
+
+        // we need to create a new graph for this node
+        struct _graph * graph = loader_graph_address(rdis->loader, fitaddress);
+        graph_merge(rdis->graph, graph);
+        object_delete(graph);
     }
 
-    // we need to create a new graph for this node
-    struct _graph * graph = loader_graph_address(rdis->loader, address);
-    graph_reduce(graph);
-    graph_merge(rdis->graph, graph);
-    object_delete(graph);
+    object_delete(function_tree);
 
     rdis_callback(rdis);
 

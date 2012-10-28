@@ -106,7 +106,7 @@ void hexwindow_draw_memmap (struct _hexwindow * hexwindow)
                 line[0] = '\0';
                 snprintf(tmp, 32, "%04llx  ", 
                          (unsigned long long) base + offset);
-                strncat(line, tmp, 256);
+                strncat(line, tmp, 255);
             }
 
             int i;
@@ -114,7 +114,7 @@ void hexwindow_draw_memmap (struct _hexwindow * hexwindow)
                 if (offset < buffer->size) {
                     unsigned int c = buffer->bytes[offset++];
                     snprintf(tmp, 32, "%02x ", c);
-                    strncat(line, tmp, 256);
+                    strncat(line, tmp, 255);
                     if ((c >= 0x20) && (c < 0x7f))
                         ascii[i] = c;
                     else
@@ -127,9 +127,10 @@ void hexwindow_draw_memmap (struct _hexwindow * hexwindow)
             }
             ascii[i] = '\0';
 
-            strncat(line, " ", 256);
-            strncat(line, ascii, 256);
-            strncat(line, "\n", 256);
+            strncat(line, " ", 255);
+            strncat(line, ascii, 255);
+            strncat(line, "\n", 255);
+            line[255] = '\0';
 
             gtk_text_buffer_insert(hexwindow->textBuffer,
                                    &iter,

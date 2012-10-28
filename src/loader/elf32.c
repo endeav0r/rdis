@@ -29,7 +29,9 @@ static const struct _loader_object elf32_object = {
     (struct _tree *  (*) (void *))           elf32_function_tree,
     (struct _map  *  (*) (void *))           elf32_labels,
     (struct _graph * (*) (void *, uint64_t)) elf32_graph_address,
-    (struct _map *   (*) (void *))           elf32_memory_map
+    (struct _map *   (*) (void *))           elf32_memory_map,
+    (struct _tree *  (*) (void *, uint64_t)) elf32_function_tree_address,
+    (struct _label * (*) (void *, uint64_t)) elf32_label_address
 };
 
 
@@ -247,6 +249,39 @@ uint64_t elf32_vaddr_to_offset (struct _elf32 * elf32, uint64_t address)
 
 
 
+const char * elf32_rel_name_by_address (struct _elf32 * elf32, uint64_t address)
+{
+    // find rela sections
+    int shdr_i;
+    for (shdr_i = 0; shdr_i < elf32->ehdr->e_shnum; shdr_i++) {
+        Elf32_Shdr * shdr = elf32_shdr(elf32, shdr_i);
+        if (shdr->sh_type != SHT_REL)
+            continue;
+        Elf32_Shdr * shdr_sym = elf32_shdr(elf32, shdr->sh_link);
+        int rel_i;
+        for (rel_i = 0; rel_i < shdr->sh_size / shdr->sh_entsize; rel_i++) {
+            // find an appropriate rela symbol
+            Elf32_Rel * rel = elf32_section_element(elf32, shdr_i, rel_i);
+            if (rel->r_offset != address)
+                continue;
+            if (ELF32_R_SYM(rel->r_info) == STN_UNDEF)
+                continue;
+
+            // fetch symbol
+            Elf32_Sym * sym = elf32_section_element(elf32,
+                                                    shdr->sh_link,
+                                                    ELF32_R_SYM(rel->r_info));
+
+            // rela->r_offset needs to be fixed for relocatable objects
+            return elf32_strtab_str(elf32, shdr_sym->sh_link, sym->st_name);
+        }
+    }
+
+    return NULL;
+}
+
+
+
 struct _graph * elf32_graph (struct _elf32 * elf32)
 {
 
@@ -291,6 +326,8 @@ struct _graph * elf32_graph (struct _elf32 * elf32)
 
     remove_function_predecessors(graph, function_tree);
     object_delete(function_tree);
+
+    graph_reduce(graph);
 
     return graph;
 }
@@ -402,106 +439,15 @@ struct _tree * elf32_function_tree (struct _elf32 * elf32)
 
 struct _map * elf32_labels (struct _elf32 * elf32)
 {
-    // start by getting an address of all the functions
-    struct _tree * function_tree = elf32_function_tree(elf32);
 
     struct _map * labels_map = map_create();
 
-    // set labels for relocations
-    int shdr_i;
-    for (shdr_i = 0; shdr_i < elf32->ehdr->e_shnum; shdr_i++) {
-        Elf32_Shdr * shdr = elf32_shdr(elf32, shdr_i);
-        if (shdr->sh_type != SHT_REL)
-            continue;
-        Elf32_Shdr * shdr_sym = elf32_shdr(elf32, shdr->sh_link);
-        int rel_i;
-        for (rel_i = 0; rel_i < shdr->sh_size / shdr->sh_entsize; rel_i++) {
-            Elf32_Rel * rel = elf32_section_element(elf32, shdr_i, rel_i);
-            if (ELF32_R_SYM(rel->r_info) == STN_UNDEF)
-                continue;
-
-            if (map_fetch(labels_map, rel->r_offset) != NULL)
-                continue;
-
-            Elf32_Sym * sym = elf32_section_element(elf32,
-                                                    shdr->sh_link,
-                                                    ELF32_R_SYM(rel->r_info));
-
-            struct _label * label;
-            // rela->r_offset needs to be fixed for relocatable objects
-            const char * name = elf32_strtab_str(elf32,
-                                                 shdr_sym->sh_link,
-                                                 sym->st_name);
-            label = label_create(rel->r_offset, name, LABEL_NONE);
-            map_insert(labels_map, rel->r_offset, label);
-            object_delete(label);
-        }
-    }
-
-    // remove edges into the PLT
-    Elf32_Shdr * plt_shdr = elf32_shdr_by_name(elf32, ".plt");
-    uint64_t plt_bottom;
-    uint64_t plt_top;
-
-    if (plt_shdr == NULL) {
-        plt_bottom = -1;
-        plt_top = -1;
-    }
-    else {
-        plt_bottom = plt_shdr->sh_addr;
-        plt_top    = plt_bottom + plt_shdr->sh_size;
-    }
-    
-    
-    // look through all functions in function tree and add a label for each
+    struct _tree * function_tree = elf32_function_tree(elf32);
     struct _tree_it * it;
     for (it = tree_iterator(function_tree); it != NULL; it = tree_it_next(it)) {
         struct _index * index = tree_it_data(it);
 
-        // plt functions are a special case, as we try to identify their targets
-        // in the got
-        if (    (index->index >= plt_bottom)
-             && (index->index <  plt_top)) {
-            uint8_t * data      = &(elf32->data[index->index 
-                                  - elf32_base_address(elf32)]);
-            ud_t ud_obj;
-            ud_init(&ud_obj);
-            ud_set_mode  (&ud_obj, 32);
-            ud_set_syntax(&ud_obj, UD_SYN_INTEL);
-            ud_set_input_buffer(&ud_obj, data, 0x20);
-            ud_disassemble(&ud_obj);
-
-            if (    (ud_obj.mnemonic == UD_Ijmp)
-                 && (udis86_sign_extend_lval(&(ud_obj.operand[0])) != -1)) {
-                uint64_t target = udis86_sign_extend_lval(&(ud_obj.operand[0]));
-
-                struct _label * label = map_fetch(labels_map, target);
-                if (label != NULL) {
-                    char plttmp[256];
-                    snprintf(plttmp, 256, "%s@plt", label->text);
-                    label = label_create(index->index, plttmp, LABEL_FUNCTION);
-                    map_insert(labels_map, index->index, label);
-                    object_delete(label);
-                    continue;
-                }
-            }
-            else {
-                printf("disassembled: %s\n", ud_insn_asm(&ud_obj));
-                if (ud_obj.operand[0].type == UD_OP_MEM)
-                    printf("UD_OP_MEM\n");
-                printf("%llx\n",
-                       (unsigned long long) udis86_sign_extend_lval(&(ud_obj.operand[0])));
-            }
-        }
-
-        const char * name = elf32_sym_name_by_address(elf32, index->index);
-        if (name == NULL) {
-            char tmp[128];
-            snprintf(tmp, 128, "fun_%llx", (unsigned long long) index->index);
-            name = tmp;
-        }
-
-        struct _label * label = label_create(index->index, name, LABEL_FUNCTION);
+        struct _label * label = elf32_label_address(elf32, index->index);
         map_insert(labels_map, index->index, label);
         object_delete(label);
     }
@@ -520,6 +466,7 @@ struct _graph * elf32_graph_address (struct _elf32 * elf32, uint64_t address)
                       elf32->data,
                       elf32->data_size);
 
+    graph_reduce(graph);
     return graph;
 }
 
@@ -599,4 +546,73 @@ struct _map * elf32_memory_map (struct _elf32 * elf32)
     }
 
     return map;
+}
+
+
+struct _tree * elf32_function_tree_address (struct _elf32 * elf32, uint64_t address)
+{
+    struct _tree * tree = x86_functions(elf32_base_address(elf32),
+                                        address - elf32_base_address(elf32),
+                                        elf32->data,
+                                        elf32->data_size);
+
+    return tree;
+}
+
+
+struct _label * elf32_label_address (struct _elf32 * elf32, uint64_t address)
+{
+    Elf32_Shdr * plt_shdr = elf32_shdr_by_name(elf32, ".plt");
+    uint64_t plt_bottom;
+    uint64_t plt_top;
+
+    if (plt_shdr == NULL) {
+        plt_bottom = -1;
+        plt_top = -1;
+    }
+    else {
+        plt_bottom = plt_shdr->sh_addr;
+        plt_top    = plt_bottom + plt_shdr->sh_size;
+    }
+    
+
+    // plt functions are a special case, as we try to identify their targets
+    // in the got
+    // address is within the plt
+    if (    (address >= plt_bottom)
+         && (address <  plt_top)) {
+
+        // disassemble instruction
+        uint8_t * data  = &(elf32->data[address - elf32_base_address(elf32)]);
+        ud_t ud_obj;
+        ud_init(&ud_obj);
+        ud_set_mode  (&ud_obj, 32);
+        ud_set_input_buffer(&ud_obj, data, 0x20);
+        ud_disassemble(&ud_obj);
+
+        if (    (ud_obj.mnemonic == UD_Ijmp)
+             && (udis86_sign_extend_lval(&(ud_obj.operand[0])) != -1)) {
+            uint64_t target = udis86_sign_extend_lval(&(ud_obj.operand[0]));
+            const char * name = elf32_rel_name_by_address(elf32, target);
+            if (name != NULL) {
+                char plttmp[256];
+                snprintf(plttmp, 256, "%s@plt", name);
+                struct _label * label;
+                label = label_create(address, plttmp, LABEL_FUNCTION);
+                return label;
+            }
+        }
+    }
+
+    // look for a symbol
+    const char * name = elf32_sym_name_by_address(elf32, address);
+    // no symbol
+    if ((name == NULL) || (strcmp(name, "") == 0)) {
+        char tmp[128];
+        snprintf(tmp, 128, "fun_%llx", (unsigned long long) address);
+        name = tmp;
+    }
+    // symbol exists
+    struct _label * label = label_create(address, name, LABEL_FUNCTION);
+    return label;
 }
