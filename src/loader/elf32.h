@@ -8,6 +8,7 @@
 #include "list.h"
 #include "loader.h"
 #include "graph.h"
+#include "serialize.h"
 #include "tree.h"
 
 struct _elf32 {
@@ -19,8 +20,10 @@ struct _elf32 {
     size_t data_size;
 };
 
-struct _elf32 * elf32_create  (const char * filename);
-void            elf32_delete  (struct _elf32 * elf32);
+struct _elf32 * elf32_create      (const char * filename);
+void            elf32_delete      (struct _elf32 * elf32);
+json_t *        elf32_serialize   (struct _elf32 * elf32);
+struct _elf32 * elf32_deserialize (json_t * json);
 
 uint64_t        elf32_entry         (struct _elf32 * elf32);
 struct _graph * elf32_graph         (struct _elf32 * elf32);

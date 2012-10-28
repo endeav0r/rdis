@@ -24,6 +24,7 @@ struct _rdgwindow {
     GtkWidget         * menu_popup;
 
     struct _gui       * gui;
+    uint64_t            gui_identifier;
     uint64_t            callback_identifier;
 
     uint64_t            top_index;

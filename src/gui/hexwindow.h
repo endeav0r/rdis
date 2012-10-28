@@ -14,6 +14,7 @@ struct _hexwindow {
     GtkWidget         * menu_popup;
 
     struct _gui * gui;
+    uint64_t      gui_identifier;
 
     int      resetting_mark;
     uint64_t selected_address;

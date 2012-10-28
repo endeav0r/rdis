@@ -1,6 +1,8 @@
 #include "serialize.h"
 
 #include "buffer.h"
+#include "elf32.h"
+#include "elf64.h"
 #include "graph.h"
 #include "index.h"
 #include "instruction.h"
@@ -61,6 +63,8 @@ void * deserialize (json_t * json)
     switch (json_integer_value(ot)) {
     case SERIALIZE_NULL             : return NULL;
     case SERIALIZE_BUFFER           : return buffer_deserialize(json);
+    case SERIALIZE_ELF32            : return elf32_deserialize(json);
+    case SERIALIZE_ELF64            : return elf64_deserialize(json);
     case SERIALIZE_GRAPH_EDGE       : return graph_edge_deserialize(json);
     case SERIALIZE_GRAPH_NODE       : return graph_node_deserialize(json);
     case SERIALIZE_GRAPH            : return graph_deserialize(json);

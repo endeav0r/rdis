@@ -18,6 +18,7 @@ struct _hexwindow * hexwindow_create (struct _gui * gui)
                           gtk_text_view_new_with_buffer(hexwindow->textBuffer);
     hexwindow->menu_popup     = gtk_menu_new();
     hexwindow->gui            = gui;
+    hexwindow->gui_identifier = gui_add_window(gui, hexwindow->window);
 
     hexwindow->selected_address = -1;
     hexwindow->resetting_mark   = 0;
@@ -65,6 +66,7 @@ struct _hexwindow * hexwindow_create (struct _gui * gui)
 
 void hexwindow_delete (struct _hexwindow * hexwindow)
 {
+    gui_remove_window(hexwindow->gui, hexwindow->gui_identifier);
     free(hexwindow);
 }
 

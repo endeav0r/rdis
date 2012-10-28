@@ -17,6 +17,7 @@ struct _rdgwindow * rdgwindow_create (struct _gui * gui, uint64_t top_index)
     rdgwindow->menu_popup     = gtk_menu_new();
 
     rdgwindow->gui            = gui;
+    rdgwindow->gui_identifier = gui_add_window(rdgwindow->gui, rdgwindow->window);
 
     rdgwindow->top_index      = top_index;
     rdgwindow->rdg            = NULL;
@@ -116,6 +117,7 @@ void rdgwindow_delete (struct _rdgwindow * rdgwindow)
     if (rdgwindow->node_colors != NULL)
         object_delete(rdgwindow->node_colors);
 
+    gui_remove_window(rdgwindow->gui, rdgwindow->gui_identifier);
     rdis_remove_callback(rdgwindow->gui->rdis, rdgwindow->callback_identifier);
 
     gtk_widget_destroy(rdgwindow->menu_popup);

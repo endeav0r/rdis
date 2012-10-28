@@ -53,7 +53,6 @@ void rdis_delete (struct _rdis * rdis)
     object_delete(rdis->labels);
     object_delete(rdis->function_tree);
     object_delete(rdis->memory_map);
-    
     if (rdis->loader != NULL)
         object_delete(rdis->loader);
     free(rdis);

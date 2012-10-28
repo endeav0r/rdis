@@ -13,6 +13,7 @@ struct _funcwindow {
     GtkWidget    * treeView;
 
     struct _gui  * gui;
+    uint64_t       gui_identifier;
     uint64_t       callback_identifier;
 };
 

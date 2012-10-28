@@ -9,6 +9,8 @@ extern int serialize_error;
 enum {
     SERIALIZE_NULL = 1,
     SERIALIZE_BUFFER,           // done+/
+    SERIALIZE_ELF32,
+    SERIALIZE_ELF64,
     SERIALIZE_GRAPH_EDGE,       // done+/
     SERIALIZE_GRAPH_NODE,       // done+/
     SERIALIZE_GRAPH,            // done+/

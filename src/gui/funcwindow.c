@@ -32,6 +32,9 @@ struct _funcwindow * funcwindow_create (struct _gui * gui)
                                         GTK_TREE_MODEL(funcwindow->listStore));
     funcwindow->gui            = gui;
 
+    // add this window to the gui window list so gui can close it
+    funcwindow->gui_identifier = gui_add_window(gui, funcwindow->window);
+
     // add data to tree model
     struct _tree_it * tree_it;
     for (tree_it = tree_iterator(funcwindow->gui->rdis->function_tree);
@@ -105,6 +108,7 @@ void funcwindow_delete (struct _funcwindow * funcwindow)
 {
     //gtk_widget_destroy(funcwindow->window);
     rdis_remove_callback(funcwindow->gui->rdis, funcwindow->callback_identifier);
+    gui_remove_window(funcwindow->gui, funcwindow->gui_identifier);
     free(funcwindow);
 }
 

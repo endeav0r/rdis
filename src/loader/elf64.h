@@ -19,8 +19,10 @@ struct _elf64 {
     size_t data_size;
 };
 
-struct _elf64 * elf64_create  (const char * filename);
-void            elf64_delete  (struct _elf64 * elf64);
+struct _elf64 * elf64_create      (const char * filename);
+void            elf64_delete      (struct _elf64 * elf64);
+json_t *        elf64_serialize   (struct _elf64 * elf64);
+struct _elf64 * elf64_deserialize (json_t * json);
 
 uint64_t        elf64_entry         (struct _elf64 * elf64);
 struct _graph * elf64_graph         (struct _elf64 * elf64);

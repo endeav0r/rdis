@@ -35,5 +35,10 @@ void rdiswindow_hex_activate       (GtkButton * button,
                                     struct _rdiswindow * rdiswindow);
 void rdiswindow_destroy_event      (GtkWidget * widget,
                                     struct _rdiswindow * rdiswindow);
-
+void rdiswindow_open               (GtkMenuItem * menuItem,
+                                    struct _rdiswindow * rdiswindow);
+void rdiswindow_save               (GtkMenuItem * menuItem,
+                                    struct _rdiswindow * rdiswindow);
+void rdiswindow_load               (GtkMenuItem * menuItem,
+                                    struct _rdiswindow * rdiswindow);
 #endif
