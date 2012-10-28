@@ -18,3 +18,4 @@ clean :
 	make -C gui clean
 	make -C loader clean
 	rm -f *.o
+	rm -f rdis
