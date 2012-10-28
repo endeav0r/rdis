@@ -142,6 +142,8 @@ int rdis_user_function (struct _rdis * rdis, uint64_t address)
     graph_merge(rdis->graph, graph);
     object_delete(graph);
 
+    rdis_callback(rdis);
+
     return 0;
 }
 

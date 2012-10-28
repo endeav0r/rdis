@@ -953,34 +953,6 @@ void rdg_assign_node_x (struct _rdg * rdg, int level, int position, int x)
 
 void rdg_assign_x (struct _rdg * rdg)
 {
-    // find the total width of this graph and the max position value
-    /*
-    double width        = 0.0;
-    double max_position = 0.0;
-
-    int level_i;
-    for (level_i = 0; level_i < rdg->levels->size; level_i++) {
-        struct _map * level_map = map_fetch(rdg->levels, level_i);
-
-        int level_width = 0;
-        int position_i;
-        for (position_i = 0; position_i < level_map->size; position_i++) {
-            struct _index    * index = map_fetch(level_map, position_i);
-            struct _rdg_node * rdg_node;
-            rdg_node = graph_fetch_data(rdg->graph, index->index);
-
-            level_width += (double) (rdg_node_width(rdg_node) + RDG_NODE_X_SPACING);
-            if (rdg_node->position > max_position)
-                max_position = rdg_node->position;
-        }
-
-        level_width -= RDG_NODE_X_SPACING;
-
-        if ((double) level_width > width)
-            width = (double) level_width;
-    }
-    */
-
     // center every node's x value based on this position of its parents
     int level_i;
     for (level_i = 1; level_i < rdg->levels->size; level_i++) {
@@ -1034,155 +1006,6 @@ void rdg_assign_x (struct _rdg * rdg)
         struct _rdg_node * rdg_node = graph_it_data(it);
         rdg_node->x -= least_x;
     }
-
-    /*
-    struct _graph_it * it;
-    for (it = graph_iterator(rdg->graph); it != NULL; it = graph_it_next(it)) {
-        struct _rdg_node * rdg_node = graph_it_data(it);
-
-        printf("node %llx, width %f, position %f, max_position %f\n",
-               (unsigned long long) rdg_node->index,
-               width,
-               rdg_node->position,
-               max_position);
-
-        rdg_node->x = (int) (width * (rdg_node->position / max_position));
-        rdg_node->x -= rdg_node_width(rdg_node) / 2;
-    }
-    */
-
-    /*
-    int least_x = 100000;
-    int position_changed = 10;
-    // deconflict overlapping nodes
-    while (position_changed--) {
-        //position_changed = 0;
-        for (level_i = 0; level_i < rdg->levels->size; level_i++) {
-            struct _map * level_map = map_fetch(rdg->levels, level_i);
-
-            int position_i;
-            for (position_i = 0; position_i < level_map->size - 1; position_i++) {
-                struct _index    * index = map_fetch(level_map, position_i);
-                struct _rdg_node * left_node;
-                struct _rdg_node * right_node;
-                left_node = graph_fetch_data(rdg->graph, index->index);
-                index = map_fetch(level_map, position_i + 1);
-                right_node = graph_fetch_data(rdg->graph, index->index);
-
-                // do nodes overlap?
-                if (left_node->x + rdg_node_width(left_node) + RDG_NODE_X_SPACING
-                    > right_node->x) {
-                    //position_changed = 1;
-
-                    int left, right, center;
-                    if (left_node->x < right_node->x)
-                        left = left_node->x;
-                    else
-                        left = right_node->x;
-                    if (left_node->x + rdg_node_width(left_node)
-                        > right_node->x + rdg_node_width(right_node))
-                        right = left_node->x + rdg_node_width(left_node);
-                    else
-                        right = right_node->x + rdg_node_width(right_node);
-
-                    center = ((right - left) / 2) + left;
-
-                    // move left node so that it's left of the center
-                    left_node->x   = center - rdg_node_width(left_node);
-                    left_node->x  -= RDG_NODE_X_SPACING / 2;
-                    right_node->x  = center + (RDG_NODE_X_SPACING / 2);
-                }
-                if (left_node->x < least_x)
-                    least_x = left_node->x;
-                printf("level_i %d position_i %d\n", level_i, position_i);
-            }
-        }
-    }
-
-    printf("finished deconflicting overlapping nodes\n");fflush(stdout);
-
-    // adjust x values so the least x value is 0
-    for (it = graph_iterator(rdg->graph); it != NULL; it = graph_it_next(it)) {
-        struct _rdg_node * rdg_node = graph_it_data(it);
-
-        rdg_node->x -= least_x;
-    }
-    */
-
-    /*
-    // every position receives a width which is the width of the widest node
-    // in this position
-    struct _map * position_values = map_create();
-
-    int level_i;
-    for (level_i = 0; level_i < rdg->levels->size; level_i++) {
-        struct _map * level_map = map_fetch(rdg->levels, level_i);
-
-        int position_i;
-
-        for (position_i = 0; position_i < level_map->size; position_i++) {
-            // fetch node for this level and position
-            struct _index * index = map_fetch(level_map, position_i);
-            struct _rdg_node * rdg_node;
-            rdg_node = graph_fetch_data(rdg->graph, index->index);
-
-            // fetch the current position center for this node
-            struct _index * position_width;
-            position_width = map_fetch(position_values, position_i);
-
-            if (    (position_width != NULL)
-                 && (position_width->index < rdg_node_width(rdg_node))) {
-                map_remove(position_values, position_i);
-                position_width = NULL;
-            }
-
-            if (position_width == NULL) {
-                position_width = index_create(rdg_node_width(rdg_node));
-                map_insert(position_values, position_i, position_width);
-                object_delete(position_width);
-            }
-        }
-    }
-
-    // using the widths of each position, we set the center x values of each
-    // position
-    int x = 0;
-    int position_i;
-    for (position_i = 0; position_i < position_values->size; position_i++) {
-        struct _index * position_value = map_fetch(position_values, position_i);
-
-        int width = position_value->index;
-
-        position_value->index = x + (position_value->index) / 2;
-
-        x += width + RDG_NODE_X_SPACING;
-    }
-
-    // we assign an x value to all nodes which places it in the center
-    // of its position
-
-    // for each level
-    for (level_i = 0; level_i < rdg->levels->size; level_i++) {
-        struct _map * level_map = map_fetch(rdg->levels, level_i);
-
-        // assign x value based upon width of previous nodes and spacing
-        int position_i;
-        for (position_i = 0; position_i < level_map->size; position_i++) {
-            // get this node
-            struct _index * index = map_fetch(level_map, position_i);
-            struct _rdg_node * rdg_node;
-            rdg_node = graph_fetch_data(rdg->graph, index->index);
-
-            // fetch the current position center for this node
-            struct _index * position_center;
-            position_center = map_fetch(position_values, position_i);
-
-            rdg_node->x = position_center->index - rdg_node_center_x(rdg_node);
-        }
-    }
-
-    object_delete(position_values);
-    */
 }
 
 
@@ -1531,13 +1354,14 @@ void rdg_draw_edge (struct _rdg * rdg, struct _graph_edge * edge)
 
         x3  = x5 + ((x1 - x5) / 2);
         y3  = y1 - (RDG_NODE_Y_SPACING / 4);
-        y3 += (5 * rdg_head->position);
+        y3 -= (5 * rdg_head->position);
         x2  = x1;
         y2  = y3;
         x4  = x5;
         y4  = y3;
     }
 
+    
     cairo_curve_to(ctx, x1, y1, x2, y2, x3, y3);
     cairo_move_to(ctx, x3, y3);
     cairo_curve_to(ctx, x3, y3, x4, y4, x5, y5);
