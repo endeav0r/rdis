@@ -50,6 +50,10 @@ void gui_set_rdis (struct _gui * gui, struct _rdis * rdis)
     if (gui->rdis != NULL)
         object_delete(gui->rdis);
     gui->rdis = rdis;
+
+    rdis_set_console(gui->rdis,
+                     (void (*) (void *, const char *)) gui_console,
+                     gui);
 }
 
 

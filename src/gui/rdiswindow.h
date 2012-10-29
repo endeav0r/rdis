@@ -12,6 +12,7 @@ struct _rdiswindow {
     GtkWidget       * vbox;
     GtkWidget       * hexButton;
     GtkWidget       * functionsButton;
+    GtkWidget       * scrolledWindow;
     GtkTextTagTable * consoleTagTable;
     GtkTextBuffer   * consoleBuffer;
     GtkWidget       * consoleView;
@@ -40,5 +41,10 @@ void rdiswindow_open               (GtkMenuItem * menuItem,
 void rdiswindow_save               (GtkMenuItem * menuItem,
                                     struct _rdiswindow * rdiswindow);
 void rdiswindow_load               (GtkMenuItem * menuItem,
+                                    struct _rdiswindow * rdiswindow);
+void rdiswindow_input_activate     (GtkEntry * entry,
+                                    struct _rdiswindow * rdiswindow);
+void rdiswindow_size_allocate      (GtkWidget    * widget,
+                                    GdkRectangle * allocation,
                                     struct _rdiswindow * rdiswindow);
 #endif

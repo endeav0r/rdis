@@ -15,6 +15,7 @@ struct _rdiswindow * rdiswindow_create (struct _gui * gui)
 
     rdiswindow->hexButton           = gtk_button_new_with_label("hex");
     rdiswindow->functionsButton     = gtk_button_new_with_label("functions");
+    rdiswindow->scrolledWindow      = gtk_scrolled_window_new(NULL, NULL);
     rdiswindow->consoleTagTable     = gtk_text_tag_table_new();
     rdiswindow->consoleBuffer       =
                               gtk_text_buffer_new(rdiswindow->consoleTagTable);
@@ -27,7 +28,7 @@ struct _rdiswindow * rdiswindow_create (struct _gui * gui)
 
     gtk_text_buffer_create_tag(rdiswindow->consoleBuffer, "console",
                                "font", "monospace",
-                               "size-points", 10.0,
+                               "size-points", 9.0,
                                NULL);
 
 
@@ -74,6 +75,16 @@ struct _rdiswindow * rdiswindow_create (struct _gui * gui)
                      G_CALLBACK(rdiswindow_hex_activate),
                      rdiswindow);
 
+    g_signal_connect(rdiswindow->inputEntry,
+                     "activate",
+                     G_CALLBACK(rdiswindow_input_activate),
+                     rdiswindow);
+
+    g_signal_connect(rdiswindow->scrolledWindow,
+                     "size-allocate",
+                     G_CALLBACK(rdiswindow_size_allocate),
+                     rdiswindow);
+
     g_signal_connect(rdiswindow->window,
                      "destroy",
                      G_CALLBACK(rdiswindow_destroy_event),
@@ -94,12 +105,14 @@ struct _rdiswindow * rdiswindow_create (struct _gui * gui)
                        rdiswindow->buttonsBox,
                        FALSE, TRUE, 0);
     gtk_box_pack_start(GTK_BOX(rdiswindow->vbox),
-                       rdiswindow->consoleView,
+                       rdiswindow->scrolledWindow,
                        TRUE, TRUE, 0);
     gtk_box_pack_start(GTK_BOX(rdiswindow->vbox),
                        rdiswindow->inputEntry,
                        FALSE, TRUE, 0);
 
+    gtk_container_add(GTK_CONTAINER(rdiswindow->scrolledWindow),
+                      rdiswindow->consoleView);
     gtk_container_add(GTK_CONTAINER(rdiswindow->window), rdiswindow->vbox);
 
     gtk_window_set_default_size(GTK_WINDOW(rdiswindow->window), 600, 400);
@@ -107,6 +120,7 @@ struct _rdiswindow * rdiswindow_create (struct _gui * gui)
     gtk_widget_show(rdiswindow->menu);
     gtk_widget_show(rdiswindow->functionsButton);
     gtk_widget_show(rdiswindow->hexButton);
+    gtk_widget_show(rdiswindow->scrolledWindow);
     gtk_widget_show(rdiswindow->consoleView);
     gtk_widget_show(rdiswindow->inputEntry);
     gtk_widget_show(rdiswindow->buttonsBox);
@@ -293,4 +307,30 @@ void rdiswindow_load (GtkMenuItem * menuItem, struct _rdiswindow * rdiswindow)
     }
 
     gtk_widget_destroy(dialog);
+}
+
+
+void rdiswindow_input_activate (GtkEntry * entry,
+                                struct _rdiswindow * rdiswindow)
+{
+    if (rdiswindow->gui->rdis == NULL) {
+        gui_console(rdiswindow->gui, "must load rdis first");
+        return;
+    }
+
+    rdis_lua_execute(rdiswindow->gui->rdis->rdis_lua,
+                     gtk_entry_get_text(entry));
+    gtk_entry_set_text(entry, "");
+}
+
+
+void rdiswindow_size_allocate (GtkWidget * widget,
+                               GdkRectangle * allocation,
+                               struct _rdiswindow * rdiswindow)
+{
+    GtkAdjustment * adj;
+    adj = gtk_scrolled_window_get_vadjustment(
+                              GTK_SCROLLED_WINDOW(rdiswindow->scrolledWindow));
+    gtk_adjustment_set_value(adj, 
+            gtk_adjustment_get_upper(adj) - gtk_adjustment_get_page_size(adj));
 }

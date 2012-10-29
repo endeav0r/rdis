@@ -37,6 +37,11 @@ struct _rdis * rdis_create (_loader * loader)
     rdis->callbacks        = map_create();
     rdis->loader           = loader;
 
+    rdis->console_data     = NULL;
+    rdis->console_callback = NULL;
+
+    rdis->rdis_lua      = rdis_lua_create(rdis);
+
     rdis->graph         = loader_graph(loader);
     rdis->labels        = loader_labels(loader);
     rdis->function_tree = loader_function_tree(loader);
@@ -55,6 +60,7 @@ void rdis_delete (struct _rdis * rdis)
     object_delete(rdis->memory_map);
     if (rdis->loader != NULL)
         object_delete(rdis->loader);
+    rdis_lua_delete(rdis->rdis_lua);
     free(rdis);
 }
 
@@ -123,6 +129,24 @@ struct _rdis * rdis_deserialize (json_t * json)
     rdis->memory_map       = mmemory_map;
 
     return rdis;
+}
+
+
+void rdis_set_console (struct _rdis * rdis,
+                       void (* console_callback) (void *, const char *),
+                       void * console_data)
+{
+    rdis->console_callback = console_callback;
+    rdis->console_data     = console_data;
+}
+
+
+void rdis_console (struct _rdis * rdis, const char * string)
+{
+    if (rdis->console_callback == NULL)
+        printf("%s\n", string);
+    else
+        rdis->console_callback(rdis->console_data, string);
 }
 
 
