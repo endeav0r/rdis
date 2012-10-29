@@ -151,6 +151,10 @@ uint64_t elf32_base_address (struct _elf32 * elf32)
 
 Elf32_Phdr * elf32_phdr (struct _elf32 * elf32, size_t index)
 {
+    if (elf32->ehdr->e_phoff + ((index + 1) * elf32->ehdr->e_phentsize)
+        > elf32->data_size)
+        return NULL;
+
     return (Elf32_Phdr *) &(elf32->data[elf32->ehdr->e_phoff
                                         + (index * elf32->ehdr->e_phentsize)]);
 }
@@ -159,6 +163,10 @@ Elf32_Phdr * elf32_phdr (struct _elf32 * elf32, size_t index)
 
 Elf32_Shdr * elf32_shdr (struct _elf32 * elf32, size_t index)
 {
+    if (elf32->ehdr->e_shoff + ((index + 1) * elf32->ehdr->e_shentsize)
+        > elf32->data_size)
+        return NULL;
+
     return (Elf32_Shdr *) &(elf32->data[elf32->ehdr->e_shoff
                                         + (index * elf32->ehdr->e_shentsize)]);
 }
@@ -170,6 +178,12 @@ void * elf32_section_element (struct _elf32 * elf32,
                               size_t index)
 {
     Elf32_Shdr * shdr = elf32_shdr(elf32, section);
+    if (shdr == NULL)
+        return NULL;
+
+    if (shdr->sh_offset + ((index + 1) * shdr->sh_entsize) > elf32->data_size)
+        return NULL;
+
     return (Elf32_Sym *) &(elf32->data[shdr->sh_offset
                                        + (index * shdr->sh_entsize)]);
 }
@@ -181,6 +195,12 @@ char * elf32_strtab_str (struct _elf32 * elf32,
                          unsigned int offset)
 {
     Elf32_Shdr * shdr = elf32_shdr(elf32, strtab);
+    if (shdr == NULL)
+        return NULL;
+
+    if (shdr->sh_offset + offset > elf32->data_size)
+        return NULL;
+
     return (char *) &(elf32->data[shdr->sh_offset + offset]);
 }
 
@@ -190,12 +210,18 @@ const char * elf32_sym_name_by_address (struct _elf32 * elf32, uint64_t address)
     int shdr_i;
     for (shdr_i = 0; shdr_i < elf32->ehdr->e_shnum; shdr_i++) {
         Elf32_Shdr * shdr = elf32_shdr(elf32, shdr_i);
+        if (shdr == NULL)
+            break;
+
         if (shdr->sh_type != SHT_SYMTAB)
             continue;
 
         int sym_i;
         for (sym_i = 0; sym_i < shdr->sh_size / shdr->sh_entsize; sym_i++) {
             Elf32_Sym * sym = elf32_section_element(elf32, shdr_i, sym_i);
+            if (sym == NULL)
+                break;
+
             if (sym->st_value != address)
                 continue;
             // found matching symbol
@@ -215,10 +241,16 @@ Elf32_Shdr * elf32_shdr_by_name (struct _elf32 * elf32, const char * name)
 
     for (i = 0; i < elf32->ehdr->e_shnum; i++) {
         shdr = elf32_shdr(elf32, i);
+        if (shdr == NULL)
+            break;
+
         const char * shdr_name;
         shdr_name = elf32_strtab_str(elf32, 
                                      elf32->ehdr->e_shstrndx,
                                      shdr->sh_name);
+        if (shdr_name == NULL)
+            break;
+
         if (strcmp(name, shdr_name) == 0)
             return shdr;
     }
@@ -236,6 +268,9 @@ uint64_t elf32_vaddr_to_offset (struct _elf32 * elf32, uint64_t address)
 
     for (i = 0; i < elf32->ehdr->e_phnum; i++) {
         phdr = elf32_phdr(elf32, i);
+        if (phdr == NULL)
+            break;
+
         if (    (phdr->p_vaddr <= address)
              && (phdr->p_vaddr + phdr->p_filesz >= address)) {
             result = address - phdr->p_vaddr;
@@ -255,13 +290,23 @@ const char * elf32_rel_name_by_address (struct _elf32 * elf32, uint64_t address)
     int shdr_i;
     for (shdr_i = 0; shdr_i < elf32->ehdr->e_shnum; shdr_i++) {
         Elf32_Shdr * shdr = elf32_shdr(elf32, shdr_i);
+        if (shdr == NULL)
+            break;
+
         if (shdr->sh_type != SHT_REL)
             continue;
+
         Elf32_Shdr * shdr_sym = elf32_shdr(elf32, shdr->sh_link);
+        if (shdr_sym == NULL)
+            break;
+
         int rel_i;
         for (rel_i = 0; rel_i < shdr->sh_size / shdr->sh_entsize; rel_i++) {
             // find an appropriate rela symbol
             Elf32_Rel * rel = elf32_section_element(elf32, shdr_i, rel_i);
+            if (rel == NULL)
+                break;
+
             if (rel->r_offset != address)
                 continue;
             if (ELF32_R_SYM(rel->r_info) == STN_UNDEF)
@@ -271,6 +316,9 @@ const char * elf32_rel_name_by_address (struct _elf32 * elf32, uint64_t address)
             Elf32_Sym * sym = elf32_section_element(elf32,
                                                     shdr->sh_link,
                                                     ELF32_R_SYM(rel->r_info));
+
+            if (sym == NULL)
+                continue;
 
             // rela->r_offset needs to be fixed for relocatable objects
             return elf32_strtab_str(elf32, shdr_sym->sh_link, sym->st_name);
@@ -366,12 +414,18 @@ struct _tree * elf32_function_tree (struct _elf32 * elf32)
     int sec_i;
     for (sec_i = 0; sec_i < elf32->ehdr->e_shnum; sec_i++) {
         Elf32_Shdr * shdr = elf32_shdr(elf32, sec_i);
+        if (shdr == NULL)
+            break;
+
         if (shdr->sh_type != SHT_SYMTAB)
             continue;
 
         int sym_i;
         for (sym_i = 0; sym_i < shdr->sh_size / shdr->sh_entsize; sym_i++) {
             Elf32_Sym * sym = elf32_section_element(elf32, sec_i, sym_i);
+            if (sym == NULL)
+                break;
+
             if (ELF32_ST_TYPE(sym->st_info) != STT_FUNC)
                 continue;
 
