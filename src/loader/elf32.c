@@ -298,7 +298,7 @@ const char * elf32_rel_name_by_address (struct _elf32 * elf32, uint64_t address)
 
         Elf32_Shdr * shdr_sym = elf32_shdr(elf32, shdr->sh_link);
         if (shdr_sym == NULL)
-            break;
+            continue;
 
         int rel_i;
         for (rel_i = 0; rel_i < shdr->sh_size / shdr->sh_entsize; rel_i++) {
@@ -316,7 +316,6 @@ const char * elf32_rel_name_by_address (struct _elf32 * elf32, uint64_t address)
             Elf32_Sym * sym = elf32_section_element(elf32,
                                                     shdr->sh_link,
                                                     ELF32_R_SYM(rel->r_info));
-
             if (sym == NULL)
                 continue;
 

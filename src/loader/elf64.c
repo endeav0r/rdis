@@ -153,6 +153,10 @@ uint64_t elf64_base_address (struct _elf64 * elf64)
 
 Elf64_Phdr * elf64_phdr (struct _elf64 * elf64, size_t index)
 {
+    if (elf64->ehdr->e_phoff + ((index + 1) * elf64->ehdr->e_phentsize)
+        > elf64->data_size)
+        return NULL;
+
     return (Elf64_Phdr *) &(elf64->data[elf64->ehdr->e_phoff
                                         + (index * elf64->ehdr->e_phentsize)]);
 }
@@ -161,6 +165,10 @@ Elf64_Phdr * elf64_phdr (struct _elf64 * elf64, size_t index)
 
 Elf64_Shdr * elf64_shdr (struct _elf64 * elf64, size_t index)
 {
+    if (elf64->ehdr->e_shoff + ((index + 1) & elf64->ehdr->e_shentsize)
+        > elf64->data_size)
+        return NULL;
+
     return (Elf64_Shdr *) &(elf64->data[elf64->ehdr->e_shoff
                                         + (index * elf64->ehdr->e_shentsize)]);
 }
@@ -172,6 +180,12 @@ void * elf64_section_element (struct _elf64 * elf64,
                               size_t index)
 {
     Elf64_Shdr * shdr = elf64_shdr(elf64, section);
+    if (shdr == NULL)
+        return NULL;
+
+    if (shdr->sh_offset + ((index + 1) * shdr->sh_entsize) > elf64->data_size)
+        return NULL;
+
     return (Elf64_Sym *) &(elf64->data[shdr->sh_offset
                                        + (index * shdr->sh_entsize)]);
 }
@@ -183,6 +197,12 @@ char * elf64_strtab_str (struct _elf64 * elf64,
                          unsigned int offset)
 {
     Elf64_Shdr * shdr = elf64_shdr(elf64, strtab);
+    if (shdr == NULL)
+        return NULL;
+
+    if (shdr->sh_offset + offset > elf64->data_size)
+        return NULL;
+
     return (char *) &(elf64->data[shdr->sh_offset + offset]);
 }
 
@@ -192,12 +212,18 @@ const char * elf64_sym_name_by_address (struct _elf64 * elf64, uint64_t address)
     int shdr_i;
     for (shdr_i = 0; shdr_i < elf64->ehdr->e_shnum; shdr_i++) {
         Elf64_Shdr * shdr = elf64_shdr(elf64, shdr_i);
+        if (shdr == NULL)
+            break;
+
         if (shdr->sh_type != SHT_SYMTAB)
             continue;
 
         int sym_i;
         for (sym_i = 0; sym_i < shdr->sh_size / shdr->sh_entsize; sym_i++) {
             Elf64_Sym * sym = elf64_section_element(elf64, shdr_i, sym_i);
+            if (sym == NULL)
+                break;
+
             if (sym->st_value != address)
                 continue;
             // no section symbols
@@ -220,10 +246,16 @@ Elf64_Shdr * elf64_shdr_by_name (struct _elf64 * elf64, const char * name)
 
     for (i = 0; i < elf64->ehdr->e_shnum; i++) {
         shdr = elf64_shdr(elf64, i);
+        if (shdr == NULL)
+            break;
+
         const char * shdr_name;
         shdr_name = elf64_strtab_str(elf64, 
                                      elf64->ehdr->e_shstrndx,
                                      shdr->sh_name);
+        if (shdr_name == NULL)
+            break;
+
         if (strcmp(name, shdr_name) == 0)
             return shdr;
     }
@@ -241,6 +273,9 @@ uint64_t elf64_vaddr_to_offset (struct _elf64 * elf64, uint64_t address)
 
     for (i = 0; i < elf64->ehdr->e_phnum; i++) {
         phdr = elf64_phdr(elf64, i);
+        if (phdr == NULL)
+            break;
+
         if (    (phdr->p_vaddr <= address)
              && (phdr->p_vaddr + phdr->p_filesz >= address)) {
             result = address - phdr->p_vaddr;
@@ -260,15 +295,25 @@ const char * elf64_rel_name_by_address (struct _elf64 * elf64, uint64_t address)
     int shdr_i;
     for (shdr_i = 0; shdr_i < elf64->ehdr->e_shnum; shdr_i++) {
         Elf64_Shdr * shdr = elf64_shdr(elf64, shdr_i);
+        if (shdr == NULL)
+            break;
+
         if (shdr->sh_type != SHT_RELA)
             continue;
+
         // get symbol table
         Elf64_Shdr * shdr_sym = elf64_shdr(elf64, shdr->sh_link);
+        if (shdr_sym == NULL)
+            continue;
+
         // search reloactions
         int rela_i;
         for (rela_i = 0; rela_i < shdr->sh_size / shdr->sh_entsize; rela_i++) {
             // find an appropriate rela symbol
             Elf64_Rela * rela = elf64_section_element(elf64, shdr_i, rela_i);
+            if (rela == NULL)
+                break;
+
             if (rela->r_offset != address)
                 continue;
             if (ELF64_R_SYM(rela->r_info) == STN_UNDEF)
@@ -278,6 +323,8 @@ const char * elf64_rel_name_by_address (struct _elf64 * elf64, uint64_t address)
             Elf64_Sym * sym = elf64_section_element(elf64,
                                                     shdr->sh_link,
                                                     ELF64_R_SYM(rela->r_info));
+            if (sym == NULL)
+                continue;
 
             // rela->r_offset needs to be fixed for relocatable objects
             return elf64_strtab_str(elf64, shdr_sym->sh_link, sym->st_name);
@@ -370,12 +417,18 @@ struct _tree * elf64_function_tree (struct _elf64 * elf64)
     int sec_i;
     for (sec_i = 0; sec_i < elf64->ehdr->e_shnum; sec_i++) {
         Elf64_Shdr * shdr = elf64_shdr(elf64, sec_i);
+        if (shdr == NULL)
+            break;
+
         if (shdr->sh_type != SHT_SYMTAB)
             continue;
 
         int sym_i;
         for (sym_i = 0; sym_i < shdr->sh_size / shdr->sh_entsize; sym_i++) {
             Elf64_Sym * sym = elf64_section_element(elf64, sec_i, sym_i);
+            if (sym == NULL)
+                break;
+            
             if (ELF64_ST_TYPE(sym->st_info) != STT_FUNC)
                 continue;
 
