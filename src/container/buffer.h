@@ -7,8 +7,13 @@
 #include "object.h"
 #include "serialize.h"
 
+#define BUFFER_READ    (1 << 0)
+#define BUFFER_WRITE   (1 << 1)
+#define BUFFER_EXECUTE (1 << 3)
+
 struct _buffer {
     const struct _object * object;
+    uint32_t  permissions;
     uint8_t * bytes;
     size_t    size;
 };

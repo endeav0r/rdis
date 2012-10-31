@@ -1,7 +1,9 @@
 #include "rdis_lua.h"
 
+#include "buffer.h"
 #include "index.h"
 #include "label.h"
+#include "map.h"
 #include "tree.h"
 
 #include <stdlib.h>
@@ -21,9 +23,21 @@ static const struct luaL_Reg rl_uint64_lib_m [] = {
 };
 
 
+static const struct luaL_Reg rl_ins_lib_m [] = {
+    {"__gc",        rl_ins_gc},
+    {"address",     rl_ins_address},
+    {"target",      rl_ins_target},
+    {"bytes",       rl_ins_bytes},
+    {"description", rl_ins_description},
+    {"comment",     rl_ins_comment},
+    {NULL, NULL}
+};
+
+
 static const struct luaL_Reg rl_rdis_lib_f [] = {
     {"console",   rl_rdis_console},
     {"functions", rl_rdis_functions},
+    {"peek",      rl_rdis_peek},
     {NULL, NULL}
 };
 
@@ -50,6 +64,21 @@ struct _rdis_lua * rdis_lua_create (struct _rdis * rdis)
 
     luaL_register(rdis_lua->L, "rdis", rl_rdis_lib_f);
 
+    char config_filename[512];
+    snprintf(config_filename, 512, "%s/.rdis.lua", getenv("HOME"));
+
+    FILE * fh = fopen(config_filename, "r");
+    if (fh != NULL) {
+        rdis_lua_dofile(rdis_lua, config_filename);
+        fclose(fh);
+    }
+    else {
+        char errormsg[600];
+        snprintf(errormsg, 600, "config file (%s) not found", config_filename);
+        rdis_console(rdis, errormsg);
+    }
+
+
     return rdis_lua;
 }
 
@@ -70,13 +99,25 @@ int rdis_lua_execute (struct _rdis_lua * rdis_lua, const char * string)
         rdis_console(rdis_lua->rdis, error_msg);
         return -1;
     }
-    return 0;
+    return error;
 }
 
 
-/****************
+int rdis_lua_dofile (struct _rdis_lua * rdis_lua, const char * filename)
+{
+    int error = luaL_dofile(rdis_lua->L, filename);
+    if (error) {
+        const char * error_msg = luaL_checkstring(rdis_lua->L, -1);
+        rdis_console(rdis_lua->rdis, error_msg);
+        return -1;
+    }
+    return error;
+}
+
+
+/****************************************************************
 * rl_uint64
-****************/
+****************************************************************/
 
 int rl_uint64 (lua_State * L)
 {
@@ -95,7 +136,6 @@ int rl_uint64 (lua_State * L)
         luaL_error(L, "uint64 must be called with a number or string");
     }
 
-    printf("a\n");
     return rl_uint64_push(L, uint64_value);
 }
 
@@ -107,8 +147,6 @@ int rl_uint64_push (lua_State * L, uint64_t value)
     lua_setmetatable(L, -2);
 
     *value_ptr = value;
-
-    printf("push\n");
 
     return 1;
 }
@@ -242,9 +280,107 @@ int rl_uint64_tostring (lua_State * L)
 }
 
 
-/****************
+/****************************************************************
+* rl_instruction
+****************************************************************/
+
+
+int rl_ins_push (lua_State * L, struct _ins * ins)
+{
+    struct _ins ** ins_ptr = lua_newuserdata(L, sizeof(struct _ins *));
+    luaL_getmetatable(L, "rdis.ins");
+    lua_setmetatable(L, -2);
+
+    *ins_ptr = object_copy(ins);
+
+    return 1;
+}
+
+
+struct _ins * rl_check_ins (lua_State * L, int position)
+{
+    void ** data = luaL_checkudata(L, position, "rdis.ins");
+    luaL_argcheck(L, data != NULL, position, "expected ins");
+    return *((struct _ins **) data);
+}
+
+
+int rl_ins_gc (lua_State * L)
+{
+    struct _ins * ins = rl_check_ins(L, -1);
+    lua_pop(L, 1);
+
+    object_delete(ins);
+
+    return 0;
+}
+
+
+int rl_ins_address (lua_State * L)
+{
+    struct _ins * ins = rl_check_ins(L, -1);
+    lua_pop(L, 1);
+
+    rl_uint64_push(L, ins->address);
+    return 1;
+}
+
+
+int rl_ins_target (lua_State * L)
+{
+    struct _ins * ins = rl_check_ins(L, -1);
+    lua_pop(L, 1);
+
+    if (ins->flags & INS_FLAG_TARGET_SET)
+        rl_uint64_push(L, ins->target);
+    else
+        lua_pushnil(L);
+
+    return 1;
+}
+
+
+int rl_ins_bytes (lua_State * L)
+{
+    struct _ins * ins = rl_check_ins(L, -1);
+    lua_pop(L, 1);
+
+    lua_pushlstring(L, (const char *) ins->bytes, ins->size);
+    return 1;
+}
+
+
+int rl_ins_description (lua_State * L)
+{
+    struct _ins * ins = rl_check_ins(L, -1);
+    lua_pop(L, 1);
+
+    if (ins->description == NULL)
+        lua_pushnil(L);
+    else
+        lua_pushstring(L, ins->description);
+
+    return 1;
+}
+
+
+int rl_ins_comment (lua_State * L)
+{
+    struct _ins * ins = rl_check_ins(L, -1);
+    lua_pop(L, 1);
+
+    if (ins->comment == NULL)
+        lua_pushnil(L);
+    else
+        lua_pushstring(L, ins->comment);
+
+    return 1;
+}
+
+
+/****************************************************************
 * rl_rdis
-****************/
+****************************************************************/
 
 
 struct _rdis_lua * rl_get_rdis_lua (lua_State * L)
@@ -288,6 +424,27 @@ int rl_rdis_functions (lua_State * L)
 
         lua_settable(L, -3);
     }
+
+    return 1;
+}
+
+
+int rl_rdis_peek (lua_State * L)
+{
+    struct _rdis_lua * rdis_lua = rl_get_rdis_lua(L);
+
+    uint64_t addr = rl_check_uint64(L, -1);
+    lua_pop(L, 1);
+
+    struct _buffer * buffer = map_fetch_max(rdis_lua->rdis->memory_map, addr);
+    uint64_t base = map_fetch_max_key(rdis_lua->rdis->memory_map, addr);
+
+    if (buffer->size + base > addr)
+        luaL_error(L, "%llx not in memory", addr);
+
+    uint8_t c = buffer->bytes[addr - base];
+
+    lua_pushinteger(L, c);
 
     return 1;
 }

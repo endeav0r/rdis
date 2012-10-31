@@ -28,6 +28,14 @@ static const struct _object rdis_object = {
 
 struct _rdis * rdis_create (_loader * loader)
 {
+    return rdis_create_with_console(loader, NULL, NULL);
+}
+
+
+struct _rdis * rdis_create_with_console (_loader * loader,
+                              void (* console_callback) (void *, const char *),
+                              void * console_data)
+{
     struct _rdis * rdis;
 
     rdis = (struct _rdis *) malloc(sizeof(struct _rdis));
@@ -37,15 +45,17 @@ struct _rdis * rdis_create (_loader * loader)
     rdis->callbacks        = map_create();
     rdis->loader           = loader;
 
-    rdis->console_data     = NULL;
-    rdis->console_callback = NULL;
-
-    rdis->rdis_lua      = rdis_lua_create(rdis);
+    rdis->console_data     = console_data;
+    rdis->console_callback = console_callback;
 
     rdis->graph         = loader_graph(loader);
     rdis->labels        = loader_labels(loader);
     rdis->function_tree = loader_function_tree(loader);
     rdis->memory_map    = loader_memory_map(loader);
+
+    // this should be the last thing done, so startup script access a valid
+    // rdis
+    rdis->rdis_lua      = rdis_lua_create(rdis);
 
     return rdis;
 }

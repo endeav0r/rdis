@@ -295,7 +295,10 @@ void rdiswindow_load (GtkMenuItem * menuItem, struct _rdiswindow * rdiswindow)
         if (loader == NULL)
             snprintf(tmp, 256, "failed to load executable %s", filename);
         else {
-            struct _rdis * rdis = rdis_create(loader);
+            struct _rdis * rdis;
+            rdis = rdis_create_with_console(loader,
+                                 (void (*) (void *, const char *)) gui_console,
+                                            rdiswindow->gui);
             gui_close_windows(rdiswindow->gui);
             gui_set_rdis(rdiswindow->gui, rdis);
             snprintf(tmp, 256, "loaded executable %s", filename);
