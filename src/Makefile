@@ -19,5 +19,6 @@ clean :
 	make -C container clean
 	make -C gui clean
 	make -C loader clean
+	make -C script clean
 	rm -f *.o
 	rm -f rdis
