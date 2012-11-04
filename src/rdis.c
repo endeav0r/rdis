@@ -53,7 +53,7 @@ struct _rdis * rdis_create_with_console (_loader * loader,
     rdis->function_tree = loader_function_tree(loader);
     rdis->memory_map    = loader_memory_map(loader);
 
-    // this should be the last thing done, so startup script access a valid
+    // this should be the last thing done so startup script accesses a valid
     // rdis
     rdis->rdis_lua      = rdis_lua_create(rdis);
 
@@ -79,11 +79,11 @@ json_t * rdis_serialize (struct _rdis * rdis)
 {
     json_t * json = json_object();
 
-    json_object_set(json, "ot",     json_integer(SERIALIZE_RDIS));
-    json_object_set(json, "graph",  object_serialize(rdis->graph));
-    json_object_set(json, "labels", object_serialize(rdis->labels));
+    json_object_set(json, "ot",            json_integer(SERIALIZE_RDIS));
+    json_object_set(json, "graph",         object_serialize(rdis->graph));
+    json_object_set(json, "labels",        object_serialize(rdis->labels));
     json_object_set(json, "function_tree", object_serialize(rdis->function_tree));
-    json_object_set(json, "memory_map", object_serialize(rdis->memory_map));
+    json_object_set(json, "memory_map",    object_serialize(rdis->memory_map));
 
     return json;
 }

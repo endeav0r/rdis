@@ -10,7 +10,10 @@ all : $(OBJS)
 	make -C gui
 	make -C loader
 	make -C script
-	$(CC) -o rdis *.o container/*.o gui/*.o loader/*.o script/*.o $(LIB) $(CCFLAGS)
+	make -C rdil
+	$(CC) -o rdis \
+		*.o container/*.o gui/*.o loader/*.o script/*.o rdil/*.o \
+		$(LIB) $(CCFLAGS)
 
 %.o : %.c %.h
 	$(CC) -c -o $@ $< $(INCLUDE) $(CCFLAGS)
@@ -20,5 +23,6 @@ clean :
 	make -C gui clean
 	make -C loader clean
 	make -C script clean
+	make -C rdil clean
 	rm -f *.o
 	rm -f rdis

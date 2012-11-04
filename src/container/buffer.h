@@ -9,7 +9,7 @@
 
 #define BUFFER_READ    (1 << 0)
 #define BUFFER_WRITE   (1 << 1)
-#define BUFFER_EXECUTE (1 << 3)
+#define BUFFER_EXECUTE (1 << 2)
 
 struct _buffer {
     const struct _object * object;

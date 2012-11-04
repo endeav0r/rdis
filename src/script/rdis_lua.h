@@ -46,9 +46,27 @@ int rl_ins_bytes       (lua_State * L);
 int rl_ins_description (lua_State * L);
 int rl_ins_comment     (lua_State * L);
 
+int                  rl_graph_edge_push  (lua_State * L,
+                                          struct _graph_edge * edge);
+struct _graph_edge * rl_check_graph_edge (lua_State * L, int position);
+
+int rl_graph_edge_gc   (lua_State * L);
+int rl_graph_edge_head (lua_State * L);
+int rl_graph_edge_tail (lua_State * L);
+
+int                  rl_graph_node_push  (lua_State * L,
+                                          struct _graph_node * node);
+struct _graph_node * rl_check_graph_node (lua_State * L, int position);
+
+int rl_graph_node_gc           (lua_State * L);
+int rl_graph_node_index        (lua_State * L);
+int rl_graph_node_edges        (lua_State * L);
+int rl_graph_node_instructions (lua_State * L);
+
 
 int rl_rdis_console   (lua_State * L);
 int rl_rdis_functions (lua_State * L);
 int rl_rdis_peek      (lua_State * L);
+int rl_rdis_node      (lua_State * L);
 
 #endif

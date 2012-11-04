@@ -34,10 +34,28 @@ static const struct luaL_Reg rl_ins_lib_m [] = {
 };
 
 
+static const struct luaL_Reg rl_graph_edge_lib_m [] = {
+    {"__gc",    rl_graph_edge_gc},
+    {"head",    rl_graph_edge_head},
+    {"tail",    rl_graph_edge_tail},
+    {NULL, NULL}
+};
+
+
+static const struct luaL_Reg rl_graph_node_lib_m [] = {
+    {"__gc",         rl_graph_node_gc},
+    {"index",        rl_graph_node_index},
+    {"edges",        rl_graph_node_edges},
+    {"instructions", rl_graph_node_instructions},
+    {NULL, NULL}
+};
+
+
 static const struct luaL_Reg rl_rdis_lib_f [] = {
     {"console",   rl_rdis_console},
     {"functions", rl_rdis_functions},
     {"peek",      rl_rdis_peek},
+    {"node",      rl_rdis_node},
     {NULL, NULL}
 };
 
@@ -58,6 +76,24 @@ struct _rdis_lua * rdis_lua_create (struct _rdis * rdis)
     lua_settable(rdis_lua->L, -3);
 
     lua_register(rdis_lua->L, "uint64", rl_uint64);
+
+    luaL_newmetatable(rdis_lua->L, "rdis.ins");
+    luaL_register(rdis_lua->L, NULL, rl_ins_lib_m);
+    lua_pushstring(rdis_lua->L, "__index");
+    lua_pushvalue(rdis_lua->L, -2);
+    lua_settable(rdis_lua->L, -3);
+
+    luaL_newmetatable(rdis_lua->L, "rdis.graph_edge");
+    luaL_register(rdis_lua->L, NULL, rl_graph_edge_lib_m);
+    lua_pushstring(rdis_lua->L, "__index");
+    lua_pushvalue(rdis_lua->L, -2);
+    lua_settable(rdis_lua->L, -3);
+
+    luaL_newmetatable(rdis_lua->L, "rdis.graph_node");
+    luaL_register(rdis_lua->L, NULL, rl_graph_node_lib_m);
+    lua_pushstring(rdis_lua->L, "__index");
+    lua_pushvalue(rdis_lua->L, -2);
+    lua_settable(rdis_lua->L, -3);
 
     lua_pushlightuserdata(rdis_lua->L, rdis_lua);
     lua_setfield(rdis_lua->L, LUA_REGISTRYINDEX, "rdis_lua");
@@ -81,7 +117,6 @@ struct _rdis_lua * rdis_lua_create (struct _rdis * rdis)
 
     return rdis_lua;
 }
-
 
 
 void rdis_lua_delete (struct _rdis_lua * rdis_lua)
@@ -379,6 +414,150 @@ int rl_ins_comment (lua_State * L)
 
 
 /****************************************************************
+* rl_graph_edge
+****************************************************************/
+
+
+int rl_graph_edge_push (lua_State * L, struct _graph_edge * edge)
+{
+    struct _graph_edge ** edge_ptr;
+    edge_ptr = lua_newuserdata(L, sizeof(struct _graph_edge *));
+    luaL_getmetatable(L, "rdis.graph_edge");
+    lua_setmetatable(L, -2);
+
+    *edge_ptr = object_copy(edge);
+
+    return 1;
+}
+
+
+struct _graph_edge * rl_check_graph_edge (lua_State * L, int position)
+{
+    void ** data = luaL_checkudata(L, position, "rdis.graph_edge");
+    luaL_argcheck(L, data != NULL, position, "expected graph edge");
+    return *((struct _graph_edge **) data);
+}
+
+
+int rl_graph_edge_gc (lua_State * L)
+{
+    struct _graph_edge * edge = rl_check_graph_edge(L, -1);
+    lua_pop(L, 1);
+
+    object_delete(edge);
+
+    return 0;
+}
+
+
+int rl_graph_edge_head (lua_State * L)
+{
+    struct _graph_edge * edge = rl_check_graph_edge(L, -1);
+    lua_pop(L, 1);
+
+    rl_uint64_push(L, edge->head);
+    return 1;
+}
+
+
+int rl_graph_edge_tail (lua_State * L)
+{
+    struct _graph_edge * edge = rl_check_graph_edge(L, -1);
+    lua_pop(L, 1);
+
+    rl_uint64_push(L, edge->tail);
+    return 1;
+}
+
+
+/****************************************************************
+* rl_graph_node
+****************************************************************/
+
+
+int rl_graph_node_push (lua_State * L, struct _graph_node * node)
+{
+    struct _graph_node ** node_ptr;
+    node_ptr = lua_newuserdata(L, sizeof(struct _graph_node *));
+    luaL_getmetatable(L, "rdis.graph_node");
+    lua_setmetatable(L, -2);
+
+    *node_ptr = object_copy(node);
+
+    return 1;
+}
+
+
+struct _graph_node * rl_check_graph_node (lua_State * L, int position)
+{
+    void ** data = luaL_checkudata(L, position, "rdis.graph_node");
+    luaL_argcheck(L, data != NULL, position, "expected graph node");
+    return *((struct _graph_node **) data);
+}
+
+
+int rl_graph_node_gc (lua_State * L)
+{
+    struct _graph_node * node = rl_check_graph_node(L, -1);
+    lua_pop(L, 1);
+
+    object_delete(node);
+
+    return 0;
+}
+
+
+int rl_graph_node_index (lua_State * L)
+{
+    struct _graph_node * node = rl_check_graph_node(L, -1);
+    lua_pop(L, 1);
+
+    rl_uint64_push(L, node->index);
+    return 1;
+}
+
+
+int rl_graph_node_edges (lua_State * L)
+{
+    struct _graph_node * node = rl_check_graph_node(L, -1);
+    lua_pop(L, 1);
+
+    struct _list_it * it;
+
+    lua_newtable(L);
+    int table_index = 1;
+
+    for (it = list_iterator(node->edges); it != NULL; it = it->next) {
+        lua_pushinteger(L, table_index++);
+        rl_graph_edge_push(L, it->data);
+        lua_settable(L, -3);
+    }
+
+    return 1;
+}
+
+
+int rl_graph_node_instructions (lua_State * L)
+{
+    struct _graph_node * node = rl_check_graph_node(L, -1);
+    lua_pop(L, 1);
+
+    struct _list_it * it;
+
+    lua_newtable(L);
+    int table_index = 1;
+
+    for (it = list_iterator(node->data); it != NULL; it = it->next) {
+        lua_pushinteger(L, table_index++);
+        rl_ins_push(L, it->data);
+        lua_settable(L, -3);
+    }
+
+    return 1;
+}
+
+
+/****************************************************************
 * rl_rdis
 ****************************************************************/
 
@@ -445,6 +624,23 @@ int rl_rdis_peek (lua_State * L)
     uint8_t c = buffer->bytes[addr - base];
 
     lua_pushinteger(L, c);
+
+    return 1;
+}
+
+
+int rl_rdis_node (lua_State * L)
+{
+    struct _rdis_lua * rdis_lua = rl_get_rdis_lua(L);
+
+    uint64_t index = rl_check_uint64(L, -1);
+    lua_pop(L, 1);
+
+    struct _graph_node * node = graph_fetch_node(rdis_lua->rdis->graph, index);
+    if (node == NULL)
+        luaL_error(L, "did not find node");
+
+    rl_graph_node_push(L, node);
 
     return 1;
 }

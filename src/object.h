@@ -26,10 +26,6 @@ struct _object_header {
 #define object_serialize(XYX) \
     ((struct _object_header *) XYX)->object->serialize(XYX)
 
-
-//void   object_delete (void * data);
-//inline void * object_copy   (void * data);
-//int    object_cmp    (void * lhs, void * rhs);
-//inline void   object_merge  (void * lhs, void * rhs);
+void objects_delete (void * first, ...);
 
 #endif
