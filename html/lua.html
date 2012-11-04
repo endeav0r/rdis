@@ -1,0 +1,384 @@
+<html>
+    <head>
+        <title>rdis - lua</title>
+        <link rel="stylesheet" href="style.css" type="text/css" />
+    </head>
+    <body>
+        <h2 align="center">
+            <a href="index.html">rdis</a> - lua
+        </h2>
+        <div id="content_wrapper">
+            <div id="content">
+
+<p>
+    <em>Only implemented functionality is documented here. The rdis lua
+        interface is under continuous development. More to follow.</em>
+</p>
+
+<p>
+    Rdis provides a scriptable interface through lua. Lua has a semi-OOP model
+    through metatables. When we refer to, "objects," we are referring to lua
+    tables with metatables.
+</p>
+
+<p>
+    Instead of interacting directly with the objects used by rdis, the
+    interface obtains a copy of requested objects. These can be modified
+    and then passed back to rdis.
+</p>
+
+<p>
+    When rdis loads a file, it will check for ~/.rdis.lua. If the file is found,
+    it is loaded and run.
+</p>
+
+<p>
+    Rdis makes no limitations on the lua environment. While this opens a wealth
+    of possibilities, one of those possibilities is
+    <span class="monospace">os.execute("rm -rf /")</span> or worse. Be careful
+    what you run.
+</p>
+
+<!-- cheat sheet -->
+<h3 align="center">Rdis Lua Cheat Sheet</h3>
+<div class="box">
+<p>
+    <table cellpadding="0" cellspacing="0" border="0" align="center">
+        <tr>
+            <td class="monospace"><em>uint64</em>&nbsp;</td>
+            <td class="monospace"><strong>uint64</strong>&nbsp;</td>
+            <td class="monospace">(<em>string</em>)</td>
+        </tr>
+        <tr>
+            <td class="monospace"><em>uint64</em>&nbsp;</td>
+            <td class="monospace"><strong>uint64</strong>&nbsp;</td>
+            <td class="monospace">(<em>number</em>)</td>
+        </tr>
+        <tr>
+            <td class="monospace"><em>nil</em>&nbsp;</td>
+            <td class="monospace"><strong>rdis.console</strong>&nbsp;</td>
+            <td class="monospace">(<em>string</em>)</td>
+        </tr>
+        <tr>
+            <td class="monospace"><em>table</em>&nbsp;</td>
+            <td class="monospace"><strong>rdis.functions</strong>&nbsp;</td>
+            <td class="monospace">()</td>
+        </tr>
+        <tr>
+            <td class="monospace"><em>integer</em>&nbsp;</td>
+            <td class="monospace"><strong>rdis.peek</strong>&nbsp;</td>
+            <td class="monospace">(<em>uint64</em>)</td>
+        </tr>
+        <tr>
+            <td class="monospace"><em>node</em>&nbsp;</td>
+            <td class="monospace"><strong>rdis.node</strong>&nbsp;</td>
+            <td class="monospace">(<em>uint64</em>)</td>
+        </tr>
+        <tr>
+            <td class="monospace"><em>uint64</em>&nbsp;</td>
+            <td class="monospace"><strong>node:index</strong>&nbsp;</td>
+            <td class="monospace">()</td>
+        </tr>
+        <tr>
+            <td class="monospace"><em>table</em>&nbsp;</td>
+            <td class="monospace"><strong>node:edges</strong>&nbsp;</td>
+            <td class="monospace">()</td>
+        </tr>
+        <tr>
+            <td class="monospace"><em>table</em>&nbsp;</td>
+            <td class="monospace"><strong>node:instructions</strong>&nbsp;</td>
+            <td class="monospace">()</td>
+        </tr>
+        <tr>
+            <td class="monospace"><em>uint64</em>&nbsp;</td>
+            <td class="monospace"><strong>edge:head</strong>&nbsp;</td>
+            <td class="monospace">()</td>
+        </tr>
+        <tr>
+            <td class="monospace"><em>uint64</em>&nbsp;</td>
+            <td class="monospace"><strong>edge:tail</strong>&nbsp;</td>
+            <td class="monospace">()</td>
+        </tr>
+        <tr>
+            <td class="monospace"><em>uint64</em>&nbsp;</td>
+            <td class="monospace"><strong>ins:address</strong>&nbsp;</td>
+            <td class="monospace">()</td>
+        </tr>
+        <tr>
+            <td class="monospace"><em>uint64</em>&nbsp;</td>
+            <td class="monospace"><strong>ins:target</strong>&nbsp;</td>
+            <td class="monospace">()</td>
+        </tr>
+        <tr>
+            <td class="monospace"><em>table</em>&nbsp;</td>
+            <td class="monospace"><strong>ins:bytes</strong>&nbsp;</td>
+            <td class="monospace">()</td>
+        </tr>
+        <tr>
+            <td class="monospace"><em>string</em>&nbsp;</td>
+            <td class="monospace"><strong>ins:description</strong>&nbsp;</td>
+            <td class="monospace">()</td>
+        </tr>
+        <tr>
+            <td class="monospace"><em>string</em>&nbsp;</td>
+            <td class="monospace"><strong>ins:comment</strong>&nbsp;</td>
+            <td class="monospace">()</td>
+        </tr>
+    </table>
+</p>
+</p>
+</div>
+
+<!-- uint64 -->
+
+<h3 align="center">uint64</h3>
+<div class="box">
+<p>
+    Lua does not have native support for the type uint64_t. Support of this
+    type can be accomplished via two means: modify lua or provide a uint64
+    object. We have elected to provide a uint64 object. This is cleaner, allows
+    the use of luajit, and prevents us from having to distribute a custom
+    version of lua with rdis.
+</p>
+<p>
+    Uint64 is used extensively through the rdis lua API.
+</p>
+
+<p><hr style="height: 1px; background: #000; border: 0px;" /></p>
+<p>
+    <span class="monospace">
+        <em>uint64</em> <strong>uint64</strong> (string)<br />
+        <em>uint64</em> <strong>uint64</strong> (number)<br />
+    </span>
+</p>
+<p>
+    The function uint64() accepts either a string or a number and returns a
+    uint64 object. When uint64 is given a string, the string is passed to
+    <a href="http://linux.die.net/man/3/strtoull">strtoull</a> to fetch the
+    corresponding 64-bit value.
+</p>
+
+<p><hr style="height: 1px; background: #000; border: 0px;" /></p>
+<p>
+    <span class="monospace">
+        <em>uint64</em> <strong>uint64.__add</strong> (uint64)<br />
+        <em>uint64</em> <strong>uint64.__sub</strong> (uint64)<br />
+        <em>uint64</em> <strong>uint64.__mul</strong> (uint64)<br />
+        <em>uint64</em> <strong>uint64.__div</strong> (uint64)<br />
+        <em>uint64</em> <strong>uint64.__mod</strong> (uint64)<br />
+        <em>boolean</em> <strong>uint64.__eq</strong> (uint64)<br />
+        <em>boolean</em> <strong>uint64.__lt</strong> (uint64)<br />
+        <em>boolean</em> <strong>uint64.__le</strong> (uint64)<br />
+        <em>string</em> <strong>uint64.__tostring</strong> ()<br />
+        <em>string</em> <strong>uint64.string</strong> ()<br />
+    </span>
+</p>
+<p>
+    If you are familiar with lua, then you already know these metamethods.
+    Lua uses these methods internally to override operators on the uint64
+    object. An example follows:
+</p>
+<p>
+    <pre class="monospace">a = uint64(32)<br />
+b = uint64("0xdeadbeef")
+c = uint64("0xdeadbeeffeebdaed")
+d = (((a + b) - c) * a) / b) % c
+print(a)
+rdis.console(tostring(a) .. " " .. b:string())
+if a == b then print("a == b") end</pre>
+</p>
+
+</div>
+
+<!-- rdis -->
+
+<p><h3 align="center">rdis</h3></p>
+<div class="box">
+
+<p>
+    <span class="monospace">
+        <em>nil</em> <strong>rdis.console</strong> (<em>string</em>)<br />
+    </span>
+</p>
+<p>
+    Sends the text to the rdis console window. A newline will be appended.
+</p>
+
+<p><hr style="height: 1px; background: #000; border: 0px;" /></p>
+<p>
+    <span class="monospace">
+        <em>table</em> <strong>rdis.functions</strong> ()<br />
+    </span>
+</p>
+<p>
+    Returns following lua table:
+</p>
+<p>
+    <span class="monospace">
+        [uint64 address] -> string function_label
+    </span>
+</p>
+
+<p><hr style="height: 1px; background: #000; border: 0px;" /></p>
+<p>
+    <span class="monospace">
+        <em>integer</em> <strong>rdis.peek</strong> (<em>uint64</em>)<br />
+    </span>
+</p>
+<p>
+    Returns the byte at the given virtual address, or nil if the address is
+    invalid.
+</p>
+
+<p><hr style="height: 1px; background: #000; border: 0px;" /></p>
+<p>
+    <span class="monospace">
+        <em>node</em> <strong>rdis.node</strong> (<em>uint64</em>)<br />
+    </span>
+</p>
+<p>
+    Returns a node from the Control Flow Graph at the given index. If no
+    node was found with the given index, an error is thrown. A node's index
+    is the same as the address of the first instruction found in that node.
+</p>
+
+</div>
+
+<!-- node -->
+
+<p><h3 align="center">node</h3></p>
+<div class="box">
+
+<p>
+    <span class="monospace">
+        <em>uint64</em> <strong>node:index</strong> ()<br />
+    </span>
+</p>
+<p>
+    Returns the node's index.
+</p>
+
+<p><hr style="height: 1px; background: #000; border: 0px;" /></p>
+<p>
+    <span class="monospace">
+        <em>table</em> <strong>node:edges</strong> ()<br />
+    </span>
+</p>
+<p>
+    Returns a table with values of type edge. These edges contain the node's
+    predecessors and successors. Determine if an edge is a predecessor or
+    successor by comparing node:index() against edge:head() or edge:tail().
+</p>
+
+<p><hr style="height: 1px; background: #000; border: 0px;" /></p>
+<p>
+    <span class="monospace">
+        <em>table</em> <strong>node:instructions</strong> ()<br />
+    </span>
+</p>
+<p>
+    Returns a table with values of type ins. These are the node's instructions.
+</p>
+
+</div>
+
+<!-- edge -->
+
+<p><h3 align="center">edge</h3></p>
+<div class="box">
+
+<p>
+    <span class="monospace">
+        <em>uint64</em> <strong>edge:head</strong> ()<br />
+    </span>
+</p>
+<p>
+    Returns the index of this edge's head node.
+</p>
+
+<p><hr style="height: 1px; background: #000; border: 0px;" /></p>
+<p>
+    <span class="monospace">
+        <em>uint64</em> <strong>edge:tail</strong> ()<br />
+    </span>
+</p>
+<p>
+    Returns the index of this edge's tail node.
+</p>
+</div>
+
+<!-- ins -->
+
+<p><h3 align="center">ins</h3></p>
+<div class="box">
+
+<p>
+    <span class="monospace">
+        <em>uint64</em> <strong>ins:address</strong> ()<br />
+    </span>
+</p>
+<p>
+    Returns the virtual address where the instruction was found.
+</p>
+
+<p><hr style="height: 1px; background: #000; border: 0px;" /></p>
+<p>
+    <span class="monospace">
+        <em>uint64</em> <strong>ins:target</strong> ()<br />
+    </span>
+</p>
+<p>
+    Returns the instructions, "Target." A target is the address an instruction
+    will branch to. This is mostly useful for call instructions. For
+    conditional branches, this is the address taken if the condition is true.
+</p>
+<p>
+    Not all instructions have a target. If the instruction does not have a
+    target, nil will be returned instead. No error will be thrown as the
+    absence of a target is a valid state and not an error.
+</p>
+
+<p><hr style="height: 1px; background: #000; border: 0px;" /></p>
+<p>
+    <span class="monospace">
+        <em>table</em> <strong>ins:bytes</strong> ()<br />
+    </span>
+</p>
+<p>
+    Returns a table with values of type integer containing the bytes that were
+    disassembled to achieve this instruction.
+</p>
+
+<p><hr style="height: 1px; background: #000; border: 0px;" /></p>
+<p>
+    <span class="monospace">
+        <em>string</em> <strong>ins:description</strong> ()<br />
+    </span>
+</p>
+<p>
+    Returns this instructions textual description. An example is 
+    "mov eax, ebx". If the instruction has no description, nil is returned.
+    If the instruction has no description, you should probably let someone
+    know.
+</p>
+
+<p><hr style="height: 1px; background: #000; border: 0px;" /></p>
+<p>
+    <span class="monospace">
+        <em>string</em> <strong>ins:comment</strong> ()<br />
+    </span>
+</p>
+<p>
+    Returns this instructions comments. Comments are created by the user. If
+    no comment exists, nil is returned.
+</p>
+
+</div>
+
+
+            </div>
+        </div>
+<br />        
+<p align="center"><small>&copy; rainbowsandpwnies 2012</small></p>z        
+    </body>
+</html>
