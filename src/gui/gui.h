@@ -27,7 +27,7 @@ uint64_t gui_add_window    (struct _gui * gui, GtkWidget * window);
 void     gui_remove_window (struct _gui * gui, uint64_t identifier);
 void     gui_close_windows (struct _gui * gui);
 
-void gui_rdgwindow  (struct _gui * gui, uint64_t top_index);
+void gui_rdgwindow  (struct _gui * gui, struct _graph * graph);
 void gui_funcwindow (struct _gui * gui);
 void gui_hexwindow  (struct _gui * gui);
 

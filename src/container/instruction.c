@@ -185,6 +185,12 @@ void ins_s_target (struct _ins * ins, uint64_t target)
 }
 
 
+void ins_s_call (struct _ins * ins)
+{
+    ins->flags |= INS_FLAG_CALL;
+}
+
+
 int ins_cmp (struct _ins * lhs, struct _ins * rhs)
 {
     if (lhs->address < rhs->address)

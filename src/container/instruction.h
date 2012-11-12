@@ -8,6 +8,7 @@
 #include "serialize.h"
 
 #define INS_FLAG_TARGET_SET 1
+#define INS_FLAG_CALL       2
 
 enum {
     INS_EDGE_NORMAL,
@@ -48,6 +49,7 @@ struct _ins * ins_deserialize (json_t * json);
 void          ins_s_comment     (struct _ins * ins, const char * comment);
 void          ins_s_description (struct _ins * ins, const char * description);
 void          ins_s_target      (struct _ins * ins, uint64_t target);
+void          ins_s_call        (struct _ins * ins);
 
 int           ins_cmp           (struct _ins * lhs, struct _ins * rhs);
 

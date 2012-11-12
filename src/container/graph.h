@@ -94,7 +94,11 @@ int graph_remove_edge (struct _graph * graph,
 void graph_map (struct _graph * graph, void (* callback) (struct _graph_node *));
 void graph_bfs (struct _graph * graph,
                 uint64_t        index,
-                void  (* callback) (struct _graph *, struct _graph_node *));
+                void (* callback) (struct _graph *, struct _graph_node *));
+void graph_bfs_data (struct _graph * graph,
+                     uint64_t        index,
+                     void          * data,
+                     void (* callback) (struct _graph_node *, void * data));
 
 /*
 * GRAPH EDGE OPERATOR FUNCTIONS

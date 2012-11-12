@@ -15,4 +15,12 @@
 */
 void remove_function_predecessors (struct _graph * graph, struct _tree * functions);
 
+
+/*
+* Starting with the function of which node index is a the head, create a
+* call graph. The call graph will be of the same internal structure as a loader
+* graph.
+*/
+struct _graph * create_call_graph (struct _graph * graph, uint64_t index);
+
 #endif

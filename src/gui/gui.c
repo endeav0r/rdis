@@ -96,13 +96,13 @@ void gui_close_windows (struct _gui * gui){
 }
 
 
-void gui_rdgwindow (struct _gui * gui, uint64_t top_index)
+void gui_rdgwindow (struct _gui * gui, struct _graph * graph)
 {
     if (gui->rdis == NULL) {
         gui_console(gui, "can't create rdgwindow, no rdis loaded");
         return;
     }
-    struct _rdgwindow * rdgwindow = rdgwindow_create(gui, top_index);
+    struct _rdgwindow * rdgwindow = rdgwindow_create(gui, graph);
     gtk_widget_show(rdgwindow_window(rdgwindow));
 }
 

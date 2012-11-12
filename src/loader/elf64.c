@@ -387,31 +387,16 @@ struct _graph * elf64_graph (struct _elf64 * elf64)
 
 struct _tree * elf64_function_tree (struct _elf64 * elf64)
 {
-    struct _tree     * tree = tree_create();
+    struct _tree * tree    = tree_create();
+
+    // we start by adding functions to a list of entries which we will then
+    // recursively disassemble over
+    struct _list * entries = list_create();
 
     // add the entry point
     struct _index * index = index_create(elf64_entry(elf64));
-    tree_insert(tree, index);
+    list_append(entries, index);
     object_delete(index);
-
-    // recursively disassemble from entry point
-    struct _tree * recursive_function_tree;
-    recursive_function_tree = x8664_functions(elf64_base_address(elf64),
-                                              elf64_entry(elf64)
-                                              - elf64_base_address(elf64),
-                                              elf64->data,
-                                              elf64->data_size);
-
-    struct _tree_it * it;
-    for (it = tree_iterator(recursive_function_tree);
-         it != NULL;
-         it = tree_it_next(it)) {
-        struct _index * index = tree_it_data(it);
-        if (tree_fetch(tree, index) == NULL)
-            tree_insert(tree, index);
-    }
-
-    object_delete(recursive_function_tree);
 
     // symbols are easy
     int sec_i;
@@ -436,9 +421,7 @@ struct _tree * elf64_function_tree (struct _elf64 * elf64)
                 continue;
 
             struct _index * index = index_create(sym->st_value);
-            if (tree_fetch(tree, index) == NULL)
-                tree_insert(tree, index);
-                
+            list_append(entries, index);
             object_delete(index);
         }
     }
@@ -465,30 +448,37 @@ struct _tree * elf64_function_tree (struct _elf64 * elf64)
         // add main to function tree
         struct _index * index;
         index = index_create(udis86_sign_extend_lval(&(ud_obj.operand[1])));
-        if (tree_fetch(tree, index) == NULL)
-            tree_insert(tree, index);
+        list_append(entries, index);
         object_delete(index);
-
-        struct _tree * recursive_function_tree;
-        recursive_function_tree = x8664_functions(elf64_base_address(elf64),
-                                  udis86_sign_extend_lval(&(ud_obj.operand[1]))
-                                   - elf64_base_address(elf64),
-                                                  elf64->data,
-                                                  elf64->data_size);
-        struct _tree_it * it;
-        for (it = tree_iterator(recursive_function_tree);
-             it != NULL;
-             it = tree_it_next(it)) {
-            struct _index * index = tree_it_data(it);
-            if (tree_fetch(tree, index) == NULL)
-                tree_insert(tree, index);
-        }
-        object_delete(recursive_function_tree);
     }
     else
         printf("disassembled: %s\n disassembled at %llx\n",
                ud_insn_asm(&ud_obj),
                (unsigned long long) target_offset);
+
+    struct _list_it * it;
+    for (it = list_iterator(entries); it != NULL; it = it->next) {
+        struct _index * index = it->data;
+
+        tree_insert(tree, index);
+
+        struct _tree * recursive_tree;
+        recursive_tree = x8664_functions(elf64_base_address(elf64),
+                                         index->index - elf64_base_address(elf64),
+                                         elf64->data, elf64->data_size);
+        struct _tree_it * tit;
+        for (tit = tree_iterator(recursive_tree);
+             tit != NULL;
+             tit = tree_it_next(tit)) {
+            index = tree_it_data(tit);
+            if (tree_fetch(tree, index) == NULL)
+                tree_insert(tree, index);
+        }
+
+        object_delete(recursive_tree);
+    }
+
+    object_delete(entries);
 
     return tree;
 }

@@ -30,7 +30,7 @@ struct _rdgwindow {
     uint64_t            top_index;
     struct _rdg       * rdg;
 
-    struct _graph     * currently_displayed_graph;
+    struct _graph     * graph;
 
     double image_drag_x;
     double image_drag_y;
@@ -48,16 +48,12 @@ struct _rdgwindow {
 
 
 
-struct _rdgwindow * rdgwindow_create (struct _gui * gui, uint64_t top_index);
+struct _rdgwindow * rdgwindow_create (struct _gui * gui, struct _graph * graph);
 void                rdgwindow_delete (struct _rdgwindow * rdgwindow);
 GtkWidget *         rdgwindow_window (struct _rdgwindow * rdgwindow);
 
 // redraws the rdg_graph
 void rdgwindow_image_update (struct _rdgwindow * rdgwindow);
-// recreates the currently_displayed_graph from gui->graph,
-// recreates the rdg_graph from the currently_displayed_graph,
-// and redraws the graph
-void rdgwindow_graph_update (struct _rdgwindow * rdgwindow);
 
 void     rdgwindow_destroy_event (GtkWidget * widget,
                                   struct _rdgwindow * rdgwindow);

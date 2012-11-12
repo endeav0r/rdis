@@ -99,6 +99,9 @@ struct _ins * x8664_ins (uint64_t address, ud_t * ud_obj)
         }
     }
 
+    if (ud_obj->mnemonic == UD_Icall)
+        ins_s_call(ins);
+
     return ins;
 }
 

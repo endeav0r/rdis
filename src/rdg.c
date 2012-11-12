@@ -529,12 +529,64 @@ void rdg_node_level_zero (struct _graph_node * node)
 }
 
 
+void rdg_assign_levels2 (struct _graph * graph, uint64_t top_index)
+{
+    struct _queue * queue = queue_create();
+
+    struct _index * index = index_create(top_index);
+    queue_push(queue, index);
+    object_delete(index);
+
+    while (queue->size > 0) {
+        struct _index * index = queue_peek(queue);
+
+        struct _graph_node * node = graph_fetch_node(graph, index->index);
+        struct _rdg_node * rdg_node = node->data;
+
+        struct _list_it * it;
+        for (it = list_iterator(node->edges); it != NULL; it = it->next) {
+            struct _graph_edge * edge = it->data;
+
+            if (edge->head == rdg_node->index) {
+                struct _rdg_node * tail_node;
+                tail_node = graph_fetch_data(graph, edge->tail);
+                tail_node->level = rdg_node->level + 1;
+                if ((tail_node->flags & RDG_NODE_LEVEL_SET) == 0) {
+                    index = index_create(tail_node->index);
+                    queue_push(queue, index);
+                    object_delete(index);
+                }
+                tail_node->flags |= RDG_NODE_LEVEL_SET;
+            }
+
+            if (edge->tail == rdg_node->index) {
+                struct _rdg_node * head_node;
+                head_node = graph_fetch_data(graph, edge->head);
+                head_node->level = rdg_node->level - 1;
+                if ((head_node->flags & RDG_NODE_LEVEL_SET) == 0) {
+                    index = index_create(head_node->index);
+                    queue_push(queue, index);
+                    object_delete(index);
+                }
+                head_node->flags |= RDG_NODE_LEVEL_SET;
+            }
+
+        }
+        queue_pop(queue);
+    }
+
+    object_delete(queue);
+}
+
+
 void rdg_node_assign_level (struct _graph * graph, struct _graph_node * node)
 {
     struct _rdg_node * rdg_node = node->data;
     struct _graph_edge * edge;
     struct _list_it * it;
     int new_level = -9000;
+
+    printf("rdg_node_assign_level %llx\n", (unsigned long long) node->index);
 
     if (rdg_node->flags & RDG_NODE_LEVEL_SET)
         return;
@@ -578,7 +630,10 @@ void rdg_node_assign_level_by_successor (struct _graph_node * node)
     struct _rdg_node * rdg_node = node->data;
     struct _graph_edge * edge;
     struct _list_it * it;
-    int new_level = -11;
+    int new_level = -3;
+
+    printf("rdg_node_assign_level_by_successor %llx\n", 
+           (unsigned long long) node->index);
 
     if (rdg_node->flags & RDG_NODE_LEVEL_SET)
         return;
@@ -605,12 +660,8 @@ void rdg_node_assign_level_by_successor (struct _graph_node * node)
         }
 
         if (suc_node->flags & RDG_NODE_LEVEL_SET) {
-            if ((rdg_node->flags & RDG_NODE_LEVEL_SET) == 0) {
-                new_level = suc_node->level - 1;
-                rdg_node->flags |= RDG_NODE_LEVEL_SET;
-            }
-            else if (suc_node->level - 1 < new_level)
-                new_level = suc_node->level - 1;
+            new_level = suc_node->level - 1;
+            rdg_node->flags |= RDG_NODE_LEVEL_SET;
         }
     }
     object_delete(successors);
@@ -621,13 +672,14 @@ void rdg_node_assign_level_by_successor (struct _graph_node * node)
 
 void rdg_assign_levels (struct _graph * graph, uint64_t top_index)
 {
-    struct _rdg_node * rdg_node;
-
     graph_map(graph, rdg_node_level_zero);
 
     // set level of entry
+    rdg_assign_levels2(graph, top_index);
+    /*
     rdg_node = graph_fetch_data(graph, top_index);
     rdg_node->flags |= RDG_NODE_LEVEL_SET;
+    */
 
     // set node levels
     graph_bfs(graph, top_index, rdg_node_assign_level);
@@ -953,6 +1005,12 @@ void rdg_assign_node_x (struct _rdg * rdg, int level, int position, int x)
 
 void rdg_assign_x (struct _rdg * rdg)
 {
+    // assign initial x value for nodes in the top level
+    struct _map * level_map = map_fetch(rdg->levels, 0);
+    int position = 0;
+    for (position = 0; position < level_map->size; position++) {
+        rdg_assign_node_x(rdg, 0, position, position);
+    }
     // center every node's x value based on this position of its parents
     int level_i;
     for (level_i = 1; level_i < rdg->levels->size; level_i++) {
@@ -1402,6 +1460,11 @@ void rdg_draw (struct _rdg * rdg)
          graph_it != NULL;
          graph_it = graph_it_next(graph_it)) {
         struct _rdg_node * rdg_node = graph_it_data(graph_it);
+
+        printf("%llx x: %d y: %d level: %d position: %f\n",
+               (unsigned long long) rdg_node->index,
+               rdg_node->y,
+               rdg_node->x, rdg_node->level, rdg_node->position);
 
         /*
         if (rdg_node->flags & RDG_NODE_VIRTUAL)

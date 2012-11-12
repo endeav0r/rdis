@@ -8,6 +8,7 @@
 #include "index.h"
 #include "label.h"
 #include "tree.h"
+#include "util.h"
 
 enum {
     COL_INDEX,
@@ -31,6 +32,19 @@ struct _funcwindow * funcwindow_create (struct _gui * gui)
     funcwindow->treeView       = gtk_tree_view_new_with_model(
                                         GTK_TREE_MODEL(funcwindow->listStore));
     funcwindow->gui            = gui;
+    funcwindow->menu_popup      = gtk_menu_new();
+
+
+    // popup menu stuff
+    GtkWidget * menuItem = gtk_menu_item_new_with_label("Call Graph");
+    g_signal_connect(menuItem,
+                     "activate",
+                     G_CALLBACK(funcwindow_call_graph),
+                     funcwindow);
+    gtk_menu_shell_append(GTK_MENU_SHELL(funcwindow->menu_popup), menuItem);
+
+    gtk_widget_show_all(funcwindow->menu_popup);
+
 
     // add this window to the gui window list so gui can close it
     funcwindow->gui_identifier = gui_add_window(gui, funcwindow->window);
@@ -85,10 +99,14 @@ struct _funcwindow * funcwindow_create (struct _gui * gui)
                      funcwindow);
 
     g_signal_connect(funcwindow->treeView,
+                     "button-press-event",
+                     G_CALLBACK(funcwindow_button_press_event),
+                     funcwindow);
+
+    g_signal_connect(funcwindow->treeView,
                      "row-activated",
                      G_CALLBACK(funcwindow_row_activated),
                      funcwindow);
-
 
     gtk_window_set_default_size(GTK_WINDOW(funcwindow->window), 280, 480);
 
@@ -174,7 +192,17 @@ void funcwindow_row_activated (GtkTreeView * treeView,
 
     printf("funcwindow_row_activated %llx\n", (unsigned long long) index);
 
-    gui_rdgwindow(funcwindow->gui, index);
+    struct _graph * graph = graph_family(funcwindow->gui->rdis->graph, index);
+    if (graph != NULL) {
+        gui_rdgwindow(funcwindow->gui, graph);
+        object_delete(graph);
+    }
+    else {
+        char tmp[128];
+        snprintf(tmp, 128, "Could not create graph family for %llx\n",
+                 (unsigned long long) index);
+        gui_console(funcwindow->gui, tmp);
+    }
 }
 
 
@@ -224,5 +252,63 @@ void funcwindow_rdis_callback (struct _funcwindow * funcwindow)
          it  = tree_it_next(it)) {
         struct _index * index = tree_it_data(it);
         funcwindow_append_row(funcwindow, index->index);
+    }
+}
+
+
+gboolean funcwindow_button_press_event  (GtkWidget * widget,
+                                               GdkEventButton * event,
+                                               struct _funcwindow * funcwindow)
+{
+    GtkTreeSelection * selection;
+
+    selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(funcwindow->treeView));
+
+    if (    (gtk_tree_selection_count_selected_rows(selection) > 0)
+         && (event->button == 3))
+        gtk_menu_popup(GTK_MENU(funcwindow->menu_popup),
+               NULL, NULL, NULL,
+               funcwindow,
+               0,
+               gtk_get_current_event_time());
+
+    return FALSE;
+}
+
+
+void funcwindow_call_graph (GtkMenuItem * menuItem,
+                            struct _funcwindow * funcwindow)
+{
+    printf("funcwindow call graph\n");
+
+    GtkTreeSelection * selection;
+    GtkTreeIter treeIter;
+    GtkTreeModel * model = GTK_TREE_MODEL(funcwindow->listStore);
+
+    selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(funcwindow->treeView));
+
+    if (gtk_tree_selection_get_selected(selection,
+                                        &model,
+                                        &treeIter)) {
+        uint64_t index;
+        gtk_tree_model_get(GTK_TREE_MODEL(funcwindow->listStore),
+                           &treeIter,
+                           COL_INDEX, &index,
+                           -1);
+        printf("selected %llx\n", (unsigned long long) index);
+
+        if (graph_fetch_node(funcwindow->gui->rdis->graph, index) == NULL) {
+            printf("we are in trouble, not found %llx\n", (unsigned long long) index);
+        }
+        else
+            printf("found %llx\n", (unsigned long long) index);
+
+        struct _graph * graph = create_call_graph(funcwindow->gui->rdis->graph, index);
+
+        graph_debug(graph);
+
+        gui_rdgwindow(funcwindow->gui, graph);
+
+        object_delete(graph);
     }
 }

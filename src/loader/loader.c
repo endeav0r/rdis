@@ -2,6 +2,7 @@
 
 #include "elf64.h"
 #include "elf32.h"
+#include "pe.h"
 
 
 _loader * loader_create (const char * filename)
@@ -13,6 +14,10 @@ _loader * loader_create (const char * filename)
         return loader;
 
     loader = (_loader *) elf32_create(filename);
+    if (loader != NULL)
+        return loader;
+
+    loader = (_loader *) pe_create(filename);
     if (loader != NULL)
         return loader;
 

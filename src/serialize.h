@@ -21,6 +21,7 @@ enum {
     SERIALIZE_LIST,             // done+/
     SERIALIZE_MAP_NODE,         // done+/
     SERIALIZE_MAP,              // done+/
+    SERIALIZE_PE,
     SERIALIZE_QUEUE,
     SERIALIZE_RDIS,             // done+/
     SERIALIZE_TREE,             // done+/

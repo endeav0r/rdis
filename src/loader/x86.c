@@ -62,6 +62,9 @@ struct _ins * x86_ins (uint64_t address, ud_t * ud_obj)
         }
     }
 
+    if (ud_obj->mnemonic == UD_Icall)
+        ins_s_call(ins);
+
     return ins;
 }
 
@@ -289,11 +292,11 @@ struct _graph * x86_graph (uint64_t address,
 
 
 void x86_functions_r (struct _tree *  tree_functions,
-                        struct _tree *  tree_disassembled,
-                        uint64_t        address,
-                        size_t          offset,
-                        uint8_t *       data,
-                        size_t          data_size)
+                      struct _tree *  tree_disassembled,
+                      uint64_t        address,
+                      size_t          offset,
+                      uint8_t *       data,
+                      size_t          data_size)
 {
     ud_t            ud_obj;
     int             continue_disassembling = 1;

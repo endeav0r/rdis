@@ -32,10 +32,10 @@ _loader * loader_create (const char * filename);
 
 uint64_t        loader_entry                 (_loader *);
 struct _graph * loader_graph                 (_loader *);
-struct _tree  * loader_function_tree         (_loader *);
-struct _map   * loader_labels                (_loader *);
+struct _tree *  loader_function_tree         (_loader *);
+struct _map *   loader_labels                (_loader *);
 struct _graph * loader_graph_address         (_loader *, uint64_t);
-struct _map   * loader_memory_map            (_loader *);
+struct _map *   loader_memory_map            (_loader *);
 struct _tree *  loader_function_tree_address (_loader *, uint64_t);
 struct _label * loader_label_address         (_loader *, uint64_t);
 

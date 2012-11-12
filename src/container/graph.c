@@ -338,6 +338,9 @@ void graph_reduce (struct _graph * graph)
 
 struct _graph * graph_family (struct _graph * graph, uint64_t indx)
 {
+    if (graph_fetch_node(graph, indx) == NULL)
+        return NULL;
+
     struct _graph       * new_graph = graph_create();
     struct _index * index;
     struct _queue       * queue = queue_create();
@@ -592,6 +595,54 @@ void graph_bfs (struct _graph * graph,
         object_delete(index);
 
         callback(graph, node);
+
+        // add successors to the queue
+        struct _list * successors = graph_node_successors(node);
+        struct _list_it * it;
+        for (it = list_iterator(successors); it != NULL; it = it->next) {
+            struct _graph_edge * edge = it->data;
+            index = index_create(edge->tail);
+            queue_push(queue, index);
+            object_delete(index);
+        }
+        object_delete(successors);
+    }
+    object_delete(queue);
+    object_delete(visited);
+}
+
+
+void graph_bfs_data (struct _graph * graph,
+                     uint64_t        indx,
+                     void          * data,
+                     void (* callback) (struct _graph_node *, void * data))
+{
+    struct _queue       * queue   = queue_create();
+    struct _tree        * visited = tree_create();
+    struct _index * index;
+
+    // add the first index to the graph
+    index = index_create(indx);
+    queue_push(queue, index);
+    object_delete(index);
+
+    while (queue->size > 0) {
+        index = object_copy(queue_peek(queue));
+        queue_pop(queue);
+        if (tree_fetch(visited, index) != NULL) {
+            object_delete(index);
+            continue;
+        }
+        tree_insert(visited, index);
+
+        struct _graph_node * node = graph_fetch_node(graph, index->index);
+        if (node == NULL) {
+            printf("graph_bfs didn't find node %llx\n",
+                   (unsigned long long) index->index);
+        }
+        object_delete(index);
+
+        callback(node, data);
 
         // add successors to the queue
         struct _list * successors = graph_node_successors(node);

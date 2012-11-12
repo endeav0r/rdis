@@ -119,7 +119,7 @@ cairo_surface_t * rdg_node_draw_full (struct _graph_node * node,
     // create a rough approximation of the graph height
     int number_of_instructions = ((struct _list *) node->data)->size;
     int height = ((int) RDG_NODE_FONT_SIZE + 6) * number_of_instructions;
-    height += (int) RDG_NODE_PADDING * 2;
+    height += (int) RDG_NODE_PADDING * 2 + RDG_NODE_FONT_SIZE * 2;
 
     surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 800, height);
     ctx     = cairo_create(surface);
@@ -137,6 +137,21 @@ cairo_surface_t * rdg_node_draw_full (struct _graph_node * node,
     cairo_font_extents(ctx, &fe);
     double top = RDG_NODE_PADDING + fe.height;
     double max_width = 0.0;
+
+    // if we have a label for this node, we put that at the top
+    struct _label * node_label = map_fetch(labels, node->index);
+    if (node_label != NULL) {
+        char tmp[128];
+        snprintf(tmp, 128, "%llx %s",
+                 (unsigned long long) node->index,
+                 node_label->text);
+        cairo_set_source_rgb(ctx, RDG_NODE_LABEL_COLOR);
+        cairo_move_to(ctx, RDG_NODE_PADDING, top);
+        cairo_show_text(ctx, tmp);
+        cairo_text_extents(ctx, tmp, &te);
+        max_width = RDG_NODE_PADDING + te.width;
+        top += fe.height + 2.0;
+    }
 
     struct _list_it * list_it;
     for (list_it = list_iterator(node->data);

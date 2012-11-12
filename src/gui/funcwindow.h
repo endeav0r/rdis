@@ -11,6 +11,7 @@ struct _funcwindow {
     GtkWidget    * scrolledWindow;
     GtkListStore * listStore;
     GtkWidget    * treeView;
+    GtkWidget    * menu_popup;
 
     struct _gui  * gui;
     uint64_t       gui_identifier;
@@ -36,5 +37,13 @@ void funcwindow_edited        (GtkCellRendererText * renderer,
                                struct _funcwindow * funcwindow);
 
 void funcwindow_rdis_callback (struct _funcwindow * funcwindow);
+
+gboolean funcwindow_button_press_event (GtkWidget * widget,
+                                        GdkEventButton * event,
+                                        struct _funcwindow * funcwindow);
+
+void funcwindow_call_graph (GtkMenuItem * menuItem,
+                            struct _funcwindow * funcwindow);
+
 
 #endif

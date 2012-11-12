@@ -12,16 +12,6 @@
 #include "rdg_node.h"
 #include "tree.h"
 
-char * rdgraph_graphviz_string (struct _graph * graph);
-char * rdgraph_graphviz_string_params (struct _graph * graph,
-                                       const char * params);
-
-int rdgraph_graph_to_png_file (struct _graph * graph,
-                               const char * filename);
-int rdgraph_graph_to_png_file_params (struct _graph * graph,
-                                      const char * filename,
-                                      const char * params);
-
 enum {
     RDG_ARROW_TYPE_NONE,
     RDG_ARROW_TYPE_OPEN,
@@ -36,7 +26,7 @@ enum {
 #define RDG_NODE_ADDR_COLOR    0,   0.2, 0.5
 #define RDG_NODE_BYTE_COLOR    0.5, 0.2, 0
 #define RDG_NODE_DESC_COLOR    0,   0,   0
-#define RDG_NODE_LABEL_COLOR   0,   0, 1
+#define RDG_NODE_LABEL_COLOR   0,   0,   1
 #define RDG_NODE_COMMENT_COLOR 0,   0.5, 0
 
 #define RDG_EDGE_NORMAL_COLOR    0,   0,   0
@@ -52,8 +42,8 @@ enum {
 #define RDG_NODE_LEVEL_SET    (1 << 2)
 #define RDG_NODE_POSITIONED   (1 << 4)
 
-#define RDG_NODE_X_SPACING  40
-#define RDG_NODE_X_MAX_SPACING 200
+#define RDG_NODE_X_SPACING  12
+//#define RDG_NODE_X_MAX_SPACING 200
 #define RDG_NODE_Y_SPACING  80
 #define RDG_SURFACE_PADDING 16
 

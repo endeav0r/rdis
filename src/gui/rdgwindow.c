@@ -5,7 +5,7 @@
 
 #include <string.h>
 
-struct _rdgwindow * rdgwindow_create (struct _gui * gui, uint64_t top_index)
+struct _rdgwindow * rdgwindow_create (struct _gui * gui, struct _graph * graph)
 {
     struct _rdgwindow * rdgwindow;
 
@@ -19,9 +19,7 @@ struct _rdgwindow * rdgwindow_create (struct _gui * gui, uint64_t top_index)
     rdgwindow->gui            = gui;
     rdgwindow->gui_identifier = gui_add_window(rdgwindow->gui, rdgwindow->window);
 
-    rdgwindow->top_index      = top_index;
-    rdgwindow->rdg            = NULL;
-    rdgwindow->currently_displayed_graph = NULL;
+    rdgwindow->graph          = object_copy(graph);
 
     rdgwindow->image_drag_x   = 0;
     rdgwindow->image_drag_y   = 0;
@@ -33,6 +31,16 @@ struct _rdgwindow * rdgwindow_create (struct _gui * gui, uint64_t top_index)
 
     rdgwindow->editing        = 0;
 
+
+    // find the top index in this graph
+    struct _graph_it * git = graph_iterator(rdgwindow->graph);
+    struct _graph_node * node = graph_it_node(git);
+    rdgwindow->top_index = node->index;
+    graph_it_delete(git);
+
+    rdgwindow->rdg = rdg_create(rdgwindow->top_index,
+                                rdgwindow->graph,
+                                rdgwindow->gui->rdis->labels);
 
     // popup menu stuff
     GtkWidget * menuItem = gtk_menu_item_new_with_label("User Function");
@@ -92,7 +100,7 @@ struct _rdgwindow * rdgwindow_create (struct _gui * gui, uint64_t top_index)
     gtk_widget_show(rdgwindow->imageEventBox);
 
 
-    rdgwindow_graph_update(rdgwindow);
+    rdgwindow_image_update(rdgwindow);
 
     int width  = rdg_width(rdgwindow->rdg);
     int height = rdg_height(rdgwindow->rdg);
@@ -117,8 +125,8 @@ void rdgwindow_delete (struct _rdgwindow * rdgwindow)
     if (rdgwindow->rdg != NULL)
         object_delete(rdgwindow->rdg);
 
-    if (rdgwindow->currently_displayed_graph != NULL)
-        object_delete(rdgwindow->currently_displayed_graph);
+    if (rdgwindow->graph != NULL)
+        object_delete(rdgwindow->graph);
 
     if (rdgwindow->node_colors != NULL)
         object_delete(rdgwindow->node_colors);
@@ -153,29 +161,6 @@ void rdgwindow_image_update (struct _rdgwindow * rdgwindow)
     g_object_unref(pixbuf);
     while (gtk_events_pending())
         gtk_main_iteration();
-}
-
-
-void rdgwindow_graph_update (struct _rdgwindow * rdgwindow)
-{
-    // set currently_displayed_graph to top_index's node's family
-    if (rdgwindow->currently_displayed_graph != NULL)
-        object_delete(rdgwindow->currently_displayed_graph);
-    rdgwindow->currently_displayed_graph = graph_family(rdgwindow->gui->rdis->graph,
-                                                        rdgwindow->top_index);
-
-    if (rdgwindow->rdg != NULL)
-        object_delete(rdgwindow->rdg);
-
-    rdgwindow->rdg = rdg_create(rdgwindow->top_index,
-                                rdgwindow->currently_displayed_graph,
-                                rdgwindow->gui->rdis->labels);
-    rdg_custom_nodes(rdgwindow->rdg,
-                     rdgwindow->gui->rdis->graph,
-                     rdgwindow->gui->rdis->labels,
-                     rdgwindow->node_colors,
-                     rdgwindow->selected_ins);
-    rdgwindow_image_update(rdgwindow);
 }
 
 
@@ -404,7 +389,7 @@ void rdgwindow_reset_node_colors (struct _rdgwindow * rdgwindow)
     }
 
     rdg_custom_nodes(rdgwindow->rdg,
-                     rdgwindow->currently_displayed_graph,
+                     rdgwindow->graph,
                      rdgwindow->gui->rdis->labels,
                      node_colors,
                      rdgwindow->selected_ins);
@@ -424,7 +409,7 @@ void rdgwindow_color_node (struct _rdgwindow * rdgwindow)
     list_append(rdgwindow->node_colors, rdg_node_color);
 
     rdg_custom_nodes(rdgwindow->rdg,
-                     rdgwindow->currently_displayed_graph,
+                     rdgwindow->graph,
                      rdgwindow->gui->rdis->labels,
                      rdgwindow->node_colors,
                      rdgwindow->selected_ins);
@@ -490,7 +475,7 @@ void rdgwindow_color_node_predecessors (struct _rdgwindow * rdgwindow)
     object_delete(pre_tree);
 
     rdg_color_nodes(rdgwindow->rdg,
-                    rdgwindow->currently_displayed_graph,
+                    rdgwindow->graph,
                     rdgwindow->gui->rdis->labels,
                     rdgwindow->node_colors);
     rdgwindow_image_update(rdgwindow);
@@ -499,7 +484,7 @@ void rdgwindow_color_node_predecessors (struct _rdgwindow * rdgwindow)
 
 void rdgwindow_rdis_callback (struct _rdgwindow * rdgwindow)
 {
-    rdgwindow_graph_update(rdgwindow);
+    rdgwindow_image_update(rdgwindow);
 }
 
 
@@ -524,54 +509,3 @@ void rdgwindow_user_function (GtkMenuItem * menuItem,
     printf("user function click on %llx\n",
            (unsigned long long) rdgwindow->selected_ins);
 }
-
-
-
-/*
-gboolean inswindow_image_scroll_event (GtkWidget * widget,
-                                       GdkEventScroll * event,
-                                       struct _inswindow * inswindow)
-{
-    if (inswindow->image_drawing)
-        return 1;
-
-    int direction = -1;
-    if (event->direction == GDK_SCROLL_SMOOTH) {
-        double delta_x;
-        double delta_y;
-        gdk_event_get_scroll_deltas((GdkEvent *) event, &delta_x, &delta_y);
-        if (delta_y < 0)
-            direction = GDK_SCROLL_DOWN;
-        else if (delta_y > 0)
-            direction = GDK_SCROLL_UP;
-    }
-    else if (event->direction == GDK_SCROLL_UP)
-        direction = GDK_SCROLL_UP;
-    else if (event->direction == GDK_SCROLL_DOWN)
-        direction = GDK_SCROLL_DOWN;
-
-
-    if (direction == GDK_SCROLL_DOWN) {
-        printf("scroll up\n");
-        inswindow->image_zoom *= 1.1;
-        if (inswindow->image_zoom > 10.0)
-            inswindow->image_zoom = 10.0;
-    }
-    else if (direction == GDK_SCROLL_UP) {
-        printf("scroll down\n");
-        inswindow->image_zoom *= 0.9;
-        if (inswindow->image_zoom < 0.25)
-            inswindow->image_zoom = 0.25;
-    }
-    else
-        return 1;
-
-    //printf("image_zoom: %f\n", inswindow->image_zoom);
-    printf("reduce and draw\n");
-    rdg_graph_reduce_and_draw(inswindow->rdg_graph);
-
-    inswindow_image_update(inswindow);
-
-    return 1;
-}
-*/

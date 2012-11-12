@@ -9,6 +9,7 @@
 #include "label.h"
 #include "list.h"
 #include "map.h"
+#include "pe.h"
 #include "rdis.h"
 #include "tree.h"
 
@@ -75,6 +76,7 @@ void * deserialize (json_t * json)
     case SERIALIZE_LIST             : return list_deserialize(json);
     case SERIALIZE_MAP_NODE         : return map_node_deserialize(json);
     case SERIALIZE_MAP              : return map_deserialize(json);
+    case SERIALIZE_PE               : return pe_deserialize(json);
     case SERIALIZE_RDIS             : return rdis_deserialize(json);
     case SERIALIZE_TREE             : return tree_deserialize(json);
     }
@@ -93,6 +95,7 @@ void * deserialize (json_t * json)
     printf("SERIALIZE_LIST %d\n", SERIALIZE_LIST);
     printf("SERIALIZE_MAP_NODE %d\n", SERIALIZE_MAP_NODE);
     printf("SERIALIZE_MAP %d\n", SERIALIZE_MAP);
+    printf("SERIALIZE_PE %d\n", SERIALIZE_PE);
     printf("SERIALIZE_QUEUE %d\n", SERIALIZE_QUEUE);
     printf("SERIALIZE_RDIS %d\n", SERIALIZE_RDIS);
     printf("SERIALIZE_TREE %d\n", SERIALIZE_TREE);
