@@ -27,9 +27,8 @@
 <p>
     <strong>What rdis will do:</strong>
     <ul>
-        <li>Disassemble multiple instruction sets.</li>
-        <li>Support multiple binary formats.</li>
-        <li>Translate assembly an IR for analysis.</li>
+        <li>Analyze multiple binary formats with multiple instruction sets.</li>
+        <li>Translate assembly into an IR for analysis.</li>
         <li>Create interactive Control Flow Graphs.</li>
         <li>Provide a scriptable interface through <a href="lua.html">Lua</a>.</li>
     </ul>
@@ -38,10 +37,14 @@
 <p>
     <strong>What works now:</strong>
     <ul>
-        <li>ELF binaries.</li>
+        <li>ELF and PE binaries.</li>
         <li>x86 and x86-64 instruction sets.</li>
-        <li>Identification of functions through multiple methods.</li>
-        <li>interactive control flow graphs.</li>
+        <li>Identification of functions through multiple methods, including
+            recursive disassembly.</li>
+        <li>Control Flow Graphs</li>
+        <li>User defined entry points for recursive function discovery
+            and disassembly</li>
+        <li>Interactive control flow graphs.</li>
         <li>Lua scripting.</li>
     </ul>
 </p>
@@ -49,11 +52,14 @@
 <p>
     <strong>What's planned for the first release:</strong>
     <ul>
-        <li>ELF, PE and Mach-O binaries.</li>
-        <li>x86, x86-64 and ARM assembly.</li>
-        <li>Translation of assembly to IR.</li>
-        <li>Remote debugging.</li>
-        <li>Realtime collaborative analysis.</li>
+        <li><span style="color: green;">ELF, PE</span>
+            and <span style="color: red;">Mach-O</span> binaries.</li>
+        <li><span style="color: green;">x86, x86-64</span>
+            and <span style="color: red;">ARM</span> assembly.</li>
+        <li><span style="color: orange;">Translation of assembly to IR</span>.
+        </li>
+        <li><span style="color: red;">Remote debugging</span>.</li>
+        <li><span style="color: red;">Realtime collaborative analysis</span>.</li>
     </ul>
 </p>
 
@@ -63,7 +69,7 @@
         <li>rdis requires Gtk3 which is not currently supported by backtrack.
             Get a real distro.</li>
         <li>We do not know under what terms rdis will be released.</li>
-        <li>Release date is unknown. Expect early 2012.</li>
+        <li>Release date is unknown. Expect early 2013.</li>
     </ul>
 </p>
 
