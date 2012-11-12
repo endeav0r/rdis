@@ -43,7 +43,11 @@ Pe_OptionalHeaderWindows *      pe_ohw    (struct _pe * pe);
 Pe_OptionalHeaderWindowsPlus *  pe_ohwp   (struct _pe * pe);
 Pe_SectionHeader *              pe_sh     (struct _pe * pe, unsigned int sh_i);
 Pe_Symbol *                     pe_sym    (struct _pe * pe, unsigned int sym_i);
-const char *                    pe_strtab (struct _pe * pe);
+
+
+// returns a pointer to a string in the string table, or NULL if no string
+// could be safely fetched
+const char * pe_strtab (struct _pe * pe, unsigned int offset);
 
 // fills the buf with the name of the symbol and returns the new size of
 // name, or -1 if the name could not be found. buf will be null-terminated

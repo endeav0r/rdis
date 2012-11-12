@@ -243,7 +243,15 @@ Pe_Symbol * pe_sym (struct _pe * pe, unsigned int sym_i)
         return NULL;
 
     uint32_t offset = pfh->PointerToSymbolTable;
-    offset += sizeof(Pe_Symbol) * sym_i;
+
+    unsigned int i;
+    for (i = 0; i < sym_i; i++) {
+        if (offset + sizeof(Pe_Symbol) > pe->data_size)
+            return NULL;
+
+        Pe_Symbol * sym = (Pe_Symbol *) &(pe->data[offset]);
+        offset += sizeof(Pe_Symbol) * (sym->NumberOfAuxSymbols + 1);
+    }
 
     if (offset + sizeof(Pe_Symbol) > pe->data_size)
         return NULL;
@@ -272,7 +280,7 @@ const char * pe_strtab_str (struct _pe * pe, unsigned int offset)
     if (i == 0)
         return NULL;
 
-    return (const char *) &(pe->data[strtab + offset + i]);
+    return (const char *) &(pe->data[strtab + offset]);
 }
 
 
@@ -284,10 +292,14 @@ int pe_symbol_name (struct _pe * pe, int sym_i, char * buf, int buf_size)
         return -1;
 
     if (sym->Name[0] == '\0') {
-        unsigned int offset = sym->Name[4]
-                              | (sym->Name[5] << 8)
-                              | (sym->Name[6] << 16)
-                              | (sym->Name[7] << 24);
+        unsigned int offset;
+        offset  = (sym->Name[7] << 24) & 0xff000000;
+        offset |= (sym->Name[6] << 16) & 0x00ff0000;
+        offset |= (sym->Name[5] <<  8) & 0x0000ff00;
+        offset |= (sym->Name[4]      ) & 0x000000ff;
+        printf("offset: %x, %x %x %x %x %x %x %x %x\n", offset,
+               sym->Name[0], sym->Name[1], sym->Name[2], sym->Name[3],
+               sym->Name[4], sym->Name[5], sym->Name[6], sym->Name[7]);
         const char * name = pe_strtab_str(pe, offset);
         if (name == NULL)
             return -1;
@@ -296,7 +308,6 @@ int pe_symbol_name (struct _pe * pe, int sym_i, char * buf, int buf_size)
         return strlen(buf);
     }
     else {
-        printf("--");
         if (buf_size < 9) {
             strncpy(buf, sym->Name, buf_size);
             buf[buf_size - 1] = '\0';
@@ -514,7 +525,6 @@ struct _tree * pe_function_tree_address (struct _pe * pe, uint64_t address)
                                section_size);
     }
     else if (pfh->Machine == IMAGE_FILE_MACHINE_I386) {
-        printf("Well hello!\n");
         tree = x86_functions(section_base,
                              address - section_base,
                              &(pe->data[section_offset]),
@@ -536,41 +546,42 @@ struct _label * pe_label_address (struct _pe * pe, uint64_t address)
             break;
 
         uint64_t value = sym->Value;
-        if (    (    (sym->StorageClass == IMAGE_SYM_CLASS_STATIC)
-                  || (sym->StorageClass == IMAGE_SYM_CLASS_EXTERNAL))
-             && (sym->SectionNumber != 0)) {
+        if (    (    (sym->StorageClass != IMAGE_SYM_CLASS_STATIC)
+                  && (sym->StorageClass != IMAGE_SYM_CLASS_EXTERNAL))
+             || (sym->SectionNumber == 0))
+            continue;
+
             // section numbers start at 1
-            unsigned int section_i = sym->SectionNumber - 1;
-            Pe_SectionHeader * sh = pe_sh(pe, section_i);
-            if (sh != NULL)
-                value += sh->VirtualAddress + pe_base_address(pe);
+        unsigned int section_i = sym->SectionNumber - 1;
+        Pe_SectionHeader * sh = pe_sh(pe, section_i);
+        if (sh == NULL)
+            continue;
+
+        value += sh->VirtualAddress + pe_base_address(pe);
+
+        if (    (sym->Type != IMAGE_SYM_MSFT_FUNCTION)
+             || (value != address))
+            continue;
+
+
+        char debugname[64];
+        if (pe_symbol_name(pe, sym_i, debugname, 64) == -1) {
+            debugname[0] = 'X';
+            debugname[1] = '\0';
         }
 
-        if (    (sym->Type == IMAGE_SYM_MSFT_FUNCTION)
-             && (value == address)) {
+        printf("symbol Name: '%s', StorageClass %x, Section: %x, Type: %x, value: %llx\n",
+                debugname,
+                sym->StorageClass,
+                sym->SectionNumber,
+                sym->Type,
+                (unsigned long long) value);
 
-
-            char debugname[64];
-            if (pe_symbol_name(pe, sym_i, debugname, 64) == -1) {
-                debugname[0] = 'X';
-                debugname[1] = '\0';
-            }
-
-            printf("symbol Name: '%s', StorageClass %x, Section: %x, Type: %x, value: %llx\n",
-                    debugname,
-                    sym->StorageClass,
-                    sym->SectionNumber,
-                    sym->Type,
-                    (unsigned long long) value);
-
-            char buf[64];
-            if (pe_symbol_name(pe, sym_i, buf, 64) != -1) {
-                struct _label * label;
-                label = label_create(address, buf, LABEL_FUNCTION);
-                return label;
-            }
-            else
-                printf("not using symbol\n");
+        char buf[64];
+        if (pe_symbol_name(pe, sym_i, buf, 64) != -1) {
+            struct _label * label;
+            label = label_create(address, buf, LABEL_FUNCTION);
+            return label;
         }
     }
 
