@@ -371,10 +371,10 @@ struct _graph * elf32_graph (struct _elf32 * elf32)
 
     object_delete(wqueue);
 
-    remove_function_predecessors(graph, function_tree);
-    object_delete(function_tree);
-
     graph_reduce(graph);
+    remove_function_predecessors(graph, function_tree);
+
+    object_delete(function_tree);
 
     return graph;
 }

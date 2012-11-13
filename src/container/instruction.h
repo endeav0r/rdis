@@ -19,12 +19,12 @@ enum {
 
 struct _ins {
     const struct _object * object;
-    uint64_t  address;
-    uint64_t  target; // -1 == not set
-    uint8_t * bytes;
-    size_t    size;
-    char *    description;
-    char *    comment;
+    uint64_t     address;
+    uint64_t     target; // -1 == not set
+    uint8_t *    bytes;
+    size_t       size;
+    char *       description;
+    char *       comment;
     unsigned int flags;
 };
 

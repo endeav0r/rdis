@@ -28,6 +28,8 @@ struct _rdis {
     void *           * console_data;
     void            (* console_callback) (void *, const char * string);
 
+    struct _gui      * gui;
+
     _loader          * loader;
     struct _graph    * graph;
     struct _map      * labels;
@@ -41,14 +43,17 @@ struct _rdis * rdis_create      (_loader * loader);
 struct _rdis * rdis_create_with_console (_loader * loader,
                               void (* console_callback) (void *, const char *),
                               void * console_data);
-void           rdis_delete      (struct _rdis * rdis);
-json_t *       rdis_serialize   (struct _rdis * rdis);
-struct _rdis * rdis_deserialize (json_t * json);
+void           rdis_delete       (struct _rdis * rdis);
+json_t *       rdis_serialize    (struct _rdis * rdis);
+struct _rdis * rdis_deserialize  (json_t * json);
 
 void rdis_set_console (struct _rdis * rdis,
                        void (* console_callback) (void *, const char *),
                        void * console_data);
 void rdis_console     (struct _rdis * rdis, const char * string);
+
+void rdis_set_gui     (struct _rdis * rdis, struct _gui * gui);
+void rdis_clear_gui   (struct _rdis * rdis);
 
 // creates a user function based on the bytes found at address,
 // updates graph, labels and function_tree appropriately

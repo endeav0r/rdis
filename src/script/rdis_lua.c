@@ -3,6 +3,7 @@
 #include "buffer.h"
 #include "index.h"
 #include "label.h"
+#include "lua.h"
 #include "map.h"
 #include "tree.h"
 
@@ -19,6 +20,7 @@ static const struct luaL_Reg rl_uint64_lib_m [] = {
     {"__le",  rl_uint64_le},
     {"__tostring", rl_uint64_tostring},
     {"string", rl_uint64_tostring},
+    {"number", rl_uint64_tostring},
     {NULL, NULL}
 };
 
@@ -56,6 +58,7 @@ static const struct luaL_Reg rl_rdis_lib_f [] = {
     {"functions", rl_rdis_functions},
     {"peek",      rl_rdis_peek},
     {"node",      rl_rdis_node},
+    {"load",      rl_rdis_load},
     {NULL, NULL}
 };
 
@@ -189,6 +192,9 @@ int rl_uint64_push (lua_State * L, uint64_t value)
 
 uint64_t rl_check_uint64 (lua_State * L, int position)
 {
+    if (lua_isnumber(L, position))
+        return (uint64_t) luaL_checkinteger(L, position);
+
     void * data = luaL_checkudata(L, position, "rdis.uint64");
     luaL_argcheck(L, data != NULL, position, "expected uint64");
     return *((uint64_t *) data);
@@ -197,8 +203,8 @@ uint64_t rl_check_uint64 (lua_State * L, int position)
 
 int rl_uint64_add (lua_State * L)
 {
-    uint64_t lhs = rl_check_uint64(L, -1);
-    uint64_t rhs = rl_check_uint64(L, -2);
+    uint64_t lhs = rl_check_uint64(L, -2);
+    uint64_t rhs = rl_check_uint64(L, -1);
     lua_pop(L, 2);
     
     rl_uint64_push(L, lhs + rhs);
@@ -209,8 +215,8 @@ int rl_uint64_add (lua_State * L)
 
 int rl_uint64_sub (lua_State * L)
 {
-    uint64_t lhs = rl_check_uint64(L, -1);
-    uint64_t rhs = rl_check_uint64(L, -2);
+    uint64_t lhs = rl_check_uint64(L, -2);
+    uint64_t rhs = rl_check_uint64(L, -1);
     lua_pop(L, 2);
     
     rl_uint64_push(L, lhs - rhs);
@@ -221,8 +227,8 @@ int rl_uint64_sub (lua_State * L)
 
 int rl_uint64_mul (lua_State * L)
 {
-    uint64_t lhs = rl_check_uint64(L, -1);
-    uint64_t rhs = rl_check_uint64(L, -2);
+    uint64_t lhs = rl_check_uint64(L, -2);
+    uint64_t rhs = rl_check_uint64(L, -1);
     lua_pop(L, 2);
     
     rl_uint64_push(L, lhs * rhs);
@@ -233,8 +239,8 @@ int rl_uint64_mul (lua_State * L)
 
 int rl_uint64_div (lua_State * L)
 {
-    uint64_t lhs = rl_check_uint64(L, -1);
-    uint64_t rhs = rl_check_uint64(L, -2);
+    uint64_t lhs = rl_check_uint64(L, -2);
+    uint64_t rhs = rl_check_uint64(L, -1);
     lua_pop(L, 2);
     
     rl_uint64_push(L, lhs / rhs);
@@ -245,8 +251,8 @@ int rl_uint64_div (lua_State * L)
 
 int rl_uint64_mod (lua_State * L)
 {
-    uint64_t lhs = rl_check_uint64(L, -1);
-    uint64_t rhs = rl_check_uint64(L, -2);
+    uint64_t lhs = rl_check_uint64(L, -2);
+    uint64_t rhs = rl_check_uint64(L, -1);
     lua_pop(L, 2);
     
     rl_uint64_push(L, lhs % rhs);
@@ -257,8 +263,8 @@ int rl_uint64_mod (lua_State * L)
 
 int rl_uint64_eq  (lua_State * L)
 {
-    uint64_t lhs = rl_check_uint64(L, -1);
-    uint64_t rhs = rl_check_uint64(L, -2);
+    uint64_t lhs = rl_check_uint64(L, -2);
+    uint64_t rhs = rl_check_uint64(L, -1);
     lua_pop(L, 2);
 
     if (lhs == rhs)
@@ -272,8 +278,8 @@ int rl_uint64_eq  (lua_State * L)
 
 int rl_uint64_lt  (lua_State * L)
 {
-    uint64_t lhs = rl_check_uint64(L, -1);
-    uint64_t rhs = rl_check_uint64(L, -2);
+    uint64_t lhs = rl_check_uint64(L, -2);
+    uint64_t rhs = rl_check_uint64(L, -1);
     lua_pop(L, 2);
 
     if (lhs < rhs)
@@ -287,8 +293,8 @@ int rl_uint64_lt  (lua_State * L)
 
 int rl_uint64_le  (lua_State * L)
 {
-    uint64_t lhs = rl_check_uint64(L, -1);
-    uint64_t rhs = rl_check_uint64(L, -2);
+    uint64_t lhs = rl_check_uint64(L, -2);
+    uint64_t rhs = rl_check_uint64(L, -1);
     lua_pop(L, 2);
 
     if (lhs <= rhs)
@@ -310,6 +316,17 @@ int rl_uint64_tostring (lua_State * L)
     snprintf(tmp, 64, "0x%llx", (unsigned long long) value);
 
     lua_pushstring(L, tmp);
+
+    return 1;
+}
+
+
+int rl_uint64_number (lua_State * L)
+{
+    uint64_t value = rl_check_uint64(L, -1);
+    lua_pop(L, -1);
+
+    lua_pushnumber(L, (lua_Number) value);
 
     return 1;
 }
@@ -643,4 +660,69 @@ int rl_rdis_node (lua_State * L)
     rl_graph_node_push(L, node);
 
     return 1;
+}
+
+
+int rl_rdis_load (lua_State * L)
+{
+    printf("rdis load\n");
+    struct _rdis_lua * rdis_lua = rl_get_rdis_lua(L);
+
+    // see if we get a valid loader
+    struct _lua_loader * ll = lua_loader_create(L);
+
+    if (ll == NULL)
+        rdis_console(rdis_lua->rdis, "did not get a valid lua loader object");
+
+    // see if we get valid internal objects from the lua loader
+    struct _graph * graph = lua_loader_graph(ll);
+    if (graph == NULL) {
+        rdis_console(rdis_lua->rdis, "did not get a valid graph from lua loader");
+    }
+
+    struct _tree * function_tree = lua_loader_function_tree(ll);
+    if (function_tree == NULL) {
+        object_delete(graph);
+        rdis_console(rdis_lua->rdis, "did not get a valid list of functions from lua loader");
+    }
+
+    struct _map * labels = lua_loader_labels(ll);
+    if (labels == NULL) {
+        objects_delete(graph, function_tree, NULL);
+        rdis_console(rdis_lua->rdis, "could not get labels for all functions from lua loader");
+    }
+
+    struct _map   * memory_map    = lua_loader_memory_map(ll);
+    if (memory_map == NULL) {
+        objects_delete(graph, function_tree, labels, NULL);
+        rdis_console(rdis_lua->rdis, "could not get a memory map from lua loader");
+    }
+
+    printf("got all valid objects from lua loader\n");
+
+    struct _tree_it * it;
+    for (it = tree_iterator(function_tree); it != NULL; it = tree_it_next(it)) {
+        struct _index * index = tree_it_data(it);
+        printf("function: %llx\n", (unsigned long long) index->index);
+    }
+
+    // clear all gui windows
+    rdis_clear_gui(rdis_lua->rdis);
+
+    // clear rdis
+    objects_delete(rdis_lua->rdis->loader,
+                   rdis_lua->rdis->graph,
+                   rdis_lua->rdis->labels,
+                   rdis_lua->rdis->function_tree,
+                   rdis_lua->rdis->memory_map,
+                   NULL);
+
+    // reset rdis
+    rdis_lua->rdis->loader        = (_loader *) ll;
+    rdis_lua->rdis->graph         = graph;
+    rdis_lua->rdis->labels        = labels;
+    rdis_lua->rdis->function_tree = function_tree;
+    rdis_lua->rdis->memory_map    = memory_map;
+
+    return 0;
 }

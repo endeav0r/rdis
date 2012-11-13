@@ -1,7 +1,7 @@
 OBJS=rdis_lua.o
 
 CCFLAGS=-Wall -O2 -Werror -g
-INCLUDE=-I../ -I../container -I../loader -I./
+INCLUDE=-iquote../ -iquote../container -iquote../loader -iquote./
 
 all : $(OBJS)
 

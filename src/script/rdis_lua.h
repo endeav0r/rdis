@@ -1,12 +1,12 @@
 #ifndef rdis_lua_HEADER
 #define rdis_lua_HEADER
 
-#include "instruction.h"
-#include "rdis.h"
-
 #include <lua.h>
 #include <lauxlib.h>
 #include <lualib.h>
+
+#include "instruction.h"
+#include "rdis.h"
 
 struct _rdis_lua {
     struct _rdis * rdis;
@@ -25,16 +25,17 @@ int                rdis_lua_dofile  (struct _rdis_lua * rdis_lua,
 int      rl_uint64_push  (lua_State * L, uint64_t value);
 uint64_t rl_check_uint64 (lua_State * L, int position);
 
-int rl_uint64          (lua_State *L);
-int rl_uint64_add      (lua_State *L);
-int rl_uint64_sub      (lua_State *L);
-int rl_uint64_mul      (lua_State *L);
-int rl_uint64_div      (lua_State *L);
-int rl_uint64_mod      (lua_State *L);
-int rl_uint64_eq       (lua_State *L);
-int rl_uint64_lt       (lua_State *L);
-int rl_uint64_le       (lua_State *L);
-int rl_uint64_tostring (lua_State *L);
+int rl_uint64          (lua_State * L);
+int rl_uint64_add      (lua_State * L);
+int rl_uint64_sub      (lua_State * L);
+int rl_uint64_mul      (lua_State * L);
+int rl_uint64_div      (lua_State * L);
+int rl_uint64_mod      (lua_State * L);
+int rl_uint64_eq       (lua_State * L);
+int rl_uint64_lt       (lua_State * L);
+int rl_uint64_le       (lua_State * L);
+int rl_uint64_tostring (lua_State * L);
+int rl_uint64_number   (lua_State * L);
 
 int           rl_ins_push  (lua_State * L, struct _ins * ins);
 struct _ins * rl_check_ins (lua_State * L, int position);
@@ -63,10 +64,12 @@ int rl_graph_node_index        (lua_State * L);
 int rl_graph_node_edges        (lua_State * L);
 int rl_graph_node_instructions (lua_State * L);
 
+struct _rdis_lua * rl_get_rdis_lua (lua_State * L);
 
 int rl_rdis_console   (lua_State * L);
 int rl_rdis_functions (lua_State * L);
 int rl_rdis_peek      (lua_State * L);
 int rl_rdis_node      (lua_State * L);
+int rl_rdis_load      (lua_State * L);
 
 #endif

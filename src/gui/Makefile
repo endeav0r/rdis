@@ -1,7 +1,8 @@
 OBJS = hexwindow.o inswindow.o funcwindow.o main.o rdgwindow.o rdiswindow.o gui.o
 
 CCFLAGS=-Wall -O2 -Werror -g
-INCLUDE=-I../ -I../container -I../loader -I../script `pkg-config --cflags gtk+-3.0`
+INCLUDE=`pkg-config --cflags gtk+-3.0` \
+        -iquote../ -iquote../container -iquote../loader -iquote../script
 
 all : $(OBJS)
 

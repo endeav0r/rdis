@@ -142,7 +142,7 @@ cairo_surface_t * rdg_node_draw_full (struct _graph_node * node,
     struct _label * node_label = map_fetch(labels, node->index);
     if (node_label != NULL) {
         char tmp[128];
-        snprintf(tmp, 128, "%llx %s",
+        snprintf(tmp, 128, "%04llx %s",
                  (unsigned long long) node->index,
                  node_label->text);
         cairo_set_source_rgb(ctx, RDG_NODE_LABEL_COLOR);
@@ -175,7 +175,7 @@ cairo_surface_t * rdg_node_draw_full (struct _graph_node * node,
         char tmp[128];
 
         // print the address
-        snprintf(tmp, 128, "%llx", (unsigned long long) ins->address);
+        snprintf(tmp, 128, "%04llx", (unsigned long long) ins->address);
         cairo_set_source_rgb(ctx, RDG_NODE_ADDR_COLOR);
         cairo_move_to(ctx, line_x, top);
         cairo_show_text(ctx, tmp);

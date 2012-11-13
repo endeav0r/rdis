@@ -1,7 +1,7 @@
 OBJS=rdil.o rdil_x86.o
 
 CCFLAGS=-Wall -O2 -Werror -g
-INCLUDE=-I../ -I../container
+INCLUDE=-iquote../ -iquote../container
 
 all : $(OBJS)
 

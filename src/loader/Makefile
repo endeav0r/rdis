@@ -1,7 +1,7 @@
-OBJS=elf32.o elf64.o x86.o x8664.o loader.o pe.o
+OBJS=elf32.o elf64.o x86.o x8664.o loader.o pe.o lua.o dummy.o
 
 CCFLAGS=-Wall -O2 -Werror -g
-INCLUDE=-I../container -I../
+INCLUDE=-iquote../container -iquote../ -iquote../script -iquote./
 
 all : $(OBJS)
 

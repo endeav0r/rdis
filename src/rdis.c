@@ -1,5 +1,6 @@
 #include "rdis.h"
 
+#include "gui.h"
 #include "index.h"
 #include "instruction.h"
 #include "label.h"
@@ -47,6 +48,8 @@ struct _rdis * rdis_create_with_console (_loader * loader,
 
     rdis->console_data     = console_data;
     rdis->console_callback = console_callback;
+
+    rdis->gui = NULL;
 
     rdis->graph         = loader_graph(loader);
     rdis->labels        = loader_labels(loader);
@@ -132,6 +135,7 @@ struct _rdis * rdis_deserialize (json_t * json)
     rdis->object           = &rdis_object;
     rdis->callback_counter = 0;
     rdis->callbacks        = map_create();
+    rdis->gui              = NULL;
     rdis->loader           = NULL;
     rdis->graph            = ggraph;
     rdis->labels           = llabels;
@@ -157,6 +161,19 @@ void rdis_console (struct _rdis * rdis, const char * string)
         printf("%s\n", string);
     else
         rdis->console_callback(rdis->console_data, string);
+}
+
+
+void rdis_set_gui (struct _rdis * rdis, struct _gui * gui)
+{
+    rdis->gui = gui;
+}
+
+
+void rdis_clear_gui (struct _rdis * rdis)
+{
+    if (rdis->gui != NULL)
+        gui_close_windows(rdis->gui);
 }
 
 

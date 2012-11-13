@@ -1,5 +1,6 @@
 #include "gui.h"
 
+#include "dummy.h"
 #include "funcwindow.h"
 #include "hexwindow.h"
 #include "inswindow.h"
@@ -23,11 +24,13 @@ struct _gui * gui_create ()
     struct _gui * gui;
 
     gui = (struct _gui *) malloc(sizeof(struct _gui));
-    
-    gui->rdis              = NULL;
     gui->rdiswindow        = rdiswindow_create(gui);
     gui->windows           = map_create();
     gui->next_window_index = 0;
+    
+    gui->rdis = rdis_create_with_console((_loader *) dummy_loader_create(),
+                                         (void (*) (void *, const char *)) gui_console,
+                                         gui);
 
     gtk_widget_show(rdiswindow_window(gui->rdiswindow));
 
@@ -54,6 +57,8 @@ void gui_set_rdis (struct _gui * gui, struct _rdis * rdis)
     rdis_set_console(gui->rdis,
                      (void (*) (void *, const char *)) gui_console,
                      gui);
+
+    rdis_set_gui(gui->rdis, gui);
 }
 
 
