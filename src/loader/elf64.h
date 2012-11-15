@@ -27,13 +27,13 @@ struct _elf64 * elf64_deserialize (json_t * json);
 
 uint64_t        elf64_entry         (struct _elf64 * elf64);
 struct _graph * elf64_graph         (struct _elf64 * elf64);
-struct _tree  * elf64_function_tree (struct _elf64 * elf64);
+struct _map   * elf64_functions     (struct _elf64 * elf64);
 struct _map   * elf64_labels        (struct _elf64 * elf64);
 struct _graph * elf64_graph_address (struct _elf64 * elf64, uint64_t address);
 struct _map   * elf64_memory_map    (struct _elf64 * elf64);
 struct _label * elf64_label_address (struct _elf64 * elf64, uint64_t address);
 
-struct _tree *  elf64_function_tree_address (struct _elf64 * elf64, uint64_t address);
+struct _map *  elf64_function_address (struct _elf64 * elf64, uint64_t address);
 
 // internal use
 uint64_t        elf64_base_address    (struct _elf64 * elf64);

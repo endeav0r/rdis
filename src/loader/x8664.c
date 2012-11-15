@@ -1,7 +1,7 @@
 #include "x8664.h"
 
+#include "function.h"
 #include "index.h"
-#include "tree.h"
 
 
 static const struct _object x8664_graph_wqueue_object = {
@@ -371,12 +371,12 @@ struct _graph * x8664_graph (uint64_t address,
 
 
 
-void x8664_functions_r (struct _tree *  tree_functions,
-                        struct _tree *  tree_disassembled,
-                        uint64_t        address,
-                        size_t          offset,
-                        uint8_t *       data,
-                        size_t          data_size)
+void x8664_functions_r (struct _map  * functions,
+                        struct _tree * disassembled,
+                        uint64_t       address,
+                        size_t         offset,
+                        uint8_t *      data,
+                        size_t         data_size)
 {
     ud_t            ud_obj;
     int             continue_disassembling = 1;
@@ -395,23 +395,27 @@ void x8664_functions_r (struct _tree *  tree_functions,
             break;
         }
 
-        struct _index * index;
         if (    (ud_obj.mnemonic == UD_Icall)
              && (ud_obj.operand[0].type == UD_OP_JIMM)) {
 
-            index = index_create(address + offset + ud_insn_len(&ud_obj)
-                                 + udis86_sign_extend_lval(&(ud_obj.operand[0])));
-            if (tree_fetch(tree_functions, index) == NULL) {
-                tree_insert(tree_functions, index);
+            uint64_t target_addr = address
+                                   + offset
+                                   + ud_insn_len(&ud_obj)
+                                   + udis86_sign_extend_lval(&(ud_obj.operand[0]));
+
+            if (map_fetch(functions, target_addr) == NULL) {
+                struct _function * function = function_create(target_addr);
+                map_insert(functions, target_addr, function);
+                object_delete(function);
             }
-            object_delete(index);
         }
-        index = index_create(address + offset);
-        if (tree_fetch(tree_disassembled, index) != NULL) {
+
+        struct _index * index = index_create(address + offset);
+        if (tree_fetch(disassembled, index) != NULL) {
             object_delete(index);
             return;
         }
-        tree_insert(tree_disassembled, index);
+        tree_insert(disassembled, index);
         object_delete(index);
 
         // these mnemonics cause us to continue disassembly somewhere else
@@ -438,8 +442,8 @@ void x8664_functions_r (struct _tree *  tree_functions,
             operand = &(ud_obj.operand[0]);
 
             if (operand->type == UD_OP_JIMM) {
-                x8664_functions_r(tree_functions,
-                                  tree_disassembled,
+                x8664_functions_r(functions,
+                                  disassembled,
                                   address,
                                   offset
                                    + ud_insn_len(&ud_obj)
@@ -469,18 +473,18 @@ void x8664_functions_r (struct _tree *  tree_functions,
 
 
 
-struct _tree * x8664_functions (uint64_t address,
-                                size_t offset,
-                                void * data,
-                                size_t data_size)
+struct _map * x8664_functions (uint64_t address,
+                               size_t offset,
+                               void * data,
+                               size_t data_size)
 {
 
-    struct _tree * tree_functions    = tree_create();
-    struct _tree * tree_disassembled = tree_create();
+    struct _map  * functions    = map_create();
+    struct _tree * disassembled = tree_create();
 
-    x8664_functions_r(tree_functions, tree_disassembled, address, offset, data, data_size);
+    x8664_functions_r(functions, disassembled, address, offset, data, data_size);
 
-    object_delete(tree_disassembled);
+    object_delete(disassembled);
 
-    return tree_functions;
+    return functions;
 }

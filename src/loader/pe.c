@@ -20,11 +20,11 @@ static const struct _loader_object pe_object = {
     },
     (uint64_t        (*) (void *))           pe_entry,
     (struct _graph * (*) (void *))           pe_graph,
-    (struct _tree *  (*) (void *))           pe_function_tree,
+    (struct _map  *  (*) (void *))           pe_functions,
     (struct _map  *  (*) (void *))           pe_labels,
     (struct _graph * (*) (void *, uint64_t)) pe_graph_address,
     (struct _map *   (*) (void *))           pe_memory_map,
-    (struct _tree *  (*) (void *, uint64_t)) pe_function_tree_address,
+    (struct _map  *  (*) (void *, uint64_t)) pe_function_address,
     (struct _label * (*) (void *, uint64_t)) pe_label_address
 };
 
@@ -394,31 +394,31 @@ uint64_t pe_entry (struct _pe * pe)
 
 struct _graph * pe_graph (struct _pe * pe)
 {
-    struct _tree  * function_tree = pe_function_tree(pe);
-    struct _graph * graph         = graph_create();
+    struct _map   * functions = pe_functions(pe);
+    struct _graph * graph     = graph_create();
 
-    struct _tree_it * it;
-    for (it = tree_iterator(function_tree); it != NULL; it = tree_it_next(it)) {
-        struct _index * index = tree_it_data(it);
+    struct _map_it * it;
+    for (it = map_iterator(functions); it != NULL; it = map_it_next(it)) {
+        struct _function * function = map_it_data(it);
 
-        struct _graph * function_graph = pe_graph_address(pe, index->index);
+        struct _graph * function_graph = pe_graph_address(pe, function->address);
         if (function_graph == NULL) {
             printf("null function graph: %llx\n",
-                   (unsigned long long) index->index);
+                   (unsigned long long) function->address);
         }
         graph_merge(graph, function_graph);
         object_delete(function_graph);
     }
 
     graph_reduce(graph);
-    remove_function_predecessors(graph, function_tree);
-    object_delete(function_tree);
+    remove_function_predecessors(graph, functions);
+    object_delete(functions);
 
     return graph;
 }
 
 
-struct _tree * pe_function_tree (struct _pe * pe)
+struct _map * pe_functions (struct _pe * pe)
 {
     uint64_t entry_address = -1;
     if (pe_plus(pe)) {
@@ -430,33 +430,33 @@ struct _tree * pe_function_tree (struct _pe * pe)
         entry_address = pe_base_address(pe) + ohs->AddressOfEntryPoint;
     }
 
-    struct _tree * tree = pe_function_tree_address(pe, entry_address);
+    struct _map * functions = pe_function_address(pe, entry_address);
 
-    struct _index * index = index_create(entry_address);
-    if (tree_fetch(tree, index) == NULL)
-        tree_insert(tree, index);
-    object_delete(index);
+    struct _function * function = function_create(entry_address);
+    if (map_fetch(functions, function->address) == NULL)
+        map_insert(functions, function->address, function);
+    object_delete(function);
 
-    return tree;
+    return functions;
 }
 
 
 struct _map * pe_labels (struct _pe * pe)
 {
-    struct _tree * function_tree = pe_function_tree(pe);
-    struct _map  * labels        = map_create();
+    struct _map * functions = pe_functions(pe);
+    struct _map * labels    = map_create();
 
-    struct _tree_it * it;
-    for (it = tree_iterator(function_tree); it != NULL; it = tree_it_next(it)) {
-        struct _index * index = tree_it_data(it);
+    struct _map_it * it;
+    for (it = map_iterator(functions); it != NULL; it = map_it_next(it)) {
+        struct _function * function = map_it_data(it);
 
-        struct _label * label = pe_label_address(pe, index->index);
+        struct _label * label = pe_label_address(pe, function->address);
         if (label != NULL)
-            map_insert(labels, index->index, label);
+            map_insert(labels, function->address, label);
         object_delete(label);
     }
 
-    object_delete(function_tree);
+    object_delete(functions);
 
     return labels;
 }
@@ -500,7 +500,7 @@ struct _graph * pe_graph_address (struct _pe * pe, uint64_t address)
 }
 
 
-struct _tree * pe_function_tree_address (struct _pe * pe, uint64_t address)
+struct _map * pe_function_address (struct _pe * pe, uint64_t address)
 {
     int section_i = pe_section_index_by_address(pe, address);
     if (section_i == -1)
@@ -517,21 +517,21 @@ struct _tree * pe_function_tree_address (struct _pe * pe, uint64_t address)
     uint64_t section_offset = sh->PointerToRawData;
 
     Pe_FileHeader * pfh = pe_fh(pe);
-    struct _tree * tree = NULL;
+    struct _map * functions = NULL;
     if (pfh->Machine == IMAGE_FILE_MACHINE_AMD64) {
-        tree = x8664_functions(section_base,
-                               address - section_base,
-                               &(pe->data[section_offset]),
-                               section_size);
+        functions = x8664_functions(section_base,
+                                    address - section_base,
+                                    &(pe->data[section_offset]),
+                                    section_size);
     }
     else if (pfh->Machine == IMAGE_FILE_MACHINE_I386) {
-        tree = x86_functions(section_base,
-                             address - section_base,
-                             &(pe->data[section_offset]),
-                             section_size);
+        functions = x86_functions(section_base,
+                                  address - section_base,
+                                  &(pe->data[section_offset]),
+                                  section_size);
     }
 
-    return tree;
+    return functions;
 }
 
 

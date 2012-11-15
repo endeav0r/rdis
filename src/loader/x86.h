@@ -5,6 +5,7 @@
 
 #include "instruction.h"
 #include "graph.h"
+#include "map.h"
 #include "x8664.h"
 
 #define _x86_graph_wqueue       _x8664_graph_wqueue
@@ -28,9 +29,9 @@ struct _graph * x86_graph (uint64_t address,
                            size_t data_size);
 
 
-struct _tree * x86_functions (uint64_t address,
-                              size_t offset,
-                              void * data,
-                              size_t data_size);
+struct _map * x86_functions (uint64_t address,
+                             size_t offset,
+                             void * data,
+                             size_t data_size);
 
 #endif

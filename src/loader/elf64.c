@@ -26,11 +26,11 @@ static const struct _loader_object elf64_object = {
     },
     (uint64_t        (*) (void *))           elf64_entry,
     (struct _graph * (*) (void *))           elf64_graph,
-    (struct _tree *  (*) (void *))           elf64_function_tree,
+    (struct _map  *  (*) (void *))           elf64_functions,
     (struct _map  *  (*) (void *))           elf64_labels,
     (struct _graph * (*) (void *, uint64_t)) elf64_graph_address,
     (struct _map *   (*) (void *))           elf64_memory_map,
-    (struct _tree *  (*) (void *, uint64_t)) elf64_function_tree_address,
+    (struct _map  *  (*) (void *, uint64_t)) elf64_function_address,
     (struct _label * (*) (void *, uint64_t)) elf64_label_address
 };
 
@@ -348,18 +348,18 @@ struct _graph * elf64_graph (struct _elf64 * elf64)
                         elf64->data_size);
 
     // disassemble all functions from elf64_function_tree
-    struct _tree * function_tree = elf64_function_tree(elf64);
-    struct _tree_it * tit;
+    struct _map * functions = elf64_functions(elf64);
+    struct _map_it * it;
 
     wqueue = wqueue_create();
-    for (tit = tree_iterator(function_tree);
-         tit != NULL;
-         tit  = tree_it_next(tit)) {
-        struct _index * index = tree_it_data(tit);
+    for (it  = map_iterator(functions);
+         it != NULL;
+         it  = map_it_next(it)) {
+        struct _function * function = map_it_data(it);
 
         struct _x8664_graph_wqueue * xgw;
         xgw = x8664_graph_wqueue_create(elf64_base_address(elf64),
-                                        index->index - elf64_base_address(elf64),
+                                        function->address - elf64_base_address(elf64),
                                         elf64->data,
                                         elf64->data_size);
         wqueue_push(wqueue, WQUEUE_CALLBACK(x8664_graph_wqueue), xgw);
@@ -375,8 +375,8 @@ struct _graph * elf64_graph (struct _elf64 * elf64)
 
     object_delete(wqueue);
 
-    remove_function_predecessors(graph, function_tree);
-    object_delete(function_tree);
+    remove_function_predecessors(graph, functions);
+    object_delete(functions);
 
     graph_reduce(graph);
 
@@ -385,18 +385,18 @@ struct _graph * elf64_graph (struct _elf64 * elf64)
 
 
 
-struct _tree * elf64_function_tree (struct _elf64 * elf64)
+struct _map * elf64_functions (struct _elf64 * elf64)
 {
-    struct _tree * tree    = tree_create();
+    struct _map * functions = map_create();
 
     // we start by adding functions to a list of entries which we will then
     // recursively disassemble over
     struct _list * entries = list_create();
 
     // add the entry point
-    struct _index * index = index_create(elf64_entry(elf64));
-    list_append(entries, index);
-    object_delete(index);
+    struct _function * function = function_create(elf64_entry(elf64));
+    list_append(entries, function);
+    object_delete(function);
 
     // symbols are easy
     int sec_i;
@@ -420,67 +420,67 @@ struct _tree * elf64_function_tree (struct _elf64 * elf64)
             if (sym->st_value == 0)
                 continue;
 
-            struct _index * index = index_create(sym->st_value);
-            list_append(entries, index);
-            object_delete(index);
+            struct _function * function = function_create(sym->st_value);
+            list_append(entries, function);
+            object_delete(function);
         }
     }
 
     // check for __libc_start_main loader
     uint64_t target_offset = elf64_entry(elf64) - elf64_base_address(elf64) + 0x1d;
-    if (target_offset + 0x10 > elf64->data_size)
-        return tree;
+    if (target_offset + 0x10 < elf64->data_size) {
+        uint8_t * data = &(elf64->data[target_offset]);
+        size_t    size = elf64->data_size - target_offset;
 
-    uint8_t * data = &(elf64->data[target_offset]);
-    size_t    size = elf64->data_size - target_offset;
+        ud_t ud_obj;
+        ud_init      (&ud_obj);
+        ud_set_mode  (&ud_obj, 64);
+        ud_set_syntax(&ud_obj, UD_SYN_INTEL);
+        ud_set_input_buffer(&ud_obj, data, size);
+        ud_disassemble(&ud_obj);
+        if (    (ud_obj.mnemonic == UD_Imov)
+             && (ud_obj.operand[0].base == UD_R_RDI)) {
+            printf("found __libc_start_main loader, main at %llx\n",
+               (unsigned long long) udis86_sign_extend_lval(&(ud_obj.operand[1])));
 
-    ud_t ud_obj;
-    ud_init      (&ud_obj);
-    ud_set_mode  (&ud_obj, 64);
-    ud_set_syntax(&ud_obj, UD_SYN_INTEL);
-    ud_set_input_buffer(&ud_obj, data, size);
-    ud_disassemble(&ud_obj);
-    if (    (ud_obj.mnemonic == UD_Imov)
-         && (ud_obj.operand[0].base == UD_R_RDI)) {
-        printf("found __libc_start_main loader, main at %llx\n",
-           (unsigned long long) udis86_sign_extend_lval(&(ud_obj.operand[1])));
-
-        // add main to function tree
-        struct _index * index;
-        index = index_create(udis86_sign_extend_lval(&(ud_obj.operand[1])));
-        list_append(entries, index);
-        object_delete(index);
+            // add main to function tree
+            struct _function * function;
+            function = function_create(udis86_sign_extend_lval(&(ud_obj.operand[1])));
+            list_append(entries, function);
+            object_delete(function);
+        }
+        else
+            printf("disassembled: %s\n disassembled at %llx\n",
+                   ud_insn_asm(&ud_obj),
+                   (unsigned long long) target_offset);
     }
-    else
-        printf("disassembled: %s\n disassembled at %llx\n",
-               ud_insn_asm(&ud_obj),
-               (unsigned long long) target_offset);
 
     struct _list_it * it;
     for (it = list_iterator(entries); it != NULL; it = it->next) {
-        struct _index * index = it->data;
+        struct _function * function = it->data;
 
-        tree_insert(tree, index);
+        if (map_fetch(functions, function->address) == NULL)
+            map_insert(functions, function->address, function);
 
-        struct _tree * recursive_tree;
-        recursive_tree = x8664_functions(elf64_base_address(elf64),
-                                         index->index - elf64_base_address(elf64),
-                                         elf64->data, elf64->data_size);
-        struct _tree_it * tit;
-        for (tit = tree_iterator(recursive_tree);
-             tit != NULL;
-             tit = tree_it_next(tit)) {
-            index = tree_it_data(tit);
-            if (tree_fetch(tree, index) == NULL)
-                tree_insert(tree, index);
+        struct _map * recursive_functions;
+        recursive_functions = x8664_functions(elf64_base_address(elf64),
+                                              function->address - elf64_base_address(elf64),
+                                              elf64->data, elf64->data_size);
+        struct _map_it * mit;
+        for (mit = map_iterator(recursive_functions);
+             mit != NULL;
+             mit = map_it_next(mit)) {
+            struct _function * function = map_it_data(mit);
+            if (map_fetch(functions, function->address) == NULL)
+                map_insert(functions, function->address, function);
         }
 
-        object_delete(recursive_tree);
+        object_delete(recursive_functions);
     }
 
     object_delete(entries);
 
-    return tree;
+    return functions;
 }
 
 
@@ -490,17 +490,17 @@ struct _map * elf64_labels (struct _elf64 * elf64)
     struct _map * labels_map = map_create();
 
     // loop through all the functions
-    struct _tree * function_tree = elf64_function_tree(elf64);
-    struct _tree_it * it;
-    for (it = tree_iterator(function_tree); it != NULL; it = tree_it_next(it)) {
-        struct _index * index = tree_it_data(it);
+    struct _map * functions = elf64_functions(elf64);
+    struct _map_it * it;
+    for (it = map_iterator(functions); it != NULL; it = map_it_next(it)) {
+        struct _function * function = map_it_data(it);
 
-        struct _label * label = elf64_label_address(elf64, index->index);
-        map_insert(labels_map, index->index, label);
+        struct _label * label = elf64_label_address(elf64, function->address);
+        map_insert(labels_map, function->address, label);
         object_delete(label);
     }
 
-    object_delete(function_tree);
+    object_delete(functions);
     return labels_map;
 }
 
@@ -597,14 +597,14 @@ struct _map * elf64_memory_map (struct _elf64 * elf64)
 }
 
 
-struct _tree * elf64_function_tree_address (struct _elf64 * elf64, uint64_t address)
+struct _map * elf64_function_address (struct _elf64 * elf64, uint64_t address)
 {
-    struct _tree * tree = x8664_functions(elf64_base_address(elf64),
-                                          address - elf64_base_address(elf64),
-                                          elf64->data,
-                                          elf64->data_size);
+    struct _map * functions = x8664_functions(elf64_base_address(elf64),
+                                              address - elf64_base_address(elf64),
+                                              elf64->data,
+                                              elf64->data_size);
 
-    return tree;
+    return functions;
 }
 
 

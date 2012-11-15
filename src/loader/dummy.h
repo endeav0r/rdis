@@ -15,11 +15,11 @@ json_t *               dummy_loader_serialize   (struct _dummy_loader *);
 
 uint64_t        dummy_loader_entry         (struct _dummy_loader *);
 struct _graph * dummy_loader_graph         (struct _dummy_loader *);
-struct _tree  * dummy_loader_function_tree (struct _dummy_loader *);
+struct _map   * dummy_loader_functions     (struct _dummy_loader *);
 struct _map   * dummy_loader_labels        (struct _dummy_loader *);
 struct _graph * dummy_loader_graph_address (struct _dummy_loader *, uint64_t);
 struct _map   * dummy_loader_memory_map    (struct _dummy_loader *);
 struct _label * dummy_loader_label_address (struct _dummy_loader *, uint64_t);
-struct _tree  * dummy_loader_function_tree_address (struct _dummy_loader *, uint64_t);
+struct _map   * dummy_loader_function_address (struct _dummy_loader *, uint64_t);
 
 #endif

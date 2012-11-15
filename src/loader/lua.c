@@ -1,6 +1,7 @@
 #include "lua.h"
 
 #include "buffer.h"
+#include "function.h"
 #include "index.h"
 #include "label.h"
 #include "map.h"
@@ -21,11 +22,11 @@ static const struct _loader_object lua_loader_object = {
     },
     (uint64_t        (*) (void *))           lua_loader_entry,
     (struct _graph * (*) (void *))           lua_loader_graph,
-    (struct _tree *  (*) (void *))           lua_loader_function_tree,
+    (struct _map  *  (*) (void *))           lua_loader_functions,
     (struct _map  *  (*) (void *))           lua_loader_labels,
     (struct _graph * (*) (void *, uint64_t)) lua_loader_graph_address,
     (struct _map *   (*) (void *))           lua_loader_memory_map,
-    (struct _tree *  (*) (void *, uint64_t)) lua_loader_function_tree_address,
+    (struct _map  *  (*) (void *, uint64_t)) lua_loader_function_address,
     (struct _label * (*) (void *, uint64_t)) lua_loader_label_address
 };
 
@@ -134,18 +135,18 @@ uint64_t lua_loader_entry (struct _lua_loader * ll)
 
 struct _graph * lua_loader_graph (struct _lua_loader * ll)
 {
-    struct _tree * function_tree = lua_loader_function_tree(ll);
-    if (function_tree == NULL)
+    struct _map * functions = lua_loader_functions(ll);
+    if (functions == NULL)
         return NULL;
 
     struct _graph * graph = graph_create();
 
-    struct _tree_it * it;
-    for (it = tree_iterator(function_tree); it != NULL; it = tree_it_next(it)) {
-        struct _index * index      = tree_it_data(it);
-        struct _graph * func_graph = lua_loader_graph_address(ll, index->index);
+    struct _map_it * it;
+    for (it = map_iterator(functions); it != NULL; it = map_it_next(it)) {
+        struct _function * function = map_it_data(it);
+        struct _graph * func_graph  = lua_loader_graph_address(ll, function->address);
         if (func_graph == NULL) {
-            objects_delete(function_tree, graph, NULL);
+            objects_delete(functions, graph, NULL);
             return NULL;
         }
         graph_merge(graph, func_graph);
@@ -153,9 +154,9 @@ struct _graph * lua_loader_graph (struct _lua_loader * ll)
     }
 
     graph_reduce(graph);
-    remove_function_predecessors(graph, function_tree);
+    remove_function_predecessors(graph, functions);
 
-    object_delete(function_tree);
+    object_delete(functions);
 
     return graph;
 }
@@ -164,7 +165,7 @@ struct _graph * lua_loader_graph (struct _lua_loader * ll)
 // the result to a call to funtions() or function_address() should be at
 // the top of the stack. returns a function tree, or NULL on error. leaves
 // the result at the top of the stack
-struct _tree * lua_loader_functions (lua_State * L)
+struct _map * lua_loader_functions_table (lua_State * L)
 {
     // we should have a table on the top of the stack
     if (lua_istable(L, -1) == 0) {
@@ -173,23 +174,26 @@ struct _tree * lua_loader_functions (lua_State * L)
         return NULL;
     }
 
-    struct _tree * tree = tree_create();
+    struct _map * functions = map_create();
 
     lua_pushnil(L);
     while (lua_next(L, -2) != 0) {
         uint64_t address = rl_check_uint64(L, -1);
         printf("lua_loader_functions: %llx\n", (unsigned long long) address);
-        struct _index * index = index_create(address);
-        tree_insert(tree, index);
-        object_delete(index);
+
+        struct _function * function = function_create(address);
+        if (map_fetch(functions, address) == 0)
+            map_insert(functions, address, function);
+        object_delete(function);
+
         lua_pop(L, 1);
     }
 
-    return tree;
+    return functions;
 }
 
 
-struct _tree * lua_loader_function_tree (struct _lua_loader * ll)
+struct _map * lua_loader_functions (struct _lua_loader * ll)
 {
     lua_State * L = ll->rdis_lua->L;
 
@@ -212,35 +216,35 @@ struct _tree * lua_loader_function_tree (struct _lua_loader * ll)
         return NULL;
     }
 
-    struct _tree * tree = lua_loader_functions(L);
+    struct _map * map = lua_loader_functions_table(L);
 
     // pop the functions table and the lua loader object
     lua_pop(L, 2);
 
-    return tree;
+    return map;
 }
 
 
 struct _map * lua_loader_labels (struct _lua_loader * ll)
 {
-    struct _tree * tree = lua_loader_function_tree(ll);
-    if (tree == NULL)
+    struct _map * functions = lua_loader_functions(ll);
+    if (functions == NULL)
         return NULL;
 
     struct _map * labels = map_create();
-    struct _tree_it * it;
-    for (it = tree_iterator(tree); it != NULL; it = tree_it_next(it)) {
-        struct _index * index = tree_it_data(it);
-        struct _label * label = lua_loader_label_address(ll, index->index);
+    struct _map_it * it;
+    for (it = map_iterator(functions); it != NULL; it = map_it_next(it)) {
+        struct _function * function = map_it_data(it);
+        struct _label * label = lua_loader_label_address(ll, function->address);
         if (label == NULL) {
-            object_delete(tree);
+            objects_delete(functions, labels, NULL);
             return NULL;
         }
-        map_insert(labels, index->index, label);
+        map_insert(labels, function->address, label);
         object_delete(label);
     }
 
-    object_delete(tree);
+    object_delete(functions);
 
     return labels;
 }
@@ -516,7 +520,7 @@ struct _label * lua_loader_label_address (struct _lua_loader * ll, uint64_t addr
 }
 
 
-struct _tree * lua_loader_function_tree_address (struct _lua_loader * ll,
+struct _map * lua_loader_function_address (struct _lua_loader * ll,
                                                  uint64_t addr)
 {
     lua_State     * L          = ll->rdis_lua->L;
@@ -536,10 +540,10 @@ struct _tree * lua_loader_function_tree_address (struct _lua_loader * ll,
         return NULL;
     }
 
-    struct _tree * tree = lua_loader_functions(L);
+    struct _map * functions = lua_loader_functions_table(L);
     
     // pop the functions table and the lua loader object
     lua_pop(L, 2);
 
-    return tree;
+    return functions;
 }

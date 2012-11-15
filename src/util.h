@@ -5,6 +5,7 @@
 #include <stdlib.h>
 
 #include "graph.h"
+#include "map.h"
 #include "tree.h"
 
 
@@ -13,7 +14,7 @@
 * predecessors to that node from the graph.
 * This fixes issues with compiler optimizations jumping directly to functions
 */
-void remove_function_predecessors (struct _graph * graph, struct _tree * functions);
+void remove_function_predecessors (struct _graph * graph, struct _map * functions);
 
 
 /*

@@ -50,13 +50,13 @@ struct _funcwindow * funcwindow_create (struct _gui * gui)
     funcwindow->gui_identifier = gui_add_window(gui, funcwindow->window);
 
     // add data to tree model
-    struct _tree_it * tree_it;
-    for (tree_it = tree_iterator(funcwindow->gui->rdis->function_tree);
-         tree_it != NULL;
-         tree_it = tree_it_next(tree_it)) {
-        struct _index * index = tree_it_data(tree_it);
+    struct _map_it * it;
+    for (it  = map_iterator(funcwindow->gui->rdis->functions);
+         it != NULL;
+         it  = map_it_next(it)) {
+        struct _function * function = map_it_data(it);
 
-        funcwindow_append_row(funcwindow, index->index);
+        funcwindow_append_row(funcwindow, function->address);
     }
 
     // add columns to tree view
@@ -246,12 +246,12 @@ void funcwindow_rdis_callback (struct _funcwindow * funcwindow)
     gtk_list_store_clear(funcwindow->listStore);
 
     // add in all the functions
-    struct _tree_it * it;
-    for (it  = tree_iterator(funcwindow->gui->rdis->function_tree);
+    struct _map_it * it;
+    for (it  = map_iterator(funcwindow->gui->rdis->functions);
          it != NULL;
-         it  = tree_it_next(it)) {
-        struct _index * index = tree_it_data(it);
-        funcwindow_append_row(funcwindow, index->index);
+         it  = map_it_next(it)) {
+        struct _function * function = map_it_data(it);
+        funcwindow_append_row(funcwindow, function->address);
     }
 }
 

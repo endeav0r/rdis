@@ -607,15 +607,15 @@ int rl_rdis_functions (lua_State * L)
 
     lua_newtable(L);
 
-    struct _tree_it * it;
-    for (it = tree_iterator(rdis_lua->rdis->function_tree);
+    struct _map_it * it;
+    for (it  = map_iterator(rdis_lua->rdis->functions);
          it != NULL;
-         it = tree_it_next(it)) {
-        struct _index * index = tree_it_data(it);
+         it  = map_it_next(it)) {
+        struct _function * function = map_it_data(it);
 
-        rl_uint64_push(L, index->index);
+        rl_uint64_push(L, function->address);
 
-        struct _label * label = map_fetch(rdis_lua->rdis->labels, index->index);
+        struct _label * label = map_fetch(rdis_lua->rdis->labels, function->address);
         lua_pushstring(L, label->text);
 
         lua_settable(L, -3);
@@ -680,31 +680,25 @@ int rl_rdis_load (lua_State * L)
         rdis_console(rdis_lua->rdis, "did not get a valid graph from lua loader");
     }
 
-    struct _tree * function_tree = lua_loader_function_tree(ll);
-    if (function_tree == NULL) {
+    struct _map * functions = lua_loader_functions(ll);
+    if (functions == NULL) {
         object_delete(graph);
         rdis_console(rdis_lua->rdis, "did not get a valid list of functions from lua loader");
     }
 
     struct _map * labels = lua_loader_labels(ll);
     if (labels == NULL) {
-        objects_delete(graph, function_tree, NULL);
+        objects_delete(graph, functions, NULL);
         rdis_console(rdis_lua->rdis, "could not get labels for all functions from lua loader");
     }
 
     struct _map   * memory_map    = lua_loader_memory_map(ll);
     if (memory_map == NULL) {
-        objects_delete(graph, function_tree, labels, NULL);
+        objects_delete(graph, functions, labels, NULL);
         rdis_console(rdis_lua->rdis, "could not get a memory map from lua loader");
     }
 
     printf("got all valid objects from lua loader\n");
-
-    struct _tree_it * it;
-    for (it = tree_iterator(function_tree); it != NULL; it = tree_it_next(it)) {
-        struct _index * index = tree_it_data(it);
-        printf("function: %llx\n", (unsigned long long) index->index);
-    }
 
     // clear all gui windows
     rdis_clear_gui(rdis_lua->rdis);
@@ -713,16 +707,16 @@ int rl_rdis_load (lua_State * L)
     objects_delete(rdis_lua->rdis->loader,
                    rdis_lua->rdis->graph,
                    rdis_lua->rdis->labels,
-                   rdis_lua->rdis->function_tree,
+                   rdis_lua->rdis->functions,
                    rdis_lua->rdis->memory_map,
                    NULL);
 
     // reset rdis
-    rdis_lua->rdis->loader        = (_loader *) ll;
-    rdis_lua->rdis->graph         = graph;
-    rdis_lua->rdis->labels        = labels;
-    rdis_lua->rdis->function_tree = function_tree;
-    rdis_lua->rdis->memory_map    = memory_map;
+    rdis_lua->rdis->loader     = (_loader *) ll;
+    rdis_lua->rdis->graph      = graph;
+    rdis_lua->rdis->labels     = labels;
+    rdis_lua->rdis->functions  = functions;
+    rdis_lua->rdis->memory_map = memory_map;
 
     return 0;
 }

@@ -27,13 +27,13 @@ struct _elf32 * elf32_deserialize (json_t * json);
 
 uint64_t        elf32_entry         (struct _elf32 * elf32);
 struct _graph * elf32_graph         (struct _elf32 * elf32);
-struct _tree  * elf32_function_tree (struct _elf32 * elf32);
+struct _map   * elf32_functions     (struct _elf32 * elf32);
 struct _map   * elf32_labels        (struct _elf32 * elf32);
 struct _graph * elf32_graph_address (struct _elf32 * elf32, uint64_t address);
 struct _map   * elf32_memory_map    (struct _elf32 * elf32);
 struct _label * elf32_label_address (struct _elf32 * elf32, uint64_t address);
 
-struct _tree *  elf32_function_tree_address (struct _elf32 * elf32, uint64_t address);
+struct _map   *  elf32_function_address (struct _elf32 * elf32, uint64_t address);
 
 // internal use
 uint64_t        elf32_base_address    (struct _elf32 * elf32);

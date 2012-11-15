@@ -51,10 +51,10 @@ struct _rdis * rdis_create_with_console (_loader * loader,
 
     rdis->gui = NULL;
 
-    rdis->graph         = loader_graph(loader);
-    rdis->labels        = loader_labels(loader);
-    rdis->function_tree = loader_function_tree(loader);
-    rdis->memory_map    = loader_memory_map(loader);
+    rdis->graph      = loader_graph(loader);
+    rdis->labels     = loader_labels(loader);
+    rdis->functions  = loader_functions(loader);
+    rdis->memory_map = loader_memory_map(loader);
 
     // this should be the last thing done so startup script accesses a valid
     // rdis
@@ -69,7 +69,7 @@ void rdis_delete (struct _rdis * rdis)
     object_delete(rdis->callbacks);
     object_delete(rdis->graph);
     object_delete(rdis->labels);
-    object_delete(rdis->function_tree);
+    object_delete(rdis->functions);
     object_delete(rdis->memory_map);
     if (rdis->loader != NULL)
         object_delete(rdis->loader);
@@ -85,7 +85,7 @@ json_t * rdis_serialize (struct _rdis * rdis)
     json_object_set(json, "ot",            json_integer(SERIALIZE_RDIS));
     json_object_set(json, "graph",         object_serialize(rdis->graph));
     json_object_set(json, "labels",        object_serialize(rdis->labels));
-    json_object_set(json, "function_tree", object_serialize(rdis->function_tree));
+    json_object_set(json, "function_tree", object_serialize(rdis->functions));
     json_object_set(json, "memory_map",    object_serialize(rdis->memory_map));
 
     return json;
@@ -94,16 +94,16 @@ json_t * rdis_serialize (struct _rdis * rdis)
 
 struct _rdis * rdis_deserialize (json_t * json)
 {
-    json_t * graph         = json_object_get(json, "graph");
-    json_t * labels        = json_object_get(json, "labels");
-    json_t * function_tree = json_object_get(json, "function_tree");
-    json_t * memory_map    = json_object_get(json, "memory_map");
+    json_t * graph      = json_object_get(json, "graph");
+    json_t * labels     = json_object_get(json, "labels");
+    json_t * functions  = json_object_get(json, "functions");
+    json_t * memory_map = json_object_get(json, "memory_map");
 
     if (! json_is_object(graph))
         return NULL;
     if (! json_is_object(labels))
         return NULL;
-    if (! json_is_object(function_tree))
+    if (! json_is_object(functions))
         return NULL;
     if (! json_is_object(memory_map))
         return NULL;
@@ -116,8 +116,8 @@ struct _rdis * rdis_deserialize (json_t * json)
         object_delete(ggraph);
         return NULL;
     }
-    struct _tree * ffunction_tree = deserialize(function_tree);
-    if (ffunction_tree == NULL) {
+    struct _map * ffunctions = deserialize(functions);
+    if (ffunctions == NULL) {
         object_delete(ggraph);
         object_delete(llabels);
         return NULL;
@@ -139,7 +139,7 @@ struct _rdis * rdis_deserialize (json_t * json)
     rdis->loader           = NULL;
     rdis->graph            = ggraph;
     rdis->labels           = llabels;
-    rdis->function_tree    = ffunction_tree;
+    rdis->functions        = ffunctions;
     rdis->memory_map       = mmemory_map;
 
     return rdis;
@@ -182,30 +182,29 @@ int rdis_user_function (struct _rdis * rdis, uint64_t address)
     printf("rdis_user_function %llx\n", (unsigned long long) address);
 
     // get a tree of all functions reachable at this address
-    struct _tree * function_tree;
-    function_tree = loader_function_tree_address(rdis->loader, address);
+    struct _map * functions = loader_function_address(rdis->loader, address);
 
     // add in this address as a new function as well
-    struct _index * index = index_create(address);
-    tree_insert(function_tree, index);
-    object_delete(index);
+    struct _function * function = function_create(address);
+    map_insert(functions, function->address, function);
+    object_delete(function);
 
     // for each newly reachable function
-    struct _tree_it * fit;
-    for (fit = tree_iterator(function_tree); fit != NULL; fit = tree_it_next(fit)) {
-        struct _index * index = tree_it_data(fit);
-        uint64_t fitaddress = index->index;
+    struct _map_it * mit;
+    for (mit = map_iterator(functions); mit != NULL; mit = map_it_next(mit)) {
+        struct _function * function = map_it_data(mit);
+        uint64_t fitaddress = function->address;
 
         printf("adding user function: %llx\n", (unsigned long long) fitaddress);
 
         // if we already have this function, skip it
-        if (tree_fetch(rdis->function_tree, index) != NULL)
+        if (map_fetch(rdis->functions, function->address) != NULL)
             continue;
 
         printf("a\n");
 
         // add this function to the rdis->function_tree
-        tree_insert(rdis->function_tree, index);
+        map_insert(rdis->functions, function->address, function);
 
         // add label
         struct _label * label = loader_label_address(rdis->loader, fitaddress);
@@ -219,7 +218,7 @@ int rdis_user_function (struct _rdis * rdis, uint64_t address)
 
             // already a node, remove function predecessors
             if (node->index == address) {
-                remove_function_predecessors(rdis->graph, rdis->function_tree);
+                remove_function_predecessors(rdis->graph, rdis->functions);
                 continue;
             }
 
@@ -280,7 +279,7 @@ int rdis_user_function (struct _rdis * rdis, uint64_t address)
         object_delete(graph);
     }
 
-    object_delete(function_tree);
+    object_delete(functions);
 
     rdis_callback(rdis);
 

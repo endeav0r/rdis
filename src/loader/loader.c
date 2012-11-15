@@ -49,7 +49,7 @@ struct _graph * loader_graph (_loader * loader)
 }
 
 
-struct _tree * loader_function_tree (_loader * loader)
+struct _map * loader_functions (_loader * loader)
 {
     struct _loader_object_ptr * loader_object_ptr;
     struct _loader_object     * loader_object;
@@ -57,7 +57,7 @@ struct _tree * loader_function_tree (_loader * loader)
     loader_object_ptr = (struct _loader_object_ptr *) loader;
     loader_object = loader_object_ptr->loader_object;
 
-    return loader_object->function_tree(loader);
+    return loader_object->functions(loader);
 }
 
 
@@ -97,7 +97,7 @@ struct _map * loader_memory_map (_loader * loader)
 }
 
 
-struct _tree * loader_function_tree_address (_loader * loader, uint64_t address)
+struct _map * loader_function_address (_loader * loader, uint64_t address)
 {
     struct _loader_object_ptr * loader_object_ptr;
     struct _loader_object     * loader_object;
@@ -105,7 +105,7 @@ struct _tree * loader_function_tree_address (_loader * loader, uint64_t address)
     loader_object_ptr = (struct _loader_object_ptr *) loader;
     loader_object = loader_object_ptr->loader_object;
 
-    return loader_object->function_tree_address(loader, address);
+    return loader_object->function_address(loader, address);
 }
 
 

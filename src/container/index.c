@@ -18,7 +18,7 @@ struct _index * index_create (uint64_t index)
     struct _index * index_ptr;
     index_ptr = (struct _index *) malloc(sizeof(struct _index));
     index_ptr->object = &index_object;
-    index_ptr->index = index;
+    index_ptr->index  = index;
     return index_ptr;
 }
 

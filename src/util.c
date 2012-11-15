@@ -1,27 +1,27 @@
 #include "util.h"
 
-#include "index.h"
-#include "queue.h"
-
+#include "function.h"
 #include "graph.h"
+#include "index.h"
 #include "instruction.h"
+#include "queue.h"
 
 #include <stdio.h>
 #include <string.h>
 
 
-void remove_function_predecessors (struct _graph * graph, struct _tree * functions)
+void remove_function_predecessors (struct _graph * graph, struct _map * functions)
 {
     struct _queue * queue = queue_create();
 
-    struct _tree_it * tit;
-    for (tit = tree_iterator(functions); tit != NULL; tit = tree_it_next(tit)) {
-        struct _index * index = tree_it_data(tit);
-        struct _graph_node * node = graph_fetch_node(graph, index->index);
+    struct _map_it * mit;
+    for (mit = map_iterator(functions); mit != NULL; mit = map_it_next(mit)) {
+        struct _function * function = map_it_data(mit);
+        struct _graph_node * node = graph_fetch_node(graph, function->address);
 
         if (node == NULL) {
             printf("remove_function_predecessors null node %llx\n",
-                   (unsigned long long) index->index);
+                   (unsigned long long) function->address);
             continue;
         }
 

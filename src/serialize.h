@@ -11,6 +11,7 @@ enum {
     SERIALIZE_BUFFER,           // done+/
     SERIALIZE_ELF32,
     SERIALIZE_ELF64,
+    SERIALIZE_FUNCTION,
     SERIALIZE_GRAPH_EDGE,       // done+/
     SERIALIZE_GRAPH_NODE,       // done+/
     SERIALIZE_GRAPH,            // done+/

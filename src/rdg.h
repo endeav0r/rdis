@@ -10,7 +10,6 @@
 #include "map.h"
 #include "object.h"
 #include "rdg_node.h"
-#include "tree.h"
 
 enum {
     RDG_ARROW_TYPE_NONE,

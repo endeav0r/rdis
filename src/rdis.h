@@ -33,7 +33,7 @@ struct _rdis {
     _loader          * loader;
     struct _graph    * graph;
     struct _map      * labels;
-    struct _tree     * function_tree;
+    struct _map      * functions;
     struct _map      * memory_map;
 };
 

@@ -20,4 +20,5 @@ struct _index * index_copy        (struct _index * index);
 int 			index_cmp         (struct _index * lhs, struct _index * rhs);
 json_t        * index_serialize   (struct _index * index);
 struct _index * index_deserialize (json_t * json);
+
 #endif
