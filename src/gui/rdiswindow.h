@@ -12,6 +12,7 @@ struct _rdiswindow {
     GtkWidget       * vbox;
     GtkWidget       * hexButton;
     GtkWidget       * functionsButton;
+    GtkWidget       * refButton;
     GtkWidget       * scrolledWindow;
     GtkTextTagTable * consoleTagTable;
     GtkTextBuffer   * consoleBuffer;
@@ -33,6 +34,8 @@ void                 rdiswindow_console (struct _rdiswindow * rdiswindow,
 void rdiswindow_functions_activate (GtkButton * button,
                                     struct _rdiswindow * rdiswindow);
 void rdiswindow_hex_activate       (GtkButton * button,
+                                    struct _rdiswindow * rdiswindow);
+void rdiswindow_ref_activate       (GtkButton * button,
                                     struct _rdiswindow * rdiswindow);
 void rdiswindow_destroy_event      (GtkWidget * widget,
                                     struct _rdiswindow * rdiswindow);

@@ -2,6 +2,7 @@
 
 #include "function.h"
 #include "index.h"
+#include "reference.h"
 
 
 static const struct _object x8664_graph_wqueue_object = {
@@ -87,15 +88,43 @@ struct _ins * x8664_ins (uint64_t address, ud_t * ud_obj)
         default : break;
         }
 
+        uint64_t destination;
+        destination  = ud_insn_len(ud_obj);
+        destination += udis86_target(address, &(ud_obj->operand[0]));
+
         if (mnemonic_str != NULL) {
             char tmp[64];
-            uint64_t destination;
-            destination  = ud_insn_len(ud_obj);
-            destination += udis86_target(address, &(ud_obj->operand[0]));
             snprintf(tmp, 64, "%s %llx", mnemonic_str,
                      (unsigned long long) destination);
             ins_s_description(ins, tmp);
             ins_s_target(ins, destination);
+        }
+        else {
+            struct _reference * reference;
+            reference = reference_create(REFERENCE_STORE, address, destination);
+            ins_add_reference(ins, reference);
+            object_delete(reference);
+        }
+    }
+    else if (udis86_target(address, &(ud_obj->operand[1])) != -1) {
+        uint64_t destination;
+        destination  = ud_insn_len(ud_obj);
+        destination += udis86_target(address, &(ud_obj->operand[1]));
+        struct _reference * reference;
+        reference = reference_create(REFERENCE_LOAD, address, destination);
+        ins_add_reference(ins, reference);
+        object_delete(reference);
+    }
+    else if (    (ud_obj->operand[1].type == UD_OP_IMM)
+              && (ud_obj->operand[1].size >= 32)) {
+        int64_t tmp = udis86_sign_extend_lval(&(ud_obj->operand[1]));
+        if (tmp > 0x1000) {
+            struct _reference * reference;
+            reference = reference_create(REFERENCE_CONSTANT,
+                                         address,
+                                         udis86_sign_extend_lval(&(ud_obj->operand[1])));
+            ins_add_reference(ins, reference);
+            object_delete(reference);
         }
     }
 
@@ -237,7 +266,7 @@ void x8664_graph_0 (struct _graph * graph,
         case UD_Ijle  :
         case UD_Ijg   :
         case UD_Ijmp  :
-        case UD_Icall :
+        //case UD_Icall :
             operand = &(ud_obj.operand[0]);
 
             if (operand->type != UD_OP_JIMM)

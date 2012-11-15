@@ -11,6 +11,7 @@
 #include "map.h"
 #include "pe.h"
 #include "rdis.h"
+#include "reference.h"
 #include "tree.h"
 
 #include <stdio.h>
@@ -66,6 +67,7 @@ void * deserialize (json_t * json)
     case SERIALIZE_BUFFER           : return buffer_deserialize(json);
     case SERIALIZE_ELF32            : return elf32_deserialize(json);
     case SERIALIZE_ELF64            : return elf64_deserialize(json);
+    case SERIALIZE_FUNCTION         : return function_deserialize(json);
     case SERIALIZE_GRAPH_EDGE       : return graph_edge_deserialize(json);
     case SERIALIZE_GRAPH_NODE       : return graph_node_deserialize(json);
     case SERIALIZE_GRAPH            : return graph_deserialize(json);
@@ -78,6 +80,7 @@ void * deserialize (json_t * json)
     case SERIALIZE_MAP              : return map_deserialize(json);
     case SERIALIZE_PE               : return pe_deserialize(json);
     case SERIALIZE_RDIS             : return rdis_deserialize(json);
+    case SERIALIZE_REFERENCE        : return reference_deserialize(json);
     case SERIALIZE_TREE             : return tree_deserialize(json);
     }
 

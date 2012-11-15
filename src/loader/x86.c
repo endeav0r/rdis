@@ -62,6 +62,9 @@ struct _ins * x86_ins (uint64_t address, ud_t * ud_obj)
             ins_s_target(ins, destination);
         }
     }
+    else if (ud_obj->operand[0].type == UD_OP_IMM) {
+        printf("UD_OP_IMM: %s\n", ud_insn_asm(ud_obj));
+    }
 
     if (ud_obj->mnemonic == UD_Icall)
         ins_s_call(ins);

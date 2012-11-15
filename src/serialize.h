@@ -25,6 +25,7 @@ enum {
     SERIALIZE_PE,
     SERIALIZE_QUEUE,
     SERIALIZE_RDIS,             // done+/
+    SERIALIZE_REFERENCE,
     SERIALIZE_TREE,             // done+/
     SERIALIZE_ERROR // for general serialize errors
 };

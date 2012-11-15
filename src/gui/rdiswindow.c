@@ -13,8 +13,9 @@ struct _rdiswindow * rdiswindow_create (struct _gui * gui)
     rdiswindow->buttonsBox          = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
     rdiswindow->vbox                = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
 
-    rdiswindow->hexButton           = gtk_button_new_with_label("hex");
-    rdiswindow->functionsButton     = gtk_button_new_with_label("functions");
+    rdiswindow->hexButton           = gtk_button_new_with_label("Hex View");
+    rdiswindow->functionsButton     = gtk_button_new_with_label("Functions");
+    rdiswindow->refButton           = gtk_button_new_with_label("References");
     rdiswindow->scrolledWindow      = gtk_scrolled_window_new(NULL, NULL);
     rdiswindow->consoleTagTable     = gtk_text_tag_table_new();
     rdiswindow->consoleBuffer       =
@@ -75,6 +76,11 @@ struct _rdiswindow * rdiswindow_create (struct _gui * gui)
                      G_CALLBACK(rdiswindow_hex_activate),
                      rdiswindow);
 
+    g_signal_connect(rdiswindow->refButton,
+                     "clicked",
+                     G_CALLBACK(rdiswindow_ref_activate),
+                     rdiswindow);
+
     g_signal_connect(rdiswindow->inputEntry,
                      "activate",
                      G_CALLBACK(rdiswindow_input_activate),
@@ -96,6 +102,10 @@ struct _rdiswindow * rdiswindow_create (struct _gui * gui)
 
     gtk_box_pack_start(GTK_BOX(rdiswindow->buttonsBox),
                        rdiswindow->hexButton,
+                       FALSE, TRUE, 0);
+
+    gtk_box_pack_start(GTK_BOX(rdiswindow->buttonsBox),
+                       rdiswindow->refButton,
                        FALSE, TRUE, 0);
 
     gtk_box_pack_start(GTK_BOX(rdiswindow->vbox),
@@ -120,6 +130,7 @@ struct _rdiswindow * rdiswindow_create (struct _gui * gui)
     gtk_widget_show(rdiswindow->menu);
     gtk_widget_show(rdiswindow->functionsButton);
     gtk_widget_show(rdiswindow->hexButton);
+    gtk_widget_show(rdiswindow->refButton);
     gtk_widget_show(rdiswindow->scrolledWindow);
     gtk_widget_show(rdiswindow->consoleView);
     gtk_widget_show(rdiswindow->inputEntry);
@@ -176,6 +187,14 @@ void rdiswindow_hex_activate (GtkButton * button,
 {
     printf("rdiswindow_hex_activate\n");
     gui_hexwindow(rdiswindow->gui);
+}
+
+
+void rdiswindow_ref_activate (GtkButton * button,
+                              struct _rdiswindow * rdiswindow)
+{
+    printf("rdiswindow_ref_activate\n");
+    gui_refwindow(rdiswindow->gui);
 }
 
 

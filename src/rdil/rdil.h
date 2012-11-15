@@ -8,6 +8,7 @@
 enum {
     RDIL_VAR,
     RDIL_CONSTANT,
+    RDIL_WILD
 };
 
 enum {

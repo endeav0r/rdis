@@ -49,6 +49,8 @@ struct _ins * ins_create  (uint64_t address,
 
     ins->flags = 0;
 
+    ins->references = list_create();
+
     return ins;
 }
 
@@ -60,6 +62,8 @@ void ins_delete (struct _ins * ins)
         free(ins->description);
     if (ins->comment != NULL)
         free(ins->comment);
+    if (ins->references != NULL)
+        object_delete(ins->references);
     free(ins);
 }
 
@@ -71,10 +75,21 @@ struct _ins * ins_copy (struct _ins * ins)
                                        ins->size,
                                        ins->description,
                                        ins->comment);
-    new_ins->target = ins->target;
-    new_ins->flags  = ins->flags;
+    new_ins->target     = ins->target;
+    new_ins->flags      = ins->flags;
+    new_ins->references = object_copy(ins->references);
 
     return new_ins;
+}
+
+
+int ins_cmp (struct _ins * lhs, struct _ins * rhs)
+{
+    if (lhs->address < rhs->address)
+        return -1;
+    else if (lhs->address > rhs->address)
+        return 1;
+    return 0;
 }
 
 
@@ -99,8 +114,9 @@ json_t * ins_serialize (struct _ins * ins)
     if (ins->comment == NULL)
         json_object_set(json, "comment", json_string(""));
     else
-        json_object_set(json, "comment",     json_string(ins->comment));
-    json_object_set(json, "flags",       json_integer(ins->flags));
+        json_object_set(json, "comment", json_string(ins->comment));
+    json_object_set(json, "flags",      json_integer(ins->flags));
+    json_object_set(json, "references", object_serialize(ins->references));
 
     return json;
 }
@@ -114,13 +130,15 @@ struct _ins * ins_deserialize (json_t * json)
     json_t * description = json_object_get(json, "description");
     json_t * comment     = json_object_get(json, "comment");
     json_t * flags       = json_object_get(json, "flags");
+    json_t * references  = json_object_get(json, "references");
 
     if (    (! json_is_uint64_t(address))
          || (! json_is_uint64_t(target))
          || (! json_is_array(bytes))
          || (! json_is_string(description))
          || (! json_is_string(comment))
-         || (! json_is_integer(flags))) {
+         || (! json_is_integer(flags))
+         || (! json_is_object(references))) {
         serialize_error = SERIALIZE_INSTRUCTION;
         return NULL;
     }
@@ -147,6 +165,12 @@ struct _ins * ins_deserialize (json_t * json)
 
     ins->target = json_uint64_t_value(target);
     ins->flags  = json_integer_value(flags);
+
+    ins->references = deserialize(references);
+    if (ins->references == NULL) {
+        object_delete(ins);
+        return NULL;
+    }
 
     free(tmp);
 
@@ -191,13 +215,9 @@ void ins_s_call (struct _ins * ins)
 }
 
 
-int ins_cmp (struct _ins * lhs, struct _ins * rhs)
+void ins_add_reference (struct _ins * ins, struct _reference * reference)
 {
-    if (lhs->address < rhs->address)
-        return -1;
-    else if (lhs->address > rhs->address)
-        return 1;
-    return 0;
+    list_append(ins->references, reference);
 }
 
 

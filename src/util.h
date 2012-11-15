@@ -9,6 +9,9 @@
 #include "tree.h"
 
 
+#define STRING_ASCII 1
+
+
 /*
 * For each function in functions, gets the corresponding graph node and removes
 * predecessors to that node from the graph.
@@ -23,5 +26,7 @@ void remove_function_predecessors (struct _graph * graph, struct _map * function
 * graph.
 */
 struct _graph * create_call_graph (struct _graph * graph, uint64_t index);
+
+int is_string (uint8_t * data, size_t data_size);
 
 #endif

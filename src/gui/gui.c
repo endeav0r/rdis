@@ -8,6 +8,7 @@
 #include "rdgwindow.h"
 #include "rdiswindow.h"
 #include "rdis.h"
+#include "refwindow.h"
 
 
 static const struct _object gui_window_object = {
@@ -131,6 +132,17 @@ void gui_hexwindow (struct _gui * gui)
     }
     struct _hexwindow * hexwindow = hexwindow_create(gui);
     gtk_widget_show(hexwindow_window(hexwindow));
+}
+
+
+void gui_refwindow (struct _gui * gui)
+{
+    if (gui->rdis == NULL) {
+        gui_console(gui, "can't create refwindow, no rdis loaded");
+        return;
+    }
+    struct _refwindow * refwindow = refwindow_create(gui);
+    gtk_widget_show(refwindow_window(refwindow));
 }
 
 

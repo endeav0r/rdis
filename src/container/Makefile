@@ -1,5 +1,5 @@
 OBJS = buffer.o function.o graph.o index.o instruction.o label.o list.o map.o queue.o \
-	rdstring.o tree.o 
+	rdstring.o reference.o tree.o 
 
 CCFLAGS=-Wall -O2 -g -Werror
 INCLUDE=-iquote../

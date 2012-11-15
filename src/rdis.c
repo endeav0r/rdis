@@ -1,5 +1,6 @@
 #include "rdis.h"
 
+#include "buffer.h"
 #include "gui.h"
 #include "index.h"
 #include "instruction.h"
@@ -143,6 +144,61 @@ struct _rdis * rdis_deserialize (json_t * json)
     rdis->memory_map       = mmemory_map;
 
     return rdis;
+}
+
+
+struct _map * rdis_g_references (struct _rdis * rdis)
+{
+    struct _map * references = map_create();
+
+    struct _graph_it * git;
+    // for each node
+    for (git = graph_iterator(rdis->graph); git != NULL; git = graph_it_next(git)) {
+        struct _graph_node * node = graph_it_node(git);
+        struct _list_it * lit;
+
+        // for each instruction
+        for (lit = list_iterator(node->data); lit != NULL; lit = lit->next) {
+            struct _ins * ins = lit->data;
+            struct _list_it * rit;
+
+            // for each reference
+            for (rit = list_iterator(ins->references); rit != NULL; rit = rit->next) {
+                struct _reference * reference = rit->data;
+                int delete_reference = 0;
+
+                if (reference->type == REFERENCE_CONSTANT) {
+                    uint64_t lower = map_fetch_max_key(rdis->memory_map, reference->address);
+                    struct _buffer * buffer = map_fetch(rdis->memory_map, lower);
+                    if (buffer == NULL)
+                        continue;
+                    uint64_t upper = lower + buffer->size;
+                    if (    (reference->address < lower)
+                         || (reference->address >= upper))
+                        continue;
+                    reference = object_copy(reference);
+                    reference->type = REFERENCE_CONSTANT_ADDRESSABLE;
+                    delete_reference = 1;
+                }
+
+
+                struct _list * ref_list = map_fetch(references, reference->address);
+                if (ref_list == NULL) {
+                    ref_list = list_create();
+                    map_insert(references, reference->address, ref_list);
+                    object_delete(ref_list);
+                    ref_list = map_fetch(references, reference->address);
+                }
+
+                list_append(ref_list, reference);
+
+                if (delete_reference)
+                    object_delete(reference);
+            }
+        }
+    }
+
+    return references;
 }
 
 

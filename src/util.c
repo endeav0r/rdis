@@ -131,3 +131,21 @@ struct _graph * create_call_graph (struct _graph * graph, uint64_t indx)
 
     return call_graph;
 }
+
+
+int is_string (uint8_t * data, size_t data_size)
+{
+    int result = STRING_ASCII;
+    size_t i;
+
+    for (i = 0; i < data_size; i++) {
+        if (data[i] & 0x80) {
+            result = 0;
+            break;
+        }
+    }
+
+    if (i < 4)
+        return 0;
+    return result;
+}

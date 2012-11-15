@@ -30,6 +30,7 @@ void     gui_close_windows (struct _gui * gui);
 void gui_rdgwindow  (struct _gui * gui, struct _graph * graph);
 void gui_funcwindow (struct _gui * gui);
 void gui_hexwindow  (struct _gui * gui);
+void gui_refwindow  (struct _gui * gui);
 
 void gui_console (struct _gui * gui, const char * line);
 
