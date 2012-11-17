@@ -3,7 +3,9 @@
 #include <gdk/gdk.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
+#include "function.h"
 #include "gui.h"
 #include "index.h"
 #include "label.h"
@@ -32,14 +34,28 @@ struct _funcwindow * funcwindow_create (struct _gui * gui)
     funcwindow->treeView       = gtk_tree_view_new_with_model(
                                         GTK_TREE_MODEL(funcwindow->listStore));
     funcwindow->gui            = gui;
-    funcwindow->menu_popup      = gtk_menu_new();
+    funcwindow->menu_popup     = gtk_menu_new();
+    funcwindow->comboBoxText   = gtk_combo_box_text_new();
+    funcwindow->vbox           = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
 
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(funcwindow->comboBoxText),
+                                   "all");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(funcwindow->comboBoxText),
+                                   "reachable");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(funcwindow->comboBoxText),
+                                   "unreachable");
 
     // popup menu stuff
     GtkWidget * menuItem = gtk_menu_item_new_with_label("Call Graph");
     g_signal_connect(menuItem,
                      "activate",
                      G_CALLBACK(funcwindow_call_graph),
+                     funcwindow);
+    gtk_menu_shell_append(GTK_MENU_SHELL(funcwindow->menu_popup), menuItem);
+    menuItem = gtk_menu_item_new_with_label("Mark Reachable");
+    g_signal_connect(menuItem,
+                     "activate",
+                     G_CALLBACK(funcwindow_mark_reachable),
                      funcwindow);
     gtk_menu_shell_append(GTK_MENU_SHELL(funcwindow->menu_popup), menuItem);
 
@@ -50,14 +66,7 @@ struct _funcwindow * funcwindow_create (struct _gui * gui)
     funcwindow->gui_identifier = gui_add_window(gui, funcwindow->window);
 
     // add data to tree model
-    struct _map_it * it;
-    for (it  = map_iterator(funcwindow->gui->rdis->functions);
-         it != NULL;
-         it  = map_it_next(it)) {
-        struct _function * function = map_it_data(it);
-
-        funcwindow_append_row(funcwindow, function->address);
-    }
+    funcwindow_redraw(funcwindow);
 
     // add columns to tree view
     GtkCellRenderer   * renderer;
@@ -89,8 +98,14 @@ struct _funcwindow * funcwindow_create (struct _gui * gui)
     // set up containers
     gtk_container_add(GTK_CONTAINER(funcwindow->scrolledWindow),
                       funcwindow->treeView);
+    gtk_box_pack_start(GTK_BOX(funcwindow->vbox),
+                       funcwindow->comboBoxText,
+                       FALSE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(funcwindow->vbox),
+                       funcwindow->scrolledWindow,
+                       TRUE, TRUE, 0);
     gtk_container_add(GTK_CONTAINER(funcwindow->window),
-                      funcwindow->scrolledWindow);
+                      funcwindow->vbox);
 
     // signals
     g_signal_connect(funcwindow->window,
@@ -108,9 +123,16 @@ struct _funcwindow * funcwindow_create (struct _gui * gui)
                      G_CALLBACK(funcwindow_row_activated),
                      funcwindow);
 
+    g_signal_connect(funcwindow->comboBoxText,
+                     "changed",
+                     G_CALLBACK(funcwindow_changed_event),
+                     funcwindow);
+
     gtk_window_set_default_size(GTK_WINDOW(funcwindow->window), 280, 480);
 
     gtk_widget_show(funcwindow->treeView);
+    gtk_widget_show(funcwindow->comboBoxText);
+    gtk_widget_show(funcwindow->vbox);
     gtk_widget_show(funcwindow->scrolledWindow);
 
     funcwindow->callback_identifier = rdis_add_callback(funcwindow->gui->rdis,
@@ -137,6 +159,41 @@ GtkWidget * funcwindow_window (struct _funcwindow * funcwindow)
     return funcwindow->window;
 }
 
+
+void funcwindow_redraw (struct _funcwindow * funcwindow)
+{
+
+    // remove all rows in the funcwindow
+    gtk_list_store_clear(funcwindow->listStore);
+
+    const char * type;
+    type = gtk_combo_box_text_get_active_text(
+                                 GTK_COMBO_BOX_TEXT(funcwindow->comboBoxText));
+
+    if (type == NULL)
+        type = "all";
+
+    int bits = 0;
+    int mask = 0;
+    if (strcmp(type, "reachable") == 0) {
+        bits = FUNCTION_REACHABLE;
+        mask = FUNCTION_REACHABLE;
+    }
+    else if (strcmp(type, "unreachable") == 0) {
+        bits = 0;
+        mask = FUNCTION_REACHABLE;
+    }
+
+    // add in all the functions
+    struct _map_it * it;
+    for (it  = map_iterator(funcwindow->gui->rdis->functions);
+         it != NULL;
+         it  = map_it_next(it)) {
+        struct _function * function = map_it_data(it);
+        if ((function->flags & mask) == bits)
+            funcwindow_append_row(funcwindow, function->address);
+    }
+}
 
 
 void funcwindow_append_row (struct _funcwindow * funcwindow, uint64_t index)
@@ -242,17 +299,7 @@ void funcwindow_edited (GtkCellRendererText * renderer,
 
 void funcwindow_rdis_callback (struct _funcwindow * funcwindow)
 {
-    // remove all rows in the funcwindow
-    gtk_list_store_clear(funcwindow->listStore);
-
-    // add in all the functions
-    struct _map_it * it;
-    for (it  = map_iterator(funcwindow->gui->rdis->functions);
-         it != NULL;
-         it  = map_it_next(it)) {
-        struct _function * function = map_it_data(it);
-        funcwindow_append_row(funcwindow, function->address);
-    }
+    funcwindow_redraw(funcwindow);
 }
 
 
@@ -311,4 +358,45 @@ void funcwindow_call_graph (GtkMenuItem * menuItem,
 
         object_delete(graph);
     }
+}
+
+
+void funcwindow_mark_reachable (GtkMenuItem * menuItem,
+                                struct _funcwindow * funcwindow)
+{
+    printf("funcwindow mark reachable\n");
+
+    GtkTreeSelection * selection;
+    GtkTreeIter treeIter;
+    GtkTreeModel * model = GTK_TREE_MODEL(funcwindow->listStore);
+
+    selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(funcwindow->treeView));
+
+    if (gtk_tree_selection_get_selected(selection,
+                                        &model,
+                                        &treeIter)) {
+        uint64_t index;
+        gtk_tree_model_get(GTK_TREE_MODEL(funcwindow->listStore),
+                           &treeIter,
+                           COL_INDEX, &index,
+                           -1);
+        printf("selected %llx\n", (unsigned long long) index);
+
+        if (graph_fetch_node(funcwindow->gui->rdis->graph, index) == NULL) {
+            printf("we are in trouble, not found %llx\n", (unsigned long long) index);
+        }
+        else
+            printf("found %llx\n", (unsigned long long) index);
+
+        rdis_function_reachable(funcwindow->gui->rdis, index);
+        funcwindow_redraw(funcwindow);
+    }
+}
+
+
+void funcwindow_changed_event (GtkComboBox * comboBox,
+                               struct _funcwindow * funcwindow)
+{
+    printf("funcwindow_changed_event\n");
+    funcwindow_redraw(funcwindow);
 }

@@ -119,3 +119,27 @@ struct _label * loader_label_address (_loader * loader, uint64_t address)
 
     return loader_object->label_address(loader, address);
 }
+
+
+struct _graph * loader_graph_functions (_loader * loader, struct _map * functions)
+{
+    struct _loader_object_ptr * loader_object_ptr;
+    struct _loader_object     * loader_object;
+
+    loader_object_ptr = (struct _loader_object_ptr *) loader;
+    loader_object = loader_object_ptr->loader_object;
+
+    return loader_object->graph_functions(loader, functions);
+}
+
+
+struct _map * loader_labels_functions (_loader * loader, struct _map * functions)
+{
+    struct _loader_object_ptr * loader_object_ptr;
+    struct _loader_object     * loader_object;
+
+    loader_object_ptr = (struct _loader_object_ptr *) loader;
+    loader_object = loader_object_ptr->loader_object;
+
+    return loader_object->labels_functions(loader, functions);
+}

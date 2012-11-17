@@ -126,7 +126,8 @@ void refwindow_refresh (struct _refwindow * refwindow)
 
         struct _list * references = map_it_data(it);
         char referencers_str[512];
-        referencers_str[0] = '\0';
+        memset(referencers_str, 0, 512);
+        
         struct _list_it * rit;
         for (rit = list_iterator(references); rit != NULL; rit = rit->next) {
             struct _reference * reference = rit->data;
@@ -143,9 +144,13 @@ void refwindow_refresh (struct _refwindow * refwindow)
             snprintf(referencer, 32, "%s%04llx ",
                      type_str,
                      (unsigned long long) reference->referencer);
-            strncat(referencers_str, referencer, 512);
+            if (rdstrcat(referencers_str, referencer, 512) >= 512)
+                break;
         }
-        referencers_str[511] = '\0';
+
+        if (strlen(referencers_str) > 512) {
+            printf("ERROR! %d\n", (int) strlen(referencers_str));
+        }
 
         GtkTreeIter treeIter;
         gtk_list_store_append(refwindow->listStore, &treeIter);

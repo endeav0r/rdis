@@ -5,21 +5,21 @@
 #include "reference.h"
 
 
-static const struct _object x8664_graph_wqueue_object = {
-    (void   (*) (void *))         x8664_graph_wqueue_delete, 
-    (void * (*) (void *))         x8664_graph_wqueue_copy,
+static const struct _object x8664_wqueue_object = {
+    (void   (*) (void *)) x8664_wqueue_delete, 
+    (void * (*) (void *)) x8664_wqueue_copy,
     NULL,
     NULL
 };
 
 
-struct _x8664_graph_wqueue * x8664_graph_wqueue_create
+struct _x8664_wqueue * x8664_wqueue_create
     (uint64_t address, size_t offset, void * data, size_t data_size)
 {
-    struct _x8664_graph_wqueue * xgw;
+    struct _x8664_wqueue * xgw;
 
-    xgw = (struct _x8664_graph_wqueue *) malloc(sizeof(struct _x8664_graph_wqueue));
-    xgw->object    = &x8664_graph_wqueue_object;
+    xgw = (struct _x8664_wqueue *) malloc(sizeof(struct _x8664_wqueue));
+    xgw->object    = &x8664_wqueue_object;
     xgw->address   = address;
     xgw->offset    = offset;
     xgw->data      = data;
@@ -29,29 +29,43 @@ struct _x8664_graph_wqueue * x8664_graph_wqueue_create
 }
 
 
-void x8664_graph_wqueue_delete
-    (struct _x8664_graph_wqueue * x8664_graph_wqueue)
+void x8664_wqueue_delete (struct _x8664_wqueue * x8664_wqueue)
 {
-    free(x8664_graph_wqueue);
+    free(x8664_wqueue);
 }
 
 
-struct _x8664_graph_wqueue * x8664_graph_wqueue_copy 
-    (struct _x8664_graph_wqueue * x8664_graph_wqueue)
+struct _x8664_wqueue * x8664_wqueue_copy 
+    (struct _x8664_wqueue * x8664_wqueue)
 {
-    return x8664_graph_wqueue_create(x8664_graph_wqueue->address,
-                                     x8664_graph_wqueue->offset,
-                                     x8664_graph_wqueue->data,
-                                     x8664_graph_wqueue->data_size);
+    return x8664_wqueue_create(x8664_wqueue->address,
+                               x8664_wqueue->offset,
+                               x8664_wqueue->data,
+                               x8664_wqueue->data_size);
 }
 
 
-void * x8664_graph_wqueue (struct _x8664_graph_wqueue * x8664_graph_wqueue)
+void * x8664_graph_wqueue (struct _x8664_wqueue * x8664_wqueue)
 {
-    return x8664_graph(x8664_graph_wqueue->address,
-                       x8664_graph_wqueue->offset,
-                       x8664_graph_wqueue->data,
-                       x8664_graph_wqueue->data_size);
+    return x8664_graph(x8664_wqueue->address,
+                       x8664_wqueue->offset,
+                       x8664_wqueue->data,
+                       x8664_wqueue->data_size);
+}
+
+
+void * x8664_functions_wqueue (struct _x8664_wqueue * x8664_wqueue)
+{
+    printf("x8664_functions_wqueue %llx, %llx, %p, %llx\n",
+           (unsigned long long) x8664_wqueue->address,
+           (unsigned long long) x8664_wqueue->offset,
+           x8664_wqueue->data,
+           (unsigned long long) x8664_wqueue->data_size);
+    fflush(stdout);
+    return x8664_functions(x8664_wqueue->address,
+                           x8664_wqueue->offset,
+                           x8664_wqueue->data,
+                           x8664_wqueue->data_size);
 }
 
 

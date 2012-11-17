@@ -29,4 +29,6 @@ struct _graph * create_call_graph (struct _graph * graph, uint64_t index);
 
 int is_string (uint8_t * data, size_t data_size);
 
+size_t rdstrcat (char * dst, char * src, size_t size);
+
 #endif

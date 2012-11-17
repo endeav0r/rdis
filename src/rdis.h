@@ -62,6 +62,10 @@ void rdis_clear_gui   (struct _rdis * rdis);
 // and then calls callbacks
 int rdis_user_function (struct _rdis * rdis, uint64_t address);
 
+// marks function as reachable, and recursively marks all functions reachable
+// by this function as reachable
+int rdis_function_reachable (struct _rdis * rdis, uint64_t address);
+
 // returns callback identifier so callback can be removed later
 uint64_t rdis_add_callback    (struct _rdis * rdis,
                                void (* callback) (void *),

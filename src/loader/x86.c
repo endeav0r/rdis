@@ -4,17 +4,12 @@
 #include "index.h"
 
 
-void * x86_graph_wqueue (struct _x86_graph_wqueue * x86_graph_wqueue)
+void * x86_graph_wqueue (struct _x86_wqueue * x86_wqueue)
 {
-    printf("x86_graph_wqueue %llx %llx %p %llx\n",
-           (unsigned long long) x86_graph_wqueue->address,
-           (unsigned long long) x86_graph_wqueue->offset,
-           x86_graph_wqueue->data,
-           (unsigned long long) x86_graph_wqueue->data_size);
-    return x86_graph(x86_graph_wqueue->address,
-                     x86_graph_wqueue->offset,
-                     x86_graph_wqueue->data,
-                     x86_graph_wqueue->data_size);
+    return x86_graph(x86_wqueue->address,
+                     x86_wqueue->offset,
+                     x86_wqueue->data,
+                     x86_wqueue->data_size);
 }
 
 

@@ -24,14 +24,16 @@ static const struct _loader_object elf64_object = {
         NULL,
         (json_t * (*) (void *)) elf64_serialize
     },
-    (uint64_t        (*) (void *))           elf64_entry,
-    (struct _graph * (*) (void *))           elf64_graph,
-    (struct _map  *  (*) (void *))           elf64_functions,
-    (struct _map  *  (*) (void *))           elf64_labels,
-    (struct _graph * (*) (void *, uint64_t)) elf64_graph_address,
-    (struct _map *   (*) (void *))           elf64_memory_map,
-    (struct _map  *  (*) (void *, uint64_t)) elf64_function_address,
-    (struct _label * (*) (void *, uint64_t)) elf64_label_address
+    (uint64_t        (*) (void *))                elf64_entry,
+    (struct _graph * (*) (void *))                elf64_graph,
+    (struct _map  *  (*) (void *))                elf64_functions,
+    (struct _map  *  (*) (void *))                elf64_labels,
+    (struct _graph * (*) (void *, uint64_t))      elf64_graph_address,
+    (struct _map *   (*) (void *))                elf64_memory_map,
+    (struct _map  *  (*) (void *, uint64_t))      elf64_function_address,
+    (struct _label * (*) (void *, uint64_t))      elf64_label_address,
+    (struct _graph * (*) (void *, struct _map *)) elf64_graph_functions,
+    (struct _map *   (*) (void *, struct _map *)) elf64_labels_functions
 };
 
 
@@ -140,13 +142,47 @@ uint64_t elf64_base_address (struct _elf64 * elf64)
 {
     int phdr_i;
 
+    uint64_t lowest = -1;
+
     for (phdr_i = 0; phdr_i < elf64->ehdr->e_phnum; phdr_i++) {
         Elf64_Phdr * phdr = elf64_phdr(elf64, phdr_i);
+        if (phdr->p_vaddr == 0)
+            continue;
+
         if (phdr->p_offset == 0)
             return phdr->p_vaddr;
+
+        if (phdr->p_vaddr < lowest)
+            lowest = phdr->p_vaddr;
     }
 
-    return 0;
+    return lowest;
+}
+
+
+
+uint64_t elf64_base_offset (struct _elf64 * elf64)
+{
+    int phdr_i;
+
+    uint64_t lowest_offset  = -1;
+    uint64_t lowest_address = -1;
+
+    for (phdr_i = 0; phdr_i < elf64->ehdr->e_phnum; phdr_i++) {
+        Elf64_Phdr * phdr = elf64_phdr(elf64, phdr_i);
+        if (phdr->p_vaddr == 0)
+            continue;
+
+        if (phdr->p_offset == 0)
+            return 0;
+
+        if (phdr->p_vaddr < lowest_address) {
+            lowest_address = phdr->p_vaddr;
+            lowest_offset  = phdr->p_offset;
+        }
+    }
+
+    return lowest_offset;
 }
 
 
@@ -338,49 +374,63 @@ const char * elf64_rel_name_by_address (struct _elf64 * elf64, uint64_t address)
 
 struct _graph * elf64_graph (struct _elf64 * elf64)
 {
-    struct _graph  * graph;
-    struct _wqueue * wqueue;
-
-    // disassemble from entry point
-    graph = x8664_graph(elf64_base_address(elf64),
-                        elf64_entry(elf64) - elf64_base_address(elf64),
-                        elf64->data,
-                        elf64->data_size);
-
-    // disassemble all functions from elf64_function_tree
     struct _map * functions = elf64_functions(elf64);
-    struct _map_it * it;
 
-    wqueue = wqueue_create();
-    for (it  = map_iterator(functions);
-         it != NULL;
-         it  = map_it_next(it)) {
-        struct _function * function = map_it_data(it);
+    struct _graph * graph = elf64_graph_functions(elf64, functions);
 
-        struct _x8664_graph_wqueue * xgw;
-        xgw = x8664_graph_wqueue_create(elf64_base_address(elf64),
-                                        function->address - elf64_base_address(elf64),
-                                        elf64->data,
-                                        elf64->data_size);
-        wqueue_push(wqueue, WQUEUE_CALLBACK(x8664_graph_wqueue), xgw);
-        object_delete(xgw);
+    object_delete(functions);
+
+    return graph;
+}
+
+
+
+struct _map * elf64_functions_wqueue (struct _elf64 * elf64, struct _list * entries)
+{
+    struct _map * functions = map_create();
+    struct _wqueue * wqueue = wqueue_create();
+    struct _list_it * it;
+    for (it = list_iterator(entries); it != NULL; it = it->next) {
+        struct _function * function = it->data;
+
+        if (    (function->address < elf64_base_address(elf64))
+             || (function->address >= elf64_base_address(elf64) + elf64->data_size)) {
+            printf("invalid function address: %llx %llx %llx\n",
+                   (unsigned long long) elf64_base_address(elf64),
+                   (unsigned long long) function->address,
+                   (unsigned long long) elf64_base_address(elf64) + elf64->data_size);
+            continue;
+        }
+
+        if (map_fetch(functions, function->address) == NULL)
+            map_insert(functions, function->address, function);
+
+        struct _x8664_wqueue * x8664w;
+        x8664w = x8664_wqueue_create(elf64_base_address(elf64),
+                                     function->address - elf64_base_address(elf64),
+                                     elf64->data, elf64->data_size);
+
+        wqueue_push(wqueue, WQUEUE_CALLBACK(x8664_functions_wqueue), x8664w);
+        object_delete(x8664w);
     }
 
     wqueue_wait(wqueue);
 
-    while (wqueue_peek(wqueue) != NULL) {
-        graph_merge(graph, wqueue_peek(wqueue));
+    struct _map * fmap;
+    while ((fmap = wqueue_peek(wqueue)) != NULL) {
+        struct _map_it * mit;
+        for (mit = map_iterator(fmap); mit != NULL; mit = map_it_next(mit)) {
+            struct _function * function = map_it_data(mit);
+
+            if (map_fetch(functions, function->address) == NULL)
+                map_insert(functions, function->address, function);
+        }
         wqueue_pop(wqueue);
     }
 
     object_delete(wqueue);
 
-    remove_function_predecessors(graph, functions);
-    object_delete(functions);
-
-    graph_reduce(graph);
-
-    return graph;
+    return functions;
 }
 
 
@@ -397,34 +447,6 @@ struct _map * elf64_functions (struct _elf64 * elf64)
     struct _function * function = function_create(elf64_entry(elf64));
     list_append(entries, function);
     object_delete(function);
-
-    // symbols are easy
-    int sec_i;
-    for (sec_i = 0; sec_i < elf64->ehdr->e_shnum; sec_i++) {
-        Elf64_Shdr * shdr = elf64_shdr(elf64, sec_i);
-        if (shdr == NULL)
-            break;
-
-        if (shdr->sh_type != SHT_SYMTAB)
-            continue;
-
-        int sym_i;
-        for (sym_i = 0; sym_i < shdr->sh_size / shdr->sh_entsize; sym_i++) {
-            Elf64_Sym * sym = elf64_section_element(elf64, sec_i, sym_i);
-            if (sym == NULL)
-                break;
-            
-            if (ELF64_ST_TYPE(sym->st_info) != STT_FUNC)
-                continue;
-
-            if (sym->st_value == 0)
-                continue;
-
-            struct _function * function = function_create(sym->st_value);
-            list_append(entries, function);
-            object_delete(function);
-        }
-    }
 
     // check for __libc_start_main loader
     uint64_t target_offset = elf64_entry(elf64) - elf64_base_address(elf64) + 0x1d;
@@ -455,29 +477,55 @@ struct _map * elf64_functions (struct _elf64 * elf64)
                    (unsigned long long) target_offset);
     }
 
-    struct _list_it * it;
-    for (it = list_iterator(entries); it != NULL; it = it->next) {
-        struct _function * function = it->data;
+    functions = elf64_functions_wqueue(elf64, entries);
 
-        if (map_fetch(functions, function->address) == NULL)
-            map_insert(functions, function->address, function);
-
-        struct _map * recursive_functions;
-        recursive_functions = x8664_functions(elf64_base_address(elf64),
-                                              function->address - elf64_base_address(elf64),
-                                              elf64->data, elf64->data_size);
-        struct _map_it * mit;
-        for (mit = map_iterator(recursive_functions);
-             mit != NULL;
-             mit = map_it_next(mit)) {
-            struct _function * function = map_it_data(mit);
-            if (map_fetch(functions, function->address) == NULL)
-                map_insert(functions, function->address, function);
-        }
-
-        object_delete(recursive_functions);
+    // these are the reachable functions
+    struct _map_it * mit;
+    for (mit = map_iterator(functions); mit != NULL; mit = map_it_next(mit)) {
+        struct _function * function = map_it_data(mit);
+        function->flags |= FUNCTION_REACHABLE;
     }
 
+    // reset entries
+    object_delete(entries);
+    entries = list_create();
+
+    // add functions we find via symbols
+    int sec_i;
+    for (sec_i = 0; sec_i < elf64->ehdr->e_shnum; sec_i++) {
+        Elf64_Shdr * shdr = elf64_shdr(elf64, sec_i);
+        if (shdr == NULL)
+            break;
+
+        if (shdr->sh_type != SHT_SYMTAB)
+            continue;
+
+        int sym_i;
+        for (sym_i = 0; sym_i < shdr->sh_size / shdr->sh_entsize; sym_i++) {
+            Elf64_Sym * sym = elf64_section_element(elf64, sec_i, sym_i);
+            if (sym == NULL)
+                break;
+            
+            if (ELF64_ST_TYPE(sym->st_info) != STT_FUNC)
+                continue;
+
+            if (sym->st_value == 0)
+                continue;
+
+            struct _function * function = function_create(sym->st_value);
+            list_append(entries, function);
+            object_delete(function);
+        }
+    }
+
+    struct _map * sym_functions = elf64_functions_wqueue(elf64, entries);
+    for (mit = map_iterator(sym_functions); mit != NULL; mit = map_it_next(mit)) {
+        struct _function * function = map_it_data(mit);
+        if (map_fetch(functions, function->address) == NULL)
+            map_insert(functions, function->address, function);
+    }
+
+    object_delete(sym_functions);
     object_delete(entries);
 
     return functions;
@@ -487,21 +535,13 @@ struct _map * elf64_functions (struct _elf64 * elf64)
 
 struct _map * elf64_labels (struct _elf64 * elf64)
 {
-    struct _map * labels_map = map_create();
-
-    // loop through all the functions
     struct _map * functions = elf64_functions(elf64);
-    struct _map_it * it;
-    for (it = map_iterator(functions); it != NULL; it = map_it_next(it)) {
-        struct _function * function = map_it_data(it);
 
-        struct _label * label = elf64_label_address(elf64, function->address);
-        map_insert(labels_map, function->address, label);
-        object_delete(label);
-    }
+    struct _map * labels = elf64_labels_functions(elf64, functions);
 
     object_delete(functions);
-    return labels_map;
+
+    return labels;
 }
 
 
@@ -509,10 +549,13 @@ struct _graph * elf64_graph_address (struct _elf64 * elf64, uint64_t address)
 {
     struct _graph * graph;
 
+    if (elf64_base_offset(elf64) >= elf64->data_size)
+        return NULL;
+
     graph = x8664_graph(elf64_base_address(elf64),
                         address - elf64_base_address(elf64),
-                        elf64->data,
-                        elf64->data_size);
+                        &(elf64->data[elf64_base_offset(elf64)]),
+                        elf64->data_size - elf64_base_offset(elf64));
 
     graph_reduce(graph);
     return graph;
@@ -666,4 +709,74 @@ struct _label * elf64_label_address (struct _elf64 * elf64, uint64_t address)
     // symbol exists
     struct _label * label = label_create(address, name, LABEL_FUNCTION);
     return label;
+}
+
+
+
+struct _graph * elf64_graph_functions (struct _elf64 * elf64, struct _map * functions)
+{
+    struct _graph  * graph;
+    struct _wqueue * wqueue;
+
+    uint64_t base_address = elf64_base_address(elf64);
+    uint64_t base_offset  = elf64_base_offset(elf64);
+
+    if (base_offset >= elf64->data_size)
+        return NULL;
+
+    // disassemble from entry point
+    graph = x8664_graph(base_address,
+                        elf64_entry(elf64) - base_address,
+                        &(elf64->data[base_offset]),
+                        elf64->data_size - base_offset);
+
+    struct _map_it * it;
+
+    wqueue = wqueue_create();
+    for (it  = map_iterator(functions);
+         it != NULL;
+         it  = map_it_next(it)) {
+        struct _function * function = map_it_data(it);
+
+        struct _x8664_wqueue * x8664w;
+        x8664w = x8664_wqueue_create(base_address,
+                                     function->address - base_address,
+                                     &(elf64->data[base_offset]),
+                                     elf64->data_size - base_offset);
+        wqueue_push(wqueue, WQUEUE_CALLBACK(x8664_graph_wqueue), x8664w);
+        object_delete(x8664w);
+    }
+
+    wqueue_wait(wqueue);
+
+    while (wqueue_peek(wqueue) != NULL) {
+        graph_merge(graph, wqueue_peek(wqueue));
+        wqueue_pop(wqueue);
+    }
+
+    object_delete(wqueue);
+
+    remove_function_predecessors(graph, functions);
+
+    graph_reduce(graph);
+
+    return graph;
+}
+
+
+
+struct _map * elf64_labels_functions (struct _elf64 * elf64, struct _map * functions)
+{
+    struct _map * labels_map = map_create();
+
+    struct _map_it * it;
+    for (it = map_iterator(functions); it != NULL; it = map_it_next(it)) {
+        struct _function * function = map_it_data(it);
+
+        struct _label * label = elf64_label_address(elf64, function->address);
+        map_insert(labels_map, function->address, label);
+        object_delete(label);
+    }
+
+    return labels_map;
 }

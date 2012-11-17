@@ -149,3 +149,27 @@ int is_string (uint8_t * data, size_t data_size)
         return 0;
     return result;
 }
+
+
+size_t rdstrcat (char * dst, char * src, size_t size)
+{
+    size_t len = strlen(dst);
+    char * s = src;
+    char * d = &(dst[len]);
+
+    while (*s != '\0') {
+        if (len >= size)
+            break;
+        *d = *s;
+        d++;
+        s++;
+        len++;
+    }
+
+    if (len < size)
+        dst[len] = '\0';
+    else
+        dst[size - 1] = '\0';
+
+    return len;
+}

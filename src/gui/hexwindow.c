@@ -57,6 +57,9 @@ struct _hexwindow * hexwindow_create (struct _gui * gui)
 
     gtk_window_set_default_size(GTK_WINDOW(hexwindow->window), 640, 480);
 
+    // special case, we will mark this window as visible while we fill content
+    gtk_widget_show(hexwindow->window);
+
     hexwindow_draw_memmap(hexwindow);
 
     return hexwindow;
@@ -99,38 +102,42 @@ void hexwindow_draw_memmap (struct _hexwindow * hexwindow)
         uint64_t offset         = 0;
 
         char line[256];
-        char ascii[32];
-        char tmp[32];
         while (offset < buffer->size) {
+            char addr_str[32];
             if (offset % 16 == 0) {
-                line[0] = '\0';
-                snprintf(tmp, 32, "%04llx  ", 
+                snprintf(addr_str, 32, "%04llx  ", 
                          (unsigned long long) base + offset);
-                strncat(line, tmp, 255);
             }
 
+            char bytes_str[256];
+            char ascii[32];
+            size_t bsi = 0;
             int i;
             for (i = 0; i < 16; i++) {
                 if (offset < buffer->size) {
                     unsigned int c = buffer->bytes[offset++];
-                    snprintf(tmp, 32, "%02x ", c);
-                    strncat(line, tmp, 255);
+                    unsigned int h = c / 16;
+                    unsigned int l = c % 16;
+                    if (h < 10)
+                        bytes_str[bsi++] = '0' + h;
+                    else
+                        bytes_str[bsi++] = 'a' + h;
+                    if (l < 10)
+                        bytes_str[bsi++] = '0' + l;
+                    else
+                        bytes_str[bsi++] = 'a' + l;
+                    bytes_str[bsi++] = ' ';
+
                     if ((c >= 0x20) && (c < 0x7f))
                         ascii[i] = c;
                     else
                         ascii[i] = '.';
                 }
-                else {
-                    strncat(line, "   ", 256);
-                    ascii[i] = ' ';
-                }
             }
+            bytes_str[bsi] = '\0';
             ascii[i] = '\0';
 
-            strncat(line, " ", 255);
-            strncat(line, ascii, 255);
-            strncat(line, "\n", 255);
-            line[255] = '\0';
+            snprintf(line, 256, "%s  %s  %s\n", addr_str, bytes_str, ascii);
 
             gtk_text_buffer_insert(hexwindow->textBuffer,
                                    &iter,

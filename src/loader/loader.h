@@ -23,6 +23,8 @@ struct _loader_object {
     struct _map   * (* memory_map)       (void *);
     struct _map   * (* function_address) (void *, uint64_t);
     struct _label * (* label_address)    (void *, uint64_t);
+    struct _graph * (* graph_functions)  (void *, struct _map *);
+    struct _map   * (* labels_functions) (void *, struct _map *);
 };
 
 
@@ -31,13 +33,15 @@ typedef void * _loader;
 
 _loader * loader_create (const char * filename);
 
-uint64_t        loader_entry                 (_loader *);
-struct _graph * loader_graph                 (_loader *);
-struct _map  *  loader_functions             (_loader *);
-struct _map *   loader_labels                (_loader *);
-struct _graph * loader_graph_address         (_loader *, uint64_t);
-struct _map *   loader_memory_map            (_loader *);
-struct _map  *  loader_function_address      (_loader *, uint64_t);
-struct _label * loader_label_address         (_loader *, uint64_t);
+uint64_t        loader_entry            (_loader *);
+struct _graph * loader_graph            (_loader *);
+struct _map  *  loader_functions        (_loader *);
+struct _map *   loader_labels           (_loader *);
+struct _graph * loader_graph_address    (_loader *, uint64_t);
+struct _map *   loader_memory_map       (_loader *);
+struct _map  *  loader_function_address (_loader *, uint64_t);
+struct _label * loader_label_address    (_loader *, uint64_t);
+struct _graph * loader_graph_functions  (_loader *, struct _map *);
+struct _map *   loader_labels_functions (_loader *, struct _map *);
 
 #endif

@@ -12,6 +12,8 @@ struct _funcwindow {
     GtkListStore * listStore;
     GtkWidget    * treeView;
     GtkWidget    * menu_popup;
+    GtkWidget    * comboBoxText;
+    GtkWidget    * vbox;
 
     struct _gui  * gui;
     uint64_t       gui_identifier;
@@ -22,6 +24,8 @@ struct _funcwindow {
 struct _funcwindow * funcwindow_create (struct _gui * gui);
 void                 funcwindow_delete (struct _funcwindow * funcwindow);
 GtkWidget *          funcwindow_window (struct _funcwindow * funcwindow);
+
+void funcwindow_redraw (struct _funcwindow * funcwindow);
 
 void funcwindow_append_row (struct _funcwindow *, uint64_t index);
 
@@ -44,6 +48,12 @@ gboolean funcwindow_button_press_event (GtkWidget * widget,
 
 void funcwindow_call_graph (GtkMenuItem * menuItem,
                             struct _funcwindow * funcwindow);
+
+void funcwindow_mark_reachable (GtkMenuItem * menuItem,
+                                struct _funcwindow * funcwindow);
+
+void funcwindow_changed_event (GtkComboBox * comboBox,
+                               struct _funcwindow * funcwindow);
 
 
 #endif

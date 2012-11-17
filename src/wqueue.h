@@ -6,8 +6,8 @@
 #include "object.h"
 #include "queue.h"
 
-#define WQUEUE_CALLBACK(XX) (void * (*) (void *)) XX
-#define WQUEUE_THREAD_N 4
+#define WQUEUE_CALLBACK(XX) ((void * (*) (void *)) XX)
+#define WQUEUE_THREAD_N 16
 
 struct _wqueue_item {
     const struct _object * object;

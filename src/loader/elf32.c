@@ -3,6 +3,7 @@
 #include "buffer.h"
 #include "index.h"
 #include "label.h"
+#include "map.h"
 #include "queue.h"
 #include "tree.h"
 #include "util.h"
@@ -24,14 +25,16 @@ static const struct _loader_object elf32_object = {
         NULL,
         (json_t * (*) (void *)) elf32_serialize
     },
-    (uint64_t        (*) (void *))           elf32_entry,
-    (struct _graph * (*) (void *))           elf32_graph,
-    (struct _map *   (*) (void *))           elf32_functions,
-    (struct _map  *  (*) (void *))           elf32_labels,
-    (struct _graph * (*) (void *, uint64_t)) elf32_graph_address,
-    (struct _map *   (*) (void *))           elf32_memory_map,
-    (struct _map *   (*) (void *, uint64_t)) elf32_function_address,
-    (struct _label * (*) (void *, uint64_t)) elf32_label_address
+    (uint64_t        (*) (void *))                elf32_entry,
+    (struct _graph * (*) (void *))                elf32_graph,
+    (struct _map *   (*) (void *))                elf32_functions,
+    (struct _map  *  (*) (void *))                elf32_labels,
+    (struct _graph * (*) (void *, uint64_t))      elf32_graph_address,
+    (struct _map *   (*) (void *))                elf32_memory_map,
+    (struct _map *   (*) (void *, uint64_t))      elf32_function_address,
+    (struct _label * (*) (void *, uint64_t))      elf32_label_address,
+    (struct _graph * (*) (void *, struct _map *)) elf32_graph_functions,
+    (struct _map *   (*) (void *, struct _map *)) elf32_labels_functions
 };
 
 
@@ -145,6 +148,32 @@ uint64_t elf32_base_address (struct _elf32 * elf32)
     }
 
     return 0;
+}
+
+
+
+uint64_t elf32_base_offset (struct _elf32 * elf32)
+{
+    int phdr_i;
+
+    uint64_t lowest_offset  = -1;
+    uint64_t lowest_address = -1;
+
+    for (phdr_i = 0; phdr_i < elf32->ehdr->e_phnum; phdr_i++) {
+        Elf32_Phdr * phdr = elf32_phdr(elf32, phdr_i);
+        if (phdr->p_vaddr == 0)
+            continue;
+
+        if (phdr->p_offset == 0)
+            return 0;
+
+        if (phdr->p_vaddr < lowest_address) {
+            lowest_address = phdr->p_vaddr;
+            lowest_offset  = phdr->p_offset;
+        }
+    }
+
+    return lowest_offset;
 }
 
 
@@ -331,48 +360,9 @@ const char * elf32_rel_name_by_address (struct _elf32 * elf32, uint64_t address)
 
 struct _graph * elf32_graph (struct _elf32 * elf32)
 {
-
-    struct _graph  * graph;
-    struct _wqueue * wqueue;
-
-    // disassemble from entry point
-    graph = x86_graph(elf32_base_address(elf32),
-                      elf32_entry(elf32) - elf32_base_address(elf32),
-                      elf32->data,
-                      elf32->data_size);
-
-    // disassemble all functions from elf64_function_tree
     struct _map * functions = elf32_functions(elf32);
-    struct _map_it * it;
 
-    wqueue = wqueue_create();
-    for (it  = map_iterator(functions);
-         it != NULL;
-         it  = map_it_next(it)) {
-        struct _function * function = map_it_data(it);
-
-        printf("graphing %llx\n", (unsigned long long) function->address);
-
-        struct _x86_graph_wqueue * xgw;
-        xgw = x86_graph_wqueue_create(elf32_base_address(elf32),
-                                      function->address - elf32_base_address(elf32),
-                                      elf32->data,
-                                      elf32->data_size);
-        wqueue_push(wqueue, WQUEUE_CALLBACK(x86_graph_wqueue), xgw);
-        object_delete(xgw);
-    }
-
-    wqueue_wait(wqueue);
-
-    while (wqueue_peek(wqueue) != NULL) {
-        graph_merge(graph, wqueue_peek(wqueue));
-        wqueue_pop(wqueue);
-    }
-
-    object_delete(wqueue);
-
-    graph_reduce(graph);
-    remove_function_predecessors(graph, functions);
+    struct _graph * graph = elf32_graph_functions(elf32, functions);
 
     object_delete(functions);
 
@@ -480,21 +470,13 @@ struct _map * elf32_functions (struct _elf32 * elf32)
 
 struct _map * elf32_labels (struct _elf32 * elf32)
 {
-    struct _map * labels_map = map_create();
     struct _map * functions  = elf32_functions(elf32);
 
-    struct _map_it * it;
-    for (it = map_iterator(functions); it != NULL; it = map_it_next(it)) {
-        struct _function * function = map_it_data(it);
-
-        struct _label * label = elf32_label_address(elf32, function->address);
-        map_insert(labels_map, function->address, label);
-        object_delete(label);
-    }
+    struct _map * labels = elf32_labels_functions(elf32, functions);
 
     object_delete(functions);
 
-    return labels_map;
+    return labels;
 }
 
 
@@ -656,4 +638,76 @@ struct _label * elf32_label_address (struct _elf32 * elf32, uint64_t address)
     // symbol exists
     struct _label * label = label_create(address, name, LABEL_FUNCTION);
     return label;
+}
+
+
+
+struct _graph * elf32_graph_functions (struct _elf32 * elf32, struct _map * functions)
+{
+
+    struct _graph  * graph;
+    struct _wqueue * wqueue;
+
+    uint64_t base_address = elf32_base_address(elf32);
+    uint64_t base_offset  = elf32_base_offset(elf32);
+
+    if (base_offset >= elf32->data_size)
+        return NULL;
+
+    // disassemble from entry point
+    graph = x86_graph(base_address,
+                      elf32_entry(elf32) - base_address,
+                      &(elf32->data[base_offset]),
+                      elf32->data_size - base_offset);
+
+    struct _map_it * it;
+
+    wqueue = wqueue_create();
+    for (it  = map_iterator(functions);
+         it != NULL;
+         it  = map_it_next(it)) {
+        struct _function * function = map_it_data(it);
+
+        printf("graphing %llx\n", (unsigned long long) function->address);
+
+        struct _x86_wqueue * x86w;
+        x86w = x86_wqueue_create(elf32_base_address(elf32),
+                                 function->address - elf32_base_address(elf32),
+                                 elf32->data,
+                                 elf32->data_size);
+        wqueue_push(wqueue, WQUEUE_CALLBACK(x86_graph_wqueue), x86w);
+        object_delete(x86w);
+    }
+
+    wqueue_wait(wqueue);
+
+    while (wqueue_peek(wqueue) != NULL) {
+        graph_merge(graph, wqueue_peek(wqueue));
+        wqueue_pop(wqueue);
+    }
+
+    object_delete(wqueue);
+
+    graph_reduce(graph);
+    remove_function_predecessors(graph, functions);
+
+    return graph;
+}
+
+
+
+struct _map * elf32_labels_functions (struct _elf32 * elf32, struct _map * functions)
+{
+    struct _map * labels_map = map_create();
+
+    struct _map_it * it;
+    for (it = map_iterator(functions); it != NULL; it = map_it_next(it)) {
+        struct _function * function = map_it_data(it);
+
+        struct _label * label = elf32_label_address(elf32, function->address);
+        map_insert(labels_map, function->address, label);
+        object_delete(label);
+    }
+
+    return labels_map;
 }

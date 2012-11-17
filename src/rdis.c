@@ -52,10 +52,14 @@ struct _rdis * rdis_create_with_console (_loader * loader,
 
     rdis->gui = NULL;
 
-    rdis->graph      = loader_graph(loader);
-    rdis->labels     = loader_labels(loader);
     rdis->functions  = loader_functions(loader);
+    rdis_console(rdis, "functions loaded");
+    rdis->graph      = loader_graph_functions(loader, rdis->functions);
+    rdis_console(rdis, "graph loaded");
+    rdis->labels     = loader_labels_functions(loader, rdis->functions);
+    rdis_console(rdis, "labels loaded");
     rdis->memory_map = loader_memory_map(loader);
+    rdis_console(rdis, "memory loaded");
 
     // this should be the last thing done so startup script accesses a valid
     // rdis
@@ -338,6 +342,39 @@ int rdis_user_function (struct _rdis * rdis, uint64_t address)
     object_delete(functions);
 
     rdis_callback(rdis);
+
+    return 0;
+}
+
+
+int rdis_function_reachable (struct _rdis * rdis, uint64_t address)
+{
+    struct _function * function = map_fetch(rdis->functions, address);
+    if (function == NULL)
+        return -1;
+    function->flags |= FUNCTION_REACHABLE;
+
+    // get this function's call graph
+    struct _graph * cg = create_call_graph(rdis->graph, address);
+    struct _graph_it * git;
+    // for each function in the graph
+    for (git = graph_iterator(cg); git != NULL; git = graph_it_next(git)) {
+        struct _list * ins_list = graph_it_data(git);
+        struct _list_it * lit;
+        // for each call in the function in the graph
+        for (lit = list_iterator(ins_list); lit != NULL; lit = lit->next) {
+            struct _ins * ins = lit->data;
+            // insure function has correct flags
+            if (    (ins->flags & (INS_FLAG_TARGET_SET | INS_FLAG_CALL))
+                 == (INS_FLAG_TARGET_SET | INS_FLAG_CALL)) {
+
+                function = map_fetch(rdis->functions, ins->target);
+                if (function == NULL)
+                    continue;
+                function->flags |= FUNCTION_REACHABLE;
+            }
+        }
+    }
 
     return 0;
 }

@@ -8,7 +8,7 @@
 #include "map.h"
 #include "object.h"
 
-struct _x8664_graph_wqueue {
+struct _x8664_wqueue {
     const struct _object * object;
     uint64_t address;
     size_t   offset;
@@ -17,17 +17,13 @@ struct _x8664_graph_wqueue {
 };
 
 
-struct _x8664_graph_wqueue * x8664_graph_wqueue_create
+struct _x8664_wqueue * x8664_wqueue_create
     (uint64_t address, size_t offset, void * data, size_t data_size);
 
-void x8664_graph_wqueue_delete
-    (struct _x8664_graph_wqueue * x8664_graph_wqueue);
-
-struct _x8664_graph_wqueue * x8664_graph_wqueue_copy 
-    (struct _x8664_graph_wqueue * x8664_graph_wqueue);
-
-void * x8664_graph_wqueue (struct _x8664_graph_wqueue * x8664_graph_wqueue);
-
+void                   x8664_wqueue_delete     (struct _x8664_wqueue * x8664_wqueue);
+struct _x8664_wqueue * x8664_wqueue_copy       (struct _x8664_wqueue * x8664_wqueue);
+void *                 x8664_graph_wqueue      (struct _x8664_wqueue * x8664_wqueue);
+void *                 x8664_functions_wqueue  (struct _x8664_wqueue * x8664_wqueue);
 
 struct _ins *   x8664_ins   (uint64_t address, ud_t * ud_obj);
 

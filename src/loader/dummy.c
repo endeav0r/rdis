@@ -10,14 +10,16 @@ static const struct _loader_object dummy_object = {
         NULL,
         (json_t * (*) (void *)) dummy_loader_serialize
     },
-    (uint64_t        (*) (void *))           dummy_loader_entry,
-    (struct _graph * (*) (void *))           dummy_loader_graph,
-    (struct _map *   (*) (void *))           dummy_loader_functions,
-    (struct _map  *  (*) (void *))           dummy_loader_labels,
-    (struct _graph * (*) (void *, uint64_t)) dummy_loader_graph_address,
-    (struct _map *   (*) (void *))           dummy_loader_memory_map,
-    (struct _map  *  (*) (void *, uint64_t)) dummy_loader_function_address,
-    (struct _label * (*) (void *, uint64_t)) dummy_loader_label_address
+    (uint64_t        (*) (void *))                dummy_loader_entry,
+    (struct _graph * (*) (void *))                dummy_loader_graph,
+    (struct _map *   (*) (void *))                dummy_loader_functions,
+    (struct _map  *  (*) (void *))                dummy_loader_labels,
+    (struct _graph * (*) (void *, uint64_t))      dummy_loader_graph_address,
+    (struct _map *   (*) (void *))                dummy_loader_memory_map,
+    (struct _map  *  (*) (void *, uint64_t))      dummy_loader_function_address,
+    (struct _label * (*) (void *, uint64_t))      dummy_loader_label_address,
+    (struct _graph * (*) (void *, struct _map *)) dummy_loader_graph_functions,
+    (struct _map *   (*) (void *, struct _map *)) dummy_loader_labels_functions
 };
 
 
@@ -85,6 +87,18 @@ struct _label * dummy_loader_label_address (struct _dummy_loader * dl, uint64_t 
 
 
 struct _map * dummy_loader_function_address (struct _dummy_loader * dl, uint64_t addr)
+{
+    return map_create();
+}
+
+struct _graph * dummy_loader_graph_functions (struct _dummy_loader * dl,
+                                              struct _map * f)
+{
+    return graph_create();
+}
+
+struct _map   * dummy_loader_labels_functions (struct _dummy_loader * dl,
+                                               struct _map * f)
 {
     return map_create();
 }
