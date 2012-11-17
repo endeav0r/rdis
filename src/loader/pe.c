@@ -18,14 +18,16 @@ static const struct _loader_object pe_object = {
         NULL,
         (json_t * (*) (void *)) pe_serialize
     },
-    (uint64_t        (*) (void *))           pe_entry,
-    (struct _graph * (*) (void *))           pe_graph,
-    (struct _map  *  (*) (void *))           pe_functions,
-    (struct _map  *  (*) (void *))           pe_labels,
-    (struct _graph * (*) (void *, uint64_t)) pe_graph_address,
-    (struct _map *   (*) (void *))           pe_memory_map,
-    (struct _map  *  (*) (void *, uint64_t)) pe_function_address,
-    (struct _label * (*) (void *, uint64_t)) pe_label_address
+    (uint64_t        (*) (void *))                pe_entry,
+    (struct _graph * (*) (void *))                pe_graph,
+    (struct _map  *  (*) (void *))                pe_functions,
+    (struct _map  *  (*) (void *))                pe_labels,
+    (struct _graph * (*) (void *, uint64_t))      pe_graph_address,
+    (struct _map *   (*) (void *))                pe_memory_map,
+    (struct _map  *  (*) (void *, uint64_t))      pe_function_address,
+    (struct _label * (*) (void *, uint64_t))      pe_label_address,
+    (struct _graph * (*) (void *, struct _map *)) pe_graph_functions,
+    (struct _map *   (*) (void *, struct _map *)) pe_labels_functions
 };
 
 
@@ -395,23 +397,9 @@ uint64_t pe_entry (struct _pe * pe)
 struct _graph * pe_graph (struct _pe * pe)
 {
     struct _map   * functions = pe_functions(pe);
-    struct _graph * graph     = graph_create();
 
-    struct _map_it * it;
-    for (it = map_iterator(functions); it != NULL; it = map_it_next(it)) {
-        struct _function * function = map_it_data(it);
-
-        struct _graph * function_graph = pe_graph_address(pe, function->address);
-        if (function_graph == NULL) {
-            printf("null function graph: %llx\n",
-                   (unsigned long long) function->address);
-        }
-        graph_merge(graph, function_graph);
-        object_delete(function_graph);
-    }
-
-    graph_reduce(graph);
-    remove_function_predecessors(graph, functions);
+    struct _graph * graph     = pe_graph_functions(pe, functions);
+    
     object_delete(functions);
 
     return graph;
@@ -444,17 +432,8 @@ struct _map * pe_functions (struct _pe * pe)
 struct _map * pe_labels (struct _pe * pe)
 {
     struct _map * functions = pe_functions(pe);
-    struct _map * labels    = map_create();
 
-    struct _map_it * it;
-    for (it = map_iterator(functions); it != NULL; it = map_it_next(it)) {
-        struct _function * function = map_it_data(it);
-
-        struct _label * label = pe_label_address(pe, function->address);
-        if (label != NULL)
-            map_insert(labels, function->address, label);
-        object_delete(label);
-    }
+    struct _map * labels    = pe_labels_functions(pe, functions);
 
     object_delete(functions);
 
@@ -599,4 +578,46 @@ struct _label * pe_label_address (struct _pe * pe, uint64_t address)
 struct _map * pe_memory_map (struct _pe * pe)
 {
     return map_create();
+}
+
+
+struct _graph * pe_graph_functions (struct _pe * pe, struct _map * functions)
+{
+    struct _graph * graph     = graph_create();
+
+    struct _map_it * it;
+    for (it = map_iterator(functions); it != NULL; it = map_it_next(it)) {
+        struct _function * function = map_it_data(it);
+
+        struct _graph * function_graph = pe_graph_address(pe, function->address);
+        if (function_graph == NULL) {
+            printf("null function graph: %llx\n",
+                   (unsigned long long) function->address);
+        }
+        graph_merge(graph, function_graph);
+        object_delete(function_graph);
+    }
+
+    graph_reduce(graph);
+    remove_function_predecessors(graph, functions);
+ 
+    return graph;
+}
+
+
+struct _map * pe_labels_functions (struct _pe * pe, struct _map * functions)
+{
+    struct _map * labels    = map_create();
+
+    struct _map_it * it;
+    for (it = map_iterator(functions); it != NULL; it = map_it_next(it)) {
+        struct _function * function = map_it_data(it);
+
+        struct _label * label = pe_label_address(pe, function->address);
+        if (label != NULL)
+            map_insert(labels, function->address, label);
+        object_delete(label);
+    }
+
+    return labels;
 }
