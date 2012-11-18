@@ -4,6 +4,7 @@
 #include <inttypes.h>
 #include <stdlib.h>
 
+#include "buffer.h"
 #include "graph.h"
 #include "map.h"
 #include "tree.h"
@@ -34,5 +35,7 @@ size_t rdstrcat (char * dst, char * src, size_t size);
 struct _ins * graph_fetch_ins (struct _graph * graph, uint64_t address);
 
 int mem_map_byte (struct _map * mem_map, uint64_t address);
+
+int mem_map_set (struct _map * mem_map, uint64_t address, struct _buffer * buffer);
 
 #endif

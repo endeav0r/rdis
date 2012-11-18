@@ -377,7 +377,7 @@ int rdis_user_function (struct _rdis * rdis, uint64_t address)
 
     object_delete(functions);
 
-    rdis_callback(rdis);
+    rdis_callback(rdis, RDIS_CALLBACK_ALL);
 
     return 0;
 }
@@ -418,9 +418,10 @@ int rdis_function_reachable (struct _rdis * rdis, uint64_t address)
 
 uint64_t rdis_add_callback (struct _rdis * rdis,
                             void (* callback) (void *),
-                            void * data)
+                            void * data,
+                            int type_mask)
 {
-    struct _rdis_callback * rc = rdis_callback_create(callback, data);
+    struct _rdis_callback * rc = rdis_callback_create(callback, data, type_mask);
     uint64_t identifier = rdis->callback_counter++;
 
     rc->identifier = identifier;
@@ -441,12 +442,17 @@ void rdis_remove_callback (struct _rdis * rdis, uint64_t identifier)
 }
 
 
-void rdis_callback (struct _rdis * rdis)
+void rdis_callback (struct _rdis * rdis, int type_mask)
 {
     struct _map_it * it;
 
     for (it = map_iterator(rdis->callbacks); it != NULL; it = map_it_next(it)) {
         struct _rdis_callback * rc = map_it_data(it);
+        printf("rc->data %p rc->type_mask %x type_mask %x\n",
+               rc->data, rc->type_mask, type_mask);
+        if ((rc->type_mask & type_mask) == 0)
+            continue;
+
         printf("callback %p %llx\n",
                rc->callback, (unsigned long long) rc->identifier);
         fflush(stdout);
@@ -460,7 +466,8 @@ void rdis_callback (struct _rdis * rdis)
 
 
 struct _rdis_callback * rdis_callback_create (void (* callback) (void *),
-                                              void * data)
+                                              void * data,
+                                              int type_mask)
 {
     struct _rdis_callback * rc;
 
@@ -469,6 +476,7 @@ struct _rdis_callback * rdis_callback_create (void (* callback) (void *),
     rc->identifier = 0;
     rc->callback   = callback;
     rc->data       = data;
+    rc->type_mask  = type_mask;
 
     return rc;
 }
@@ -484,7 +492,7 @@ struct _rdis_callback * rdis_callback_copy (struct _rdis_callback * rc)
 {
     struct _rdis_callback * rc_copy;
 
-    rc_copy = rdis_callback_create(rc->callback, rc->data);
+    rc_copy = rdis_callback_create(rc->callback, rc->data, rc->type_mask);
     rc_copy->identifier = rc->identifier;
 
     return rc_copy;

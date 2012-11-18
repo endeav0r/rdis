@@ -78,6 +78,22 @@ struct _ins * x8664_ins (uint64_t address, ud_t * ud_obj)
                      ud_insn_asm(ud_obj),
                      NULL);
 
+    if (ud_obj->mnemonic == UD_Ilea) {
+        printf("%s ", ud_insn_asm(ud_obj));
+        switch (ud_obj->operand[1].type) {
+        case UD_OP_IMM : printf("UD_OP_IMM\n"); break;
+        case UD_OP_MEM :
+            printf("UD_OP_MEM %d %d %d %d\n",
+                   ud_obj->operand[1].base,
+                   ud_obj->operand[1].scale,
+                   ud_obj->operand[1].index,
+                   ud_obj->operand[1].offset);
+            break;
+        case UD_OP_JIMM : printf("UD_OP_JIMM\n"); break;
+        default : printf("UD_OP_???\n"); break;
+        }
+    }
+
     if (udis86_target(address, &(ud_obj->operand[0])) != -1) {
         char * mnemonic_str = NULL;
         switch (ud_obj->mnemonic) {
@@ -184,7 +200,7 @@ uint64_t udis86_rip_offset (uint64_t address, struct ud_operand * operand)
          && (operand->base  == UD_R_RIP)
          && (operand->index == 0)
          && (operand->scale == 0)) {
-        switch (operand->size) {
+        switch (operand->offset) {
             case 8  : return address + operand->lval.ubyte;
             case 16 : return address + operand->lval.uword;
             case 32 : return address + operand->lval.udword;

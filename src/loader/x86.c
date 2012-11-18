@@ -57,11 +57,36 @@ struct _ins * x86_ins (uint64_t address, ud_t * ud_obj)
             ins_s_target(ins, destination);
         }
     }
-    else if (ud_obj->operand[0].type == UD_OP_IMM) {
-        printf("UD_OP_IMM: %s\n", ud_insn_asm(ud_obj));
+    else if (udis86_target(address, &(ud_obj->operand[1])) != -1) {
+        uint64_t destination = ud_insn_len(ud_obj);
+        destination += udis86_target(address, &(ud_obj->operand[1]));
+        struct _reference * reference;
+        reference = reference_create(REFERENCE_LOAD, address, destination);
+        ins_add_reference(ins, reference);
+        object_delete(reference);
     }
-    else if (    (ud_obj->operand[1].type == UD_OP_IMM)
-              && (ud_obj->operand[1].size >= 32)) {
+    else if (udis86_target(address, &(ud_obj->operand[0])) != -1) {
+        uint64_t destination = ud_insn_len(ud_obj);
+        destination += udis86_target(address, &(ud_obj->operand[1]));
+        struct _reference * reference;
+        reference = reference_create(REFERENCE_STORE, address, destination);
+        ins_add_reference(ins, reference);
+        object_delete(reference);
+    }
+    if (    (ud_obj->operand[0].type == UD_OP_IMM)
+         && (ud_obj->operand[0].size >= 32)) {
+        int64_t tmp = udis86_sign_extend_lval(&(ud_obj->operand[0]));
+        if (tmp > 0x1000) {
+            struct _reference * reference;
+            reference = reference_create(REFERENCE_CONSTANT,
+                                         address,
+                                         udis86_sign_extend_lval(&(ud_obj->operand[0])));
+            ins_add_reference(ins, reference);
+            object_delete(reference);
+        }
+    }
+    if (    (ud_obj->operand[1].type == UD_OP_IMM)
+         && (ud_obj->operand[1].size >= 32)) {
         int64_t tmp = udis86_sign_extend_lval(&(ud_obj->operand[1]));
         if (tmp > 0x1000) {
             struct _reference * reference;

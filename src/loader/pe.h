@@ -55,7 +55,7 @@ const char * pe_strtab (struct _pe * pe, unsigned int offset);
 // name, or -1 if the name could not be found. buf will be null-terminated
 int pe_symbol_name (struct _pe * pe, int sym_i, char * buf, int buf_size);
 
-uint64_t pe_base_address (struct _pe * pe);
+uint64_t pe_image_base (struct _pe * pe);
 
 // returns the index of the section that the given address falls within, or -1
 // if the section could not be found

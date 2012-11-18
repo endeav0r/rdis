@@ -82,7 +82,8 @@ struct _refwindow * refwindow_create (struct _gui * gui)
 
     refwindow->callback_identifier = rdis_add_callback(refwindow->gui->rdis,
                                         RDIS_CALLBACK(refwindow_rdis_callback),
-                                                       refwindow);
+                                        refwindow,
+                                        RDIS_CALLBACK_GRAPH_NODE);
     
     return refwindow;
 }

@@ -18,8 +18,6 @@ GtkWidget * tipwindow (const char * text)
 
     gtk_label_set_markup(GTK_LABEL(label), text);
 
-    printf("final text: %s\n", text);
-
     // set up containers
     gtk_container_add(GTK_CONTAINER(window), label);
 
@@ -48,7 +46,10 @@ GtkWidget * tipwindow (const char * text)
 
 
 
-struct _rdgwindow * rdgwindow_create (struct _gui * gui, struct _graph * graph)
+struct _rdgwindow * rdgwindow_create (struct _gui * gui,
+                                      struct _graph * graph,
+                                      int type,
+                                      uint64_t top_index)
 {
     struct _rdgwindow * rdgwindow;
 
@@ -75,12 +76,8 @@ struct _rdgwindow * rdgwindow_create (struct _gui * gui, struct _graph * graph)
     rdgwindow->editing        = 0;
     rdgwindow->tooltip        = NULL;
 
-
-    // find the top index in this graph
-    struct _graph_it * git = graph_iterator(rdgwindow->graph);
-    struct _graph_node * node = graph_it_node(git);
-    rdgwindow->top_index = node->index;
-    graph_it_delete(git);
+    rdgwindow->type           = type;
+    rdgwindow->top_index      = top_index;
 
     rdgwindow->rdg = rdg_create(rdgwindow->top_index,
                                 rdgwindow->graph,
@@ -162,7 +159,8 @@ struct _rdgwindow * rdgwindow_create (struct _gui * gui, struct _graph * graph)
 
     rdgwindow->callback_identifier = rdis_add_callback(rdgwindow->gui->rdis,
                                         RDIS_CALLBACK(rdgwindow_rdis_callback),
-                                        rdgwindow);
+                                        rdgwindow,
+                                        RDIS_CALLBACK_GRAPH_NODE);
 
     return rdgwindow;
 }
@@ -287,34 +285,60 @@ gboolean rdgwindow_image_motion_notify_event (GtkWidget * widget,
 
                 char ascii[65];
                 int ascii_valid = 1;
+                int ai = 0;
                 for (i = 0; i < 64; i++) {
                     int c = mem_map_byte(rdgwindow->gui->rdis->memory_map,
                                          reference->address + i);
                     if (c == -1) {
                         ascii_valid = 0;
+                        printf("a\n");
                         break;
                     }
 
                     if (c == 0) {
                         if (i > 4) {
-                            ascii[i] = 0;
+                            ascii[ai] = 0;
+                            printf("b\n");
                             break;
                         }
                         else {
                             ascii_valid = 0;
+                            printf("c\n");
                             break;
                         }
                     }
 
-                    if ((c < 0x20) || (c >= 0x7f)) {
+                    if ((c != '\n') && ((c < 0x20) || (c >= 0x7f))) {
                         ascii_valid = 0;
+                        printf("d %d %d\n", c, (int) i);
                         break;
                     }
 
-                    ascii[i] = c;
+                    if (c == '<') {
+                        ascii[ai++] = '&';
+                        ascii[ai++] = 'l';
+                        ascii[ai++] = 't';
+                        ascii[ai++] = ';';
+                    }
+                    else if (c == '>') {
+                        ascii[ai++] = '&';
+                        ascii[ai++] = 'g';
+                        ascii[ai++] = 't';
+                        ascii[ai++] = ';';
+                    }
+                    else if (c == '&') {
+                        ascii[ai++] = '&';
+                        ascii[ai++] = 'a';
+                        ascii[ai++] = 'm';
+                        ascii[ai++] = 'p';
+                        ascii[ai++] = ';';
+                    }
+                    else
+                        ascii[ai++] = c;
                 }
-                ascii[i] = 0;
+                ascii[ai] = 0;
                 if (ascii_valid) {
+                    printf("ascii: %s\n", ascii);
                     rdstrcat(references_text, "\n    <span foreground=\"#009900\">", 512);
                     rdstrcat(references_text, ascii, 512);
                     rdstrcat(references_text, "</span>", 512);
@@ -493,7 +517,7 @@ gboolean rdgwindow_image_key_press_event (GtkWidget * widget,
             }
         }
         // this callback will cause us to redraw the graph
-        rdis_callback(rdgwindow->gui->rdis);
+        rdis_callback(rdgwindow->gui->rdis, RDIS_CALLBACK_GRAPH_NODE);
         return FALSE;
     }
 
@@ -628,7 +652,23 @@ void rdgwindow_color_node_predecessors (struct _rdgwindow * rdgwindow)
 
 void rdgwindow_rdis_callback (struct _rdgwindow * rdgwindow)
 {
-    rdgwindow_image_update(rdgwindow);
+    printf("rdgwindow_rdis_callback\n");
+    // reconstruct graph family from top index
+    if (rdgwindow->type == RDGWINDOW_INS_GRAPH) {
+        struct _graph * graph = graph_family(rdgwindow->gui->rdis->graph,
+                                             rdgwindow->top_index);
+        if (graph == NULL)
+            graph = graph_create();
+        object_delete(rdgwindow->graph);
+        rdgwindow->graph = graph;
+        object_delete(rdgwindow->rdg);
+        rdgwindow->rdg = rdg_create(rdgwindow->top_index,
+                                    rdgwindow->graph,
+                                    rdgwindow->gui->rdis->labels);
+        rdgwindow_image_update(rdgwindow);
+    }
+    else
+        rdgwindow_image_update(rdgwindow);
 }
 
 

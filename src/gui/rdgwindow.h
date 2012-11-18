@@ -15,6 +15,12 @@
 #define RDGWINDOW_NODE_COLOR_SELECT 1.0, 0.9, 0.9
 #define RDGWINDOW_NODE_COLOR_PRE    0.9, 0.9, 1.0
 
+enum {
+    RDGWINDOW_OTHER,
+    RDGWINDOW_INS_GRAPH,
+    RDGWINDOW_CALL_GRAPH
+};
+
 
 struct _rdgwindow {
     GtkWidget         * window;
@@ -29,6 +35,8 @@ struct _rdgwindow {
     uint64_t            callback_identifier;
 
     uint64_t            top_index;
+    int                 type;
+    
     struct _rdg       * rdg;
 
     struct _graph     * graph;
@@ -49,7 +57,10 @@ struct _rdgwindow {
 
 
 
-struct _rdgwindow * rdgwindow_create (struct _gui * gui, struct _graph * graph);
+struct _rdgwindow * rdgwindow_create (struct _gui * gui,
+                                      struct _graph * graph,
+                                      int type,
+                                      uint64_t top_index);
 void                rdgwindow_delete (struct _rdgwindow * rdgwindow);
 GtkWidget *         rdgwindow_window (struct _rdgwindow * rdgwindow);
 

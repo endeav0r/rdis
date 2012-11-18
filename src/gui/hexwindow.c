@@ -105,7 +105,7 @@ void hexwindow_draw_memmap (struct _hexwindow * hexwindow)
         while (offset < buffer->size) {
             char addr_str[32];
             if (offset % 16 == 0) {
-                snprintf(addr_str, 32, "%04llx  ", 
+                snprintf(addr_str, 32, "%04llx", 
                          (unsigned long long) base + offset);
             }
 
@@ -121,8 +121,6 @@ void hexwindow_draw_memmap (struct _hexwindow * hexwindow)
                     h = (h < 10) ? h + '0' : (h - 10 + 'a');
                     l = (l < 10) ? l + '0' : (l - 10 + 'a');
 
-                    printf("h %d (%c) l %d (%c)\n", h, h, l, l);
-
                     bytes_str[bsi++] = h;
                     bytes_str[bsi++] = l;
                     bytes_str[bsi++] = ' ';
@@ -136,7 +134,7 @@ void hexwindow_draw_memmap (struct _hexwindow * hexwindow)
             bytes_str[bsi] = '\0';
             ascii[i] = '\0';
 
-            snprintf(line, 256, "%s  %s  %s\n", addr_str, bytes_str, ascii);
+            snprintf(line, 256, "%s  %s %s\n", addr_str, bytes_str, ascii);
 
             gtk_text_buffer_insert(hexwindow->textBuffer,
                                    &iter,
@@ -156,6 +154,8 @@ void hexwindow_mark_set     (GtkTextBuffer     * textBuffer,
                              GtkTextMark       * mark,
                              struct _hexwindow * hexwindow)
 {
+    if (! GTK_IS_TEXT_BUFFER(hexwindow->textBuffer))
+        return;
 
     if (hexwindow->resetting_mark)
         return;

@@ -323,7 +323,7 @@ int pe_symbol_name (struct _pe * pe, int sym_i, char * buf, int buf_size)
 }
 
 
-uint64_t pe_base_address (struct _pe * pe)
+uint64_t pe_image_base (struct _pe * pe)
 {
     if (pe_plus(pe)) {
         Pe_OptionalHeaderWindowsPlus * ohwp = pe_ohwp(pe);
@@ -338,7 +338,7 @@ int pe_section_index_by_address (struct _pe * pe, uint64_t address)
 {
     unsigned int sh_i;
 
-    uint64_t base_address = pe_base_address(pe);
+    uint64_t base_address = pe_image_base(pe);
 
     for (sh_i = 0; ; sh_i++) {
         Pe_SectionHeader * sh = pe_sh(pe, sh_i);
@@ -386,11 +386,11 @@ uint64_t pe_entry (struct _pe * pe)
 {
     if (pe_plus(pe) == 0) {
         Pe_OptionalHeaderStandard * ohs = pe_ohs(pe);
-        return pe_base_address(pe) + ohs->AddressOfEntryPoint;
+        return pe_image_base(pe) + ohs->AddressOfEntryPoint;
     }
 
     Pe_OptionalHeaderStandardPlus * ohsp = pe_ohsp(pe);
-    return pe_base_address(pe) + ohsp->AddressOfEntryPoint;
+    return pe_image_base(pe) + ohsp->AddressOfEntryPoint;
 }
 
 
@@ -399,7 +399,7 @@ struct _graph * pe_graph (struct _pe * pe)
     struct _map   * functions = pe_functions(pe);
 
     struct _graph * graph     = pe_graph_functions(pe, functions);
-    
+
     object_delete(functions);
 
     return graph;
@@ -411,11 +411,11 @@ struct _map * pe_functions (struct _pe * pe)
     uint64_t entry_address = -1;
     if (pe_plus(pe)) {
         Pe_OptionalHeaderStandardPlus * ohsp = pe_ohsp(pe);
-        entry_address = pe_base_address(pe) + ohsp->AddressOfEntryPoint;
+        entry_address = pe_image_base(pe) + ohsp->AddressOfEntryPoint;
     }
     else {
         Pe_OptionalHeaderStandard * ohs = pe_ohs(pe);
-        entry_address = pe_base_address(pe) + ohs->AddressOfEntryPoint;
+        entry_address = pe_image_base(pe) + ohs->AddressOfEntryPoint;
     }
 
     struct _map * functions = pe_function_address(pe, entry_address);
@@ -451,7 +451,7 @@ struct _graph * pe_graph_address (struct _pe * pe, uint64_t address)
     if (sh == NULL)
         return NULL;
 
-    uint64_t section_base = pe_base_address(pe) + sh->VirtualAddress;
+    uint64_t section_base = pe_image_base(pe) + sh->VirtualAddress;
     uint64_t section_size = sh->SizeOfRawData;
     if (sh->VirtualSize < section_size)
         section_size = sh->VirtualSize;
@@ -489,7 +489,7 @@ struct _map * pe_function_address (struct _pe * pe, uint64_t address)
     if (sh == NULL)
         return NULL;
 
-    uint64_t section_base = pe_base_address(pe) + sh->VirtualAddress;
+    uint64_t section_base = pe_image_base(pe) + sh->VirtualAddress;
     uint64_t section_size = sh->SizeOfRawData;
     if (sh->VirtualSize < section_size)
         section_size = sh->VirtualSize;
@@ -536,7 +536,7 @@ struct _label * pe_label_address (struct _pe * pe, uint64_t address)
         if (sh == NULL)
             continue;
 
-        value += sh->VirtualAddress + pe_base_address(pe);
+        value += sh->VirtualAddress + pe_image_base(pe);
 
         if (    (sym->Type != IMAGE_SYM_MSFT_FUNCTION)
              || (value != address))
@@ -577,7 +577,37 @@ struct _label * pe_label_address (struct _pe * pe, uint64_t address)
 
 struct _map * pe_memory_map (struct _pe * pe)
 {
-    return map_create();
+    struct _map * map = map_create();
+    Pe_FileHeader * pfh = pe_fh(pe);
+
+    size_t sec_i;
+    for (sec_i = 0; sec_i < pfh->NumberOfSections; sec_i++) {
+        Pe_SectionHeader * psh = pe_sh(pe, sec_i);
+        if (psh == NULL)
+            continue;
+
+        if (psh->VirtualSize == 0)
+            continue;
+
+        uint64_t size = psh->SizeOfRawData;
+        if (psh->SizeOfRawData > psh->VirtualSize)
+            size = psh->VirtualSize;
+
+        if (psh->PointerToRawData + size > pe->data_size)
+            continue;
+
+        uint8_t * tmp = (uint8_t *) malloc(psh->VirtualSize);
+        memset(tmp, 0, psh->VirtualSize);
+        memcpy(tmp, &(pe->data[psh->PointerToRawData]), size);
+
+        struct _buffer * buffer = buffer_create(tmp, psh->VirtualSize);
+        free(tmp);
+
+        mem_map_set(map, pe_image_base(pe) + psh->VirtualAddress, buffer);
+        object_delete(buffer);
+    }
+
+    return map;
 }
 
 

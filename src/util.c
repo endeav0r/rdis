@@ -205,3 +205,62 @@ int mem_map_byte (struct _map * mem_map, uint64_t address)
 
     return ((int) buffer->bytes[address - base_address]) & 0x000000ff;
 }
+
+
+int mem_map_set (struct _map * mem_map, uint64_t address, struct _buffer * buf)
+{
+    struct _buffer * buf2 = map_fetch_max(mem_map, address + buf->size);
+    uint64_t key            = map_fetch_max_key(mem_map, address + buf->size);
+
+    if (    (buf2 != NULL)
+         && (    ((address <= key) && (address + buf->size > key))
+              || (    (address <= key + buf2->size)
+                   && (address + buf->size > key + buf2->size))
+              || ((address >= key) && (address + buf->size < key + buf2->size)))) {
+
+        // if this section fits inside a previous section, modify in place
+        if ((address >= key) && (address + buf->size <= key + buf2->size)) {
+            memcpy(&(buf2->bytes[address - key]), buf->bytes, buf->size);
+        }
+
+        // if this section comes before a previous section
+        else if (address <= key) {
+            uint64_t new_size;
+            if (address + buf->size < key + buf2->size)
+                new_size = key + buf2->size;
+            else
+                new_size = address + buf->size;
+            new_size -= address;
+
+            uint8_t * tmp = malloc(new_size);
+            memcpy(&(tmp[key - address]), buf2->bytes, buf2->size);
+            memcpy(tmp, buf->bytes, buf->size);
+
+            struct _buffer * new_buffer = buffer_create(tmp, new_size);
+            free(tmp);
+            map_remove(mem_map, key);
+            map_insert(mem_map, address, new_buffer);
+            object_delete(new_buffer);
+        }
+
+        // if this section overlaps previous section but starts after previous
+        // section starts
+        else {
+            uint64_t new_size = address + buf->size - key;
+            uint8_t * tmp = malloc(new_size);
+            memcpy(tmp, buf2->bytes, buf2->size);
+            memcpy(&(tmp[address - key]), buf->bytes, buf->size);
+
+            struct _buffer * new_buffer = buffer_create(tmp, new_size);
+            free(tmp);
+            map_remove(mem_map, key);
+            map_insert(mem_map, key, new_buffer);
+            object_delete(new_buffer);
+        }
+    }
+    else {
+        map_insert(mem_map, address, buf);
+    }
+
+    return 0;
+}

@@ -10,8 +10,15 @@
 
 #define RDIS_CALLBACK(XX) ((void (*) (void *)) XX)
 
+#define RDIS_CALLBACK_GRAPH      (1 << 0)
+#define RDIS_CALLBACK_GRAPH_NODE (1 << 1)
+#define RDIS_CALLBACK_FUNCTION   (1 << 2)
+#define RDIS_CALLBACK_LABEL      (1 << 3)
+#define RDIS_CALLBACK_ALL        0x000000ff
+
 struct _rdis_callback {
     const struct _object * object;
+    int type_mask;
     uint64_t  identifier;
     void   (* callback) (void *);
     void    * data;
@@ -70,12 +77,14 @@ int rdis_function_reachable (struct _rdis * rdis, uint64_t address);
 // returns callback identifier so callback can be removed later
 uint64_t rdis_add_callback    (struct _rdis * rdis,
                                void (* callback) (void *),
-                               void * data);
+                               void * data,
+                               int type_mask);
 void     rdis_remove_callback (struct _rdis * rdis, uint64_t identifier);
-void     rdis_callback        (struct _rdis * rdis);
+void     rdis_callback        (struct _rdis * rdis, int type_mask);
 
 struct _rdis_callback * rdis_callback_create (void (* callback) (void *),
-                                              void * data);
+                                              void * data,
+                                              int type_mask);
 void                    rdis_callback_delete (struct _rdis_callback * rc);
 struct _rdis_callback * rdis_callback_copy   (struct _rdis_callback * rc);
 int                     rdis_callback_cmp    (struct _rdis_callback * lhs,

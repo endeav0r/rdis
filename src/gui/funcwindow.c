@@ -9,6 +9,7 @@
 #include "gui.h"
 #include "index.h"
 #include "label.h"
+#include "rdgwindow.h"
 #include "tree.h"
 #include "util.h"
 
@@ -136,8 +137,9 @@ struct _funcwindow * funcwindow_create (struct _gui * gui)
     gtk_widget_show(funcwindow->scrolledWindow);
 
     funcwindow->callback_identifier = rdis_add_callback(funcwindow->gui->rdis,
-                                       RDIS_CALLBACK(funcwindow_rdis_callback),
-                                                        funcwindow);
+                                RDIS_CALLBACK(funcwindow_rdis_callback),
+                                funcwindow,
+                                RDIS_CALLBACK_FUNCTION | RDIS_CALLBACK_LABEL);
     
     return funcwindow;
 }
@@ -251,7 +253,7 @@ void funcwindow_row_activated (GtkTreeView * treeView,
 
     struct _graph * graph = graph_family(funcwindow->gui->rdis->graph, index);
     if (graph != NULL) {
-        gui_rdgwindow(funcwindow->gui, graph);
+        gui_rdgwindow(funcwindow->gui, graph, RDGWINDOW_INS_GRAPH, index);
         object_delete(graph);
     }
     else {
@@ -292,7 +294,7 @@ void funcwindow_edited (GtkCellRendererText * renderer,
 
     label_set_text(label, new_text);
 
-    rdis_callback(funcwindow->gui->rdis);
+    rdis_callback(funcwindow->gui->rdis, RDIS_CALLBACK_LABEL);
 }
 
 
@@ -354,7 +356,7 @@ void funcwindow_call_graph (GtkMenuItem * menuItem,
 
         graph_debug(graph);
 
-        gui_rdgwindow(funcwindow->gui, graph);
+        gui_rdgwindow(funcwindow->gui, graph, RDGWINDOW_CALL_GRAPH, index);
 
         object_delete(graph);
     }

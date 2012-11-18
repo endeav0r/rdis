@@ -217,20 +217,20 @@ cairo_surface_t * rdg_node_draw_full (struct _graph_node * node,
         if (ins->target != -1) {
             struct _label * label = map_fetch(labels, ins->target);
             if (label != NULL) {
-                snprintf(tmp, 128, " (%s) ", label->text);
+                snprintf(tmp, 128, " %s", label->text);
                 cairo_move_to(ctx, line_x, top);
                 cairo_set_source_rgb(ctx, RDG_NODE_LABEL_COLOR);
                 cairo_show_text(ctx, tmp);
                 cairo_text_extents(ctx, tmp, &te);
-                line_x += te.width;
+                line_x += te.width + 4;
             }
         }
 
         if (ins->references->size > 0) {
             char references_str[256];
-            strcpy(references_str, " ");
+            references_str[0] = 0;
             struct _list_it * lit;
-            
+
             for (lit = list_iterator(ins->references);
                  lit != NULL;
                  lit = lit->next) {
@@ -239,7 +239,7 @@ cairo_surface_t * rdg_node_draw_full (struct _graph_node * node,
                     continue;
 
                 char reference_str[32];
-                snprintf(reference_str, 32, "%04llx ",
+                snprintf(reference_str, 32, " %04llx",
                          (unsigned long long) reference->address);
                 rdstrcat(references_str, reference_str, 256);
             }
