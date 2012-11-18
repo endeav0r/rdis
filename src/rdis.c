@@ -61,6 +61,8 @@ struct _rdis * rdis_create_with_console (_loader * loader,
     rdis->memory_map = loader_memory_map(loader);
     rdis_console(rdis, "memory loaded");
 
+    rdis_check_references(rdis);
+
     // this should be the last thing done so startup script accesses a valid
     // rdis
     rdis->rdis_lua      = rdis_lua_create(rdis);
@@ -148,6 +150,40 @@ struct _rdis * rdis_deserialize (json_t * json)
     rdis->memory_map       = mmemory_map;
 
     return rdis;
+}
+
+
+void rdis_check_references (struct _rdis * rdis)
+{
+    struct _graph_it * git;
+    // for each node
+    for (git = graph_iterator(rdis->graph); git != NULL; git = graph_it_next(git)) {
+        struct _graph_node * node = graph_it_node(git);
+        struct _list_it * lit;
+
+        // for each instruction
+        for (lit = list_iterator(node->data); lit != NULL; lit = lit->next) {
+            struct _ins * ins = lit->data;
+            struct _list_it * rit;
+
+            // for each reference
+            for (rit = list_iterator(ins->references); rit != NULL; rit = rit->next) {
+                struct _reference * reference = rit->data;
+
+                if (reference->type == REFERENCE_CONSTANT) {
+                    uint64_t lower = map_fetch_max_key(rdis->memory_map, reference->address);
+                    struct _buffer * buffer = map_fetch(rdis->memory_map, lower);
+                    if (buffer == NULL)
+                        continue;
+                    uint64_t upper = lower + buffer->size;
+                    if (    (reference->address < lower)
+                         || (reference->address >= upper))
+                        continue;
+                    reference->type = REFERENCE_CONSTANT_ADDRESSABLE;
+                }
+            }
+        }
+    }
 }
 
 

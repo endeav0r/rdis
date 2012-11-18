@@ -598,8 +598,8 @@ struct _graph * pe_graph_functions (struct _pe * pe, struct _map * functions)
         object_delete(function_graph);
     }
 
-    graph_reduce(graph);
     remove_function_predecessors(graph, functions);
+    graph_reduce(graph);
  
     return graph;
 }

@@ -2,8 +2,51 @@
 
 #include "instruction.h"
 #include "queue.h"
+#include "util.h"
 
 #include <string.h>
+#include <gdk/gdk.h>
+
+
+
+
+
+GtkWidget * tipwindow (const char * text)
+{
+    GtkWidget * window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    GtkWidget * label  = gtk_label_new(NULL);
+
+    gtk_label_set_markup(GTK_LABEL(label), text);
+
+    printf("final text: %s\n", text);
+
+    // set up containers
+    gtk_container_add(GTK_CONTAINER(window), label);
+
+    GdkDisplay * gd = gdk_display_get_default();
+    GdkScreen * gs = gtk_widget_get_screen(window);
+    GdkWindow * rw = gdk_screen_get_root_window(gs);
+
+    GdkDeviceManager * gdm = gdk_display_get_device_manager(gd);
+    GdkDevice * pointer = gdk_device_manager_get_client_pointer(gdm);
+
+    gint x, y;
+    gdk_window_get_device_position(rw, pointer, &x, &y, NULL);
+
+    gtk_window_move(GTK_WINDOW(window), x, y);
+
+    gtk_window_set_keep_above(GTK_WINDOW(window), TRUE);
+
+    GdkColor bg = {0x0, 0xffff, 0xffff, 0xffff};
+    gtk_widget_modify_bg(window, GTK_STATE_NORMAL, &bg);
+
+    gtk_widget_show(label);
+    gtk_widget_show(GTK_WIDGET(window));
+    
+    return window;
+}
+
+
 
 struct _rdgwindow * rdgwindow_create (struct _gui * gui, struct _graph * graph)
 {
@@ -30,6 +73,7 @@ struct _rdgwindow * rdgwindow_create (struct _gui * gui, struct _graph * graph)
     rdgwindow->node_colors    = NULL;
 
     rdgwindow->editing        = 0;
+    rdgwindow->tooltip        = NULL;
 
 
     // find the top index in this graph
@@ -99,6 +143,10 @@ struct _rdgwindow * rdgwindow_create (struct _gui * gui, struct _graph * graph)
     gtk_widget_show(rdgwindow->scrolledWindow);
     gtk_widget_show(rdgwindow->imageEventBox);
 
+    gtk_widget_set_events(rdgwindow->imageEventBox,
+                          gtk_widget_get_events(rdgwindow->imageEventBox)
+                          | GDK_POINTER_MOTION_MASK);
+
 
     rdgwindow_image_update(rdgwindow);
 
@@ -130,6 +178,9 @@ void rdgwindow_delete (struct _rdgwindow * rdgwindow)
 
     if (rdgwindow->node_colors != NULL)
         object_delete(rdgwindow->node_colors);
+
+    if (rdgwindow->tooltip != NULL)
+        gtk_widget_destroy(rdgwindow->tooltip);
 
     gui_remove_window(rdgwindow->gui, rdgwindow->gui_identifier);
     rdis_remove_callback(rdgwindow->gui->rdis, rdgwindow->callback_identifier);
@@ -176,13 +227,111 @@ gboolean rdgwindow_image_motion_notify_event (GtkWidget * widget,
                                               GdkEventMotion * event,
                                               struct _rdgwindow * rdgwindow)
 {
-    if (rdgwindow->image_dragging == 0)
-        return TRUE;
+    if (rdgwindow->tooltip != NULL) {
+        gtk_widget_destroy(rdgwindow->tooltip);
+        rdgwindow->tooltip = NULL;
+    }
 
     GtkAdjustment * hadjust = gtk_scrolled_window_get_hadjustment(
                           GTK_SCROLLED_WINDOW(rdgwindow->scrolledWindow));
     GtkAdjustment * vadjust = gtk_scrolled_window_get_vadjustment(
                           GTK_SCROLLED_WINDOW(rdgwindow->scrolledWindow));
+
+    // set hover instruction
+    int image_x = (int) event->x + (int) gtk_adjustment_get_value(hadjust);
+    int image_y = (int) event->y + (int) gtk_adjustment_get_value(vadjust);
+
+    if (rdgwindow->scrolledWindow_width > rdg_width(rdgwindow->rdg))
+        image_x -= (rdgwindow->scrolledWindow_width
+                    - rdg_width(rdgwindow->rdg)) / 2;
+
+    if (rdgwindow->scrolledWindow_height > rdg_height(rdgwindow->rdg))
+        image_y -= (rdgwindow->scrolledWindow_height
+                    - rdg_height(rdgwindow->rdg)) / 2;
+
+    uint64_t hover_ins = rdg_get_ins_by_coords(rdgwindow->rdg,
+                                               rdgwindow->gui->rdis->graph,
+                                               rdgwindow->gui->rdis->labels,
+                                               image_x, image_y);
+
+    if (hover_ins != -1) {
+        struct _ins * ins = graph_fetch_ins(rdgwindow->gui->rdis->graph, hover_ins);
+        if (ins->references->size > 0) {
+            char references_text[512];
+            strcpy(references_text, "<span background=\"#ffffff\" font_family=\"monospace\" font=\"9.0\">");
+            struct _list_it * it;
+            for (it = list_iterator(ins->references); it != NULL; it = it->next) {
+                struct _reference * reference = it->data;
+                char reference_text[128];
+
+                snprintf(reference_text, 128,
+                         "<span foreground=\"#000099\">%04llx</span> ",
+                         (unsigned long long) reference->address);
+
+                size_t i;
+                for (i = 0; i < 16; i++) {
+                    int c = mem_map_byte(rdgwindow->gui->rdis->memory_map,
+                                         reference->address + i);
+                    if (c == -1) {
+                        break;
+                    }
+
+                    char hex[16];
+                    if ((i + 1) % 4 == 0)
+                        snprintf(hex, 16, "%02x ", c);
+                    else
+                        snprintf(hex, 16, "%02x", c);
+                    rdstrcat(reference_text, hex, 128);
+                }
+                rdstrcat(references_text, reference_text, 512);
+
+                char ascii[65];
+                int ascii_valid = 1;
+                for (i = 0; i < 64; i++) {
+                    int c = mem_map_byte(rdgwindow->gui->rdis->memory_map,
+                                         reference->address + i);
+                    if (c == -1) {
+                        ascii_valid = 0;
+                        break;
+                    }
+
+                    if (c == 0) {
+                        if (i > 4) {
+                            ascii[i] = 0;
+                            break;
+                        }
+                        else {
+                            ascii_valid = 0;
+                            break;
+                        }
+                    }
+
+                    if ((c < 0x20) || (c >= 0x7f)) {
+                        ascii_valid = 0;
+                        break;
+                    }
+
+                    ascii[i] = c;
+                }
+                ascii[i] = 0;
+                if (ascii_valid) {
+                    rdstrcat(references_text, "\n    <span foreground=\"#009900\">", 512);
+                    rdstrcat(references_text, ascii, 512);
+                    rdstrcat(references_text, "</span>", 512);
+                }
+
+                if (it->next != NULL)
+                    rdstrcat(references_text, "\n", 512);
+            }
+            rdstrcat(references_text, "</span>", 512);
+            rdgwindow->tooltip = tipwindow(references_text);
+        }
+    }
+    else
+        gtk_widget_set_has_tooltip(rdgwindow->imageEventBox, FALSE);
+
+    if (rdgwindow->image_dragging == 0)
+        return TRUE;
 
     double diff_x = rdgwindow->image_drag_x - event->x;
     double diff_y = rdgwindow->image_drag_y - event->y;
@@ -227,36 +376,31 @@ gboolean rdgwindow_image_button_press_event  (GtkWidget * widget,
     int image_x = x + (int) gtk_adjustment_get_value(hadjust);
     int image_y = y + (int) gtk_adjustment_get_value(vadjust);
 
-    // if the scrolledWindow is larger than the image, we need to adjust for that
-    /*
-    printf("width: %d %d\n",
-           rdgwindow->scrolledWindow_width,
-           rdg_width(rdgwindow->rdg));
-    printf("height: %d %d\n",
-           rdgwindow->scrolledWindow_height,
-           rdg_height(rdgwindow->rdg));
-    */
-
     if (rdgwindow->scrolledWindow_width > rdg_width(rdgwindow->rdg))
         image_x -= (rdgwindow->scrolledWindow_width
                     - rdg_width(rdgwindow->rdg)) / 2;
 
     if (rdgwindow->scrolledWindow_height > rdg_height(rdgwindow->rdg))
         image_y -= (rdgwindow->scrolledWindow_height
-                    - rdg_height(rdgwindow->rdg)) / 2 - 12;
+                    - rdg_height(rdgwindow->rdg)) / 2;
+
+    printf("image_x: %d, image_y: %d\n",
+           image_x, image_y);
 
     uint64_t selected_node = rdg_get_node_by_coords(rdgwindow->rdg,
                                                     image_x, image_y);
 
     uint64_t selected_ins = rdg_get_ins_by_coords(rdgwindow->rdg,
                                                   rdgwindow->gui->rdis->graph,
+                                                  rdgwindow->gui->rdis->labels,
                                                   image_x, image_y);
-
-    if (selected_ins != -1)
-        rdgwindow->selected_ins = selected_ins;
 
     if (selected_node == -1)
         return FALSE;
+    else if (selected_ins == -1)
+        rdgwindow->selected_ins = -1;
+    else
+        rdgwindow->selected_ins = selected_ins;
 
     rdgwindow->selected_node = selected_node;
 

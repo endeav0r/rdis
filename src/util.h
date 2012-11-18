@@ -31,4 +31,8 @@ int is_string (uint8_t * data, size_t data_size);
 
 size_t rdstrcat (char * dst, char * src, size_t size);
 
+struct _ins * graph_fetch_ins (struct _graph * graph, uint64_t address);
+
+int mem_map_byte (struct _map * mem_map, uint64_t address);
+
 #endif

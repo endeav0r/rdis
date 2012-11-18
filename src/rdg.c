@@ -306,8 +306,9 @@ uint64_t rdg_get_node_by_coords (struct _rdg * rdg, int x, int y)
 }
 
 
-uint64_t rdg_get_ins_by_coords (struct _rdg * rdg,
+uint64_t rdg_get_ins_by_coords (struct _rdg   * rdg,
                                 struct _graph * ins_graph,
+                                struct _map   * labels,
                                 int x, int y)
 {
     uint64_t node_index = rdg_get_node_by_coords(rdg, x, y);
@@ -332,24 +333,22 @@ uint64_t rdg_get_ins_by_coords (struct _rdg * rdg,
     cairo_font_extents(ctx, &fe);
     cairo_destroy(ctx);
 
-
-    //printf("%d %d %f %f\n", rdg_node->y, RDG_SURFACE_PADDING, RDG_NODE_PADDING, fe.height);
-
     //printf("rdg_node->y: %d\n", rdg_node->y);
 
     double bottom = rdg_node->y 
                     + (double) RDG_SURFACE_PADDING 
-                    + RDG_NODE_PADDING 
-                    + fe.height - 4.0;
+                    + (double) RDG_NODE_PADDING;
+    if (map_fetch(labels, rdg_node->index) != NULL)
+        bottom += fe.height + 2.0;
+
     struct _list_it * it;
     for (it = list_iterator(node->data); it != NULL; it = it->next) {
-        bottom = bottom;//; + 1.0;
-        double top = bottom + fe.height + 2.0;
+        double top = bottom + fe.height;
         if (((double) y >= bottom) && ((double) y <= top)) {
             struct _ins * ins = it->data;
             return ins->address;
         }
-        bottom = top;
+        bottom = top + 2.0;
     }
 
     return -1;
@@ -406,7 +405,7 @@ int rdg_node_sink_x (struct _rdg * rdg,
 {
     // translate destination's center x in image to position on x axis of src
     if (src_node->level == dst_node->level) {
-        if (src_node->position > dst_node->position)
+        if (src_node->x > dst_node->x)
             return dst_node->x + rdg_node_width(dst_node);
         else
             return dst_node->x;
@@ -423,7 +422,7 @@ int rdg_node_sink_y (struct _rdg * rdg,
                      struct _rdg_node * dst_node)
 {
     if (src_node->level == dst_node->level)
-        return src_node->y + (rdg_node_height(src_node) / 2);
+        return dst_node->y + (rdg_node_height(dst_node) / 2);
 
     if (src_node->y < dst_node->y)
         return dst_node->y;
@@ -1011,6 +1010,7 @@ void rdg_assign_x (struct _rdg * rdg)
     for (position = 0; position < level_map->size; position++) {
         rdg_assign_node_x(rdg, 0, position, position);
     }
+
     // center every node's x value based on this position of its parents
     int level_i;
     for (level_i = 1; level_i < rdg->levels->size; level_i++) {
@@ -1019,10 +1019,8 @@ void rdg_assign_x (struct _rdg * rdg)
         int position_i;
         for (position_i = 0; position_i < level_map->size; position_i++) {
             struct _index      * index = map_fetch(level_map, position_i);
-            struct _graph_node * node;
-            struct _rdg_node   * rdg_node;
-            node = graph_fetch_node(rdg->graph, index->index);
-            rdg_node = node->data;
+            struct _graph_node * node = graph_fetch_node(rdg->graph, index->index);
+            struct _rdg_node * rdg_node = node->data;
 
             int above_sum = 0;
             int above_n   = 0;
@@ -1048,6 +1046,42 @@ void rdg_assign_x (struct _rdg * rdg)
             // where do we WANT to place this node
             int node_x = above_avg - (rdg_node_width(rdg_node) / 2);
 
+            rdg_assign_node_x(rdg, level_i, position_i, node_x);
+        }
+    }
+
+    // now do the exact opposite from the bottom up
+    for (level_i = rdg->levels->size - 2; level_i >= 0; level_i--) {
+        struct _map * level_map = map_fetch(rdg->levels, level_i);
+
+        int position_i;
+        for (position_i = 0; position_i < level_map->size; position_i++) {
+            struct _index * index = map_fetch(level_map, position_i);
+            struct _graph_node * node = graph_fetch_node(rdg->graph, index->index);
+            struct _rdg_node * rdg_node = node->data;
+
+            int below_sum = 0;
+            int below_n   = 0;
+            struct _list_it * eit;
+            for (eit = list_iterator(node->edges); eit != NULL; eit = eit->next) {
+                struct _graph_edge * edge = eit->data;
+                struct _rdg_node * neighbor;
+                if (edge->head == node->index)
+                    neighbor = graph_fetch_data(rdg->graph, edge->tail);
+                else
+                    neighbor = graph_fetch_data(rdg->graph, edge->head);
+
+                if (neighbor->level > rdg_node->level) {
+                    below_sum += rdg_node_center_x(neighbor);
+                    below_n++;
+                }
+            }
+
+            if (below_n == 0)
+                continue;
+            int below_avg = below_sum / below_n;
+
+            int node_x = below_avg - (rdg_node_width(rdg_node) / 2);
             rdg_assign_node_x(rdg, level_i, position_i, node_x);
         }
     }
@@ -1318,13 +1352,12 @@ void rdg_draw_arrow (cairo_t * ctx,
 }
 
 
-void rdg_draw_edge (struct _rdg * rdg, struct _graph_edge * edge)
+void rdg_draw_edge (struct _rdg * rdg,
+                    struct _graph_edge * edge,
+                    struct _map * level_spacings)
 {
-    struct _rdg_node * rdg_head = graph_fetch_data(rdg->graph, edge->head);
-    struct _rdg_node * rdg_tail = graph_fetch_data(rdg->graph, edge->tail);
-
     cairo_t * ctx = cairo_create(rdg->surface);
-    cairo_set_line_width(ctx, 2.0);
+    cairo_set_line_width(ctx, 1.0);
 
     struct _ins_edge * ins_edge = edge->data;
     if (ins_edge == NULL) {
@@ -1349,97 +1382,156 @@ void rdg_draw_edge (struct _rdg * rdg, struct _graph_edge * edge)
 
     // self referential edge
     if (edge->head == edge->tail) {
-        int x1 = rdg_node_center_x(rdg_head) - 10;
+        struct _rdg_node * rdg_node = graph_fetch_data(rdg->graph, edge->head);
+        int x1 = rdg_node_center_x(rdg_node) - 10;
         int x2 = x1 + 10;
         int x3 = x2 + 10;
-        int y1 = rdg_head->y + rdg_node_height(rdg_head) + 12;
+        int y1 = rdg_node->y + rdg_node_height(rdg_node) + 12;
         int y2 = y1 + 40;
         int y3 = y1;
 
         cairo_curve_to(ctx, x1, y1, x2, y2, x3, y3);
         cairo_stroke(ctx);
 
-        rdg_draw_arrow(ctx, x3, y2, x3, y3, RDG_ARROW_TYPE_FILL);
+        rdg_draw_arrow(ctx, x2, y2, x3, y3, RDG_ARROW_TYPE_FILL);
         return;
     }
 
-    // this edge is going down
-    int x1, x2, x3, x4, x5, y1, y2, y3, y4, y5;
-    if (rdg_head->level < rdg_tail->level) {
-        /*
-          1
-          |
-          2----3----4
-                    |
-                    5
-        */
-        x1 = rdg_node_source_x(rdg, rdg_head, rdg_tail);
-        y1 = rdg_node_source_y(rdg, rdg_head, rdg_tail);
-        x5 = rdg_node_sink_x(rdg, rdg_head, rdg_tail);
-        y5 = rdg_node_sink_y(rdg, rdg_head, rdg_tail);
-
-        x1 += RDG_SURFACE_PADDING;
-        y1 += RDG_SURFACE_PADDING;
-        x5 += RDG_SURFACE_PADDING;
-        y5 += RDG_SURFACE_PADDING;
-
-        x3  = x1 + ((x5 - x1) / 2);
-        y3  = y5 - (RDG_NODE_Y_SPACING - (RDG_NODE_Y_SPACING / 4));
-        y3 += (5 * rdg_head->position);
-        x2  = x1;
-        y2  = y3;
-        x4  = x5;
-        y4  = y3;
-    }
-    // going up to see the big guy in the sky
-    else {
-        /*
-          5
-          |
-          4----3----2
-                    |
-                    1
-        */
-        x1 = rdg_node_source_x(rdg, rdg_head, rdg_tail);
-        y1 = rdg_node_source_y(rdg, rdg_head, rdg_tail);
-        x5 = rdg_node_sink_x(rdg, rdg_head, rdg_tail);
-        y5 = rdg_node_sink_y(rdg, rdg_head, rdg_tail);
-
-        x1 += RDG_SURFACE_PADDING;
-        y1 += RDG_SURFACE_PADDING;
-        x5 += RDG_SURFACE_PADDING;
-        y5 += RDG_SURFACE_PADDING;
-
-        x3  = x5 + ((x1 - x5) / 2);
-        y3  = y1 - (RDG_NODE_Y_SPACING / 4);
-        y3 -= (5 * rdg_head->position);
-        x2  = x1;
-        y2  = y3;
-        x4  = x5;
-        y4  = y3;
+    struct _rdg_node * last_node = graph_fetch_data(rdg->graph, edge->tail);
+    while (last_node->flags & RDG_NODE_VIRTUAL) {
+        struct _graph_node * node = graph_fetch_node(rdg->graph, last_node->index);
+        last_node = NULL;
+        struct _list_it * it;
+        for (it = list_iterator(node->edges); it != NULL; it = it->next) {
+            struct _graph_edge * edge = it->data;
+            if (edge->head == node->index) {
+                last_node = graph_fetch_data(rdg->graph, edge->tail);
+                break;
+            }
+        }
+        if (last_node == NULL)
+            return;
     }
 
-    
-    cairo_curve_to(ctx, x1, y1, x2, y2, x3, y3);
-    cairo_move_to(ctx, x3, y3);
-    cairo_curve_to(ctx, x3, y3, x4, y4, x5, y5);
-    /*
-    cairo_move_to(ctx, x1, y1);
-    cairo_line_to(ctx, x5, y5);
-    */
-    cairo_stroke(ctx);
+    struct _rdg_node * first_node = graph_fetch_data(rdg->graph, edge->head);
 
-    // this edge ends in a non-virtual node
-    if ((rdg_tail->flags & RDG_NODE_VIRTUAL) == 0) {
-        int arrow_type = RDG_ARROW_TYPE_FILL;
-        if (rdg_tail->level == rdg_head->level)
-            rdg_draw_arrow(ctx, x1, y1, x5, y5, arrow_type);
-        else
-            rdg_draw_arrow(ctx, x4, y4, x5, y5, arrow_type);
+    uint64_t this_x  = rdg_node_source_x(rdg, first_node, last_node);
+    uint64_t this_y  = rdg_node_source_y(rdg, first_node, last_node);
+    uint64_t next_x;
+    uint64_t next_y;
+    uint64_t last_level = first_node->level;
+
+    struct _rdg_node * next_node = graph_fetch_data(rdg->graph, edge->tail);
+    while (next_node) {
+        // assign next x and y
+        if (next_node->flags & RDG_NODE_VIRTUAL) {
+            next_x = this_x;
+            next_y = next_node->y;
+            // does the current x conflict with any nodes on this level
+            struct _map * level_map = map_fetch(rdg->levels, next_node->level);
+            struct _map_it * mit;
+            for (mit = map_iterator(level_map); mit != NULL; mit = map_it_next(mit)) {
+                struct _index * index = map_it_data(mit);
+                struct _rdg_node * rn = graph_fetch_data(rdg->graph, index->index);
+
+                if ((this_x >= rn->x) && (this_x <= rn->x + rdg_node_width(rn))) {
+                    next_x = next_node->x;
+                    break;
+                }
+            }
+        }
+        else {
+            if (    (this_x > next_node->x)
+                 && (this_x < next_node->x + rdg_node_width(next_node)))
+                next_x = this_x;
+            else
+                next_x = rdg_node_sink_x(rdg, first_node, next_node);
+            next_y = rdg_node_sink_y(rdg, first_node, next_node);
+        }
+
+        double this_xd = this_x + RDG_SURFACE_PADDING + 0.5;
+        double this_yd = this_y + RDG_SURFACE_PADDING + 0.5;
+        double next_xd = next_x + RDG_SURFACE_PADDING + 0.5;
+        double next_yd = next_y + RDG_SURFACE_PADDING + 0.5;
+
+        // draw the line
+        if (this_x == next_x) {
+            cairo_move_to(ctx, this_xd, this_yd);
+            cairo_line_to(ctx, this_xd, next_yd);
+            cairo_stroke(ctx);
+        }
+
+        else {
+            double tmp_yd;
+
+            double spacing;
+            struct _index * index;
+            if (next_y > this_y)
+                index = map_fetch(level_spacings, next_node->level);
+            else
+                index = map_fetch(level_spacings, last_level);
+
+            if (index == NULL) {
+                index = index_create(3);
+                map_insert(level_spacings, next_node->level, index);
+                object_delete(index);
+                spacing = 3.0;
+            }
+            else {
+                index->index += 3;
+                spacing = (double) index->index;
+            }
+
+            // going down
+            if (next_y > this_y)
+                tmp_yd = next_node->y 
+                         - RDG_NODE_Y_SPACING + 6
+                         + RDG_SURFACE_PADDING
+                         + 0.5;
+            // going up
+            else
+                tmp_yd = this_yd - RDG_NODE_Y_SPACING + 6;
+
+
+            printf("level %d tmp_yd %f spacing %f\n", next_node->level, tmp_yd, spacing);
+            tmp_yd += spacing;
+
+            cairo_move_to(ctx, this_xd, this_yd);
+            cairo_line_to(ctx, this_xd, tmp_yd);
+            cairo_line_to(ctx, next_xd, tmp_yd);
+            cairo_line_to(ctx, next_xd, next_yd);
+            cairo_stroke(ctx);
+        }
+
+        // was this the final node (not virtual)
+        if ((next_node->flags & RDG_NODE_VIRTUAL) == 0) {
+            int arrow_type = RDG_ARROW_TYPE_FILL;
+            rdg_draw_arrow(ctx,
+                           next_x + RDG_SURFACE_PADDING,
+                           this_y + RDG_SURFACE_PADDING,
+                           next_x + RDG_SURFACE_PADDING,
+                           next_y + RDG_SURFACE_PADDING,
+                           arrow_type);
+            break;
+        }
+
+        this_x = next_x;
+        this_y = next_y;
+        last_level = next_node->level;
+
+        struct _graph_node * node = graph_fetch_node(rdg->graph, next_node->index);
+        next_node = NULL;
+        struct _list_it * it;
+        for (it = list_iterator(node->edges); it != NULL; it = it->next) {
+            struct _graph_edge * edge = it->data;
+            if (edge->head == node->index) {
+                next_node = graph_fetch_data(rdg->graph, edge->tail);
+                break;
+            }
+        }
+        if (next_node == NULL)
+            return;
     }
-
-    x1 = x2 + x3 + x4;
-    y1 = y2 + y3 + y4;
 
     cairo_destroy(ctx);
 }
@@ -1455,16 +1547,14 @@ void rdg_draw (struct _rdg * rdg)
                                    rdg->height + RDG_SURFACE_PADDING * 2);
 
     // for each node, draw the node and its edges
+
+    struct _map * level_edge_spacings = map_create();
+
     struct _graph_it * graph_it;
     for (graph_it = graph_iterator(rdg->graph);
          graph_it != NULL;
          graph_it = graph_it_next(graph_it)) {
         struct _rdg_node * rdg_node = graph_it_data(graph_it);
-
-        printf("%llx x: %d y: %d level: %d position: %f\n",
-               (unsigned long long) rdg_node->index,
-               rdg_node->y,
-               rdg_node->x, rdg_node->level, rdg_node->position);
 
         /*
         if (rdg_node->flags & RDG_NODE_VIRTUAL)
@@ -1495,15 +1585,20 @@ void rdg_draw (struct _rdg * rdg)
             cairo_destroy(ctx);
         }
 
+        if (rdg_node->flags & RDG_NODE_VIRTUAL)
+            continue;
+
         // draw edges
         struct _list_it * eit;
         struct _list * successors = graph_node_successors(graph_it_node(graph_it));
         for (eit = list_iterator(successors); eit != NULL; eit = eit->next) {
             struct _graph_edge * edge = eit->data;
-            rdg_draw_edge(rdg, edge);
+            rdg_draw_edge(rdg, edge, level_edge_spacings);
         }
         object_delete(successors);
     }
+
+    object_delete(level_edge_spacings);
 
     //cairo_surface_write_to_png(rdg->surface, "cairo.png");
 }

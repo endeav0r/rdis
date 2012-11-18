@@ -1,5 +1,5 @@
 OBJS = hexwindow.o inswindow.o funcwindow.o main.o refwindow.o rdgwindow.o \
-		rdiswindow.o gui.o
+		rdiswindow.o tipwindow.o gui.o
 
 CCFLAGS=-Wall -O2 -Werror -g
 INCLUDE=`pkg-config --cflags gtk+-3.0` \

@@ -757,7 +757,6 @@ struct _graph * elf64_graph_functions (struct _elf64 * elf64, struct _map * func
     object_delete(wqueue);
 
     remove_function_predecessors(graph, functions);
-
     graph_reduce(graph);
 
     return graph;

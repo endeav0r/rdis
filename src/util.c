@@ -1,5 +1,6 @@
 #include "util.h"
 
+#include "buffer.h"
 #include "function.h"
 #include "graph.h"
 #include "index.h"
@@ -172,4 +173,35 @@ size_t rdstrcat (char * dst, char * src, size_t size)
         dst[size - 1] = '\0';
 
     return len;
+}
+
+
+struct _ins * graph_fetch_ins (struct _graph * graph, uint64_t address)
+{
+    struct _graph_node * node = graph_fetch_node_max(graph, address);
+    if (node == NULL)
+        return NULL;
+
+    struct _list_it * it;
+    for (it = list_iterator(node->data); it != NULL; it = it->next) {
+        struct _ins * ins = it->data;
+        if (ins->address == address)
+            return ins;
+    }
+
+    return NULL;
+}
+
+
+int mem_map_byte (struct _map * mem_map, uint64_t address)
+{
+    struct _buffer * buffer = map_fetch_max(mem_map, address);
+    if (buffer == NULL)
+        return -1;
+
+    uint64_t base_address = map_fetch_max_key(mem_map, address);
+    if (address >= base_address + buffer->size)
+        return -1;
+
+    return ((int) buffer->bytes[address - base_address]) & 0x000000ff;
 }

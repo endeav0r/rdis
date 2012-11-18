@@ -338,8 +338,11 @@ void graph_reduce (struct _graph * graph)
 
 struct _graph * graph_family (struct _graph * graph, uint64_t indx)
 {
-    if (graph_fetch_node(graph, indx) == NULL)
+    if (graph_fetch_node(graph, indx) == NULL) {
+        printf("graph_family can't find initial index: %llx\n",
+               (unsigned long long) indx);
         return NULL;
+    }
 
     struct _graph       * new_graph = graph_create();
     struct _index * index;

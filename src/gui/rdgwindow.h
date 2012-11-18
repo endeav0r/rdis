@@ -22,6 +22,7 @@ struct _rdgwindow {
     GtkWidget         * imageEventBox;
     GtkWidget         * image;
     GtkWidget         * menu_popup;
+    GtkWidget         * tooltip;
 
     struct _gui       * gui;
     uint64_t            gui_identifier;

@@ -41,13 +41,14 @@ struct _rdis {
 // when rdis itself is deleted
 struct _rdis * rdis_create      (_loader * loader);
 struct _rdis * rdis_create_with_console (_loader * loader,
-                              void (* console_callback) (void *, const char *),
-                              void * console_data);
+                                         void (* console_callback) (void *, const char *),
+                                         void * console_data);
 void           rdis_delete       (struct _rdis * rdis);
 json_t *       rdis_serialize    (struct _rdis * rdis);
 struct _rdis * rdis_deserialize  (json_t * json);
 
-struct _map *  rdis_g_references (struct _rdis * rdis);
+void           rdis_check_references (struct _rdis * rdis);
+struct _map *  rdis_g_references     (struct _rdis * rdis);
 
 void rdis_set_console (struct _rdis * rdis,
                        void (* console_callback) (void *, const char *),

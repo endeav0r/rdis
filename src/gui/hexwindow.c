@@ -115,17 +115,16 @@ void hexwindow_draw_memmap (struct _hexwindow * hexwindow)
             int i;
             for (i = 0; i < 16; i++) {
                 if (offset < buffer->size) {
-                    unsigned int c = buffer->bytes[offset++];
+                    unsigned int c = buffer->bytes[offset++] & 0x000000ff;
                     unsigned int h = c / 16;
                     unsigned int l = c % 16;
-                    if (h < 10)
-                        bytes_str[bsi++] = '0' + h;
-                    else
-                        bytes_str[bsi++] = 'a' + h;
-                    if (l < 10)
-                        bytes_str[bsi++] = '0' + l;
-                    else
-                        bytes_str[bsi++] = 'a' + l;
+                    h = (h < 10) ? h + '0' : (h - 10 + 'a');
+                    l = (l < 10) ? l + '0' : (l - 10 + 'a');
+
+                    printf("h %d (%c) l %d (%c)\n", h, h, l, l);
+
+                    bytes_str[bsi++] = h;
+                    bytes_str[bsi++] = l;
                     bytes_str[bsi++] = ' ';
 
                     if ((c >= 0x20) && (c < 0x7f))

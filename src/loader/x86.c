@@ -60,6 +60,18 @@ struct _ins * x86_ins (uint64_t address, ud_t * ud_obj)
     else if (ud_obj->operand[0].type == UD_OP_IMM) {
         printf("UD_OP_IMM: %s\n", ud_insn_asm(ud_obj));
     }
+    else if (    (ud_obj->operand[1].type == UD_OP_IMM)
+              && (ud_obj->operand[1].size >= 32)) {
+        int64_t tmp = udis86_sign_extend_lval(&(ud_obj->operand[1]));
+        if (tmp > 0x1000) {
+            struct _reference * reference;
+            reference = reference_create(REFERENCE_CONSTANT,
+                                         address,
+                                         udis86_sign_extend_lval(&(ud_obj->operand[1])));
+            ins_add_reference(ins, reference);
+            object_delete(reference);
+        }
+    }
 
     if (ud_obj->mnemonic == UD_Icall)
         ins_s_call(ins);
@@ -73,10 +85,10 @@ struct _ins * x86_ins (uint64_t address, ud_t * ud_obj)
 * nodes. We will worry about fixing edges from jmp-like mnemonics later.
 */
 void x86_graph_0 (struct _graph * graph,
-                    uint64_t        address,
-                    size_t          offset,
-                    uint8_t *       data,
-                    size_t          data_size)
+                  uint64_t        address,
+                  size_t          offset,
+                  uint8_t *       data,
+                  size_t          data_size)
 {
     ud_t            ud_obj;
     int             continue_disassembling = 1;
@@ -85,6 +97,8 @@ void x86_graph_0 (struct _graph * graph,
 
     if (offset > data_size)
         return;
+
+    printf("%llx\n", (unsigned long long) (address + offset));
 
     ud_init      (&ud_obj);
     ud_set_mode  (&ud_obj, 32);
@@ -97,6 +111,8 @@ void x86_graph_0 (struct _graph * graph,
 
         size_t bytes_disassembled = ud_disassemble(&ud_obj);
         if (bytes_disassembled == 0) {
+            printf("bytes_disassembled == 0, %llx\n",
+                   (unsigned long long) (address + offset));
             break;
         }
 
@@ -116,6 +132,10 @@ void x86_graph_0 (struct _graph * graph,
 
         // create graph node for this instruction
         struct _ins * ins = x86_ins(address + offset, &ud_obj);
+        printf("%llx %s (%p)\n",
+               (unsigned long long) (address + offset),
+               ins->description,
+               ins);
         struct _list * ins_list = list_create();
         list_append(ins_list, ins);
         graph_add_node(graph, address + offset, ins_list);
@@ -197,6 +217,7 @@ void x86_graph_0 (struct _graph * graph,
 
         offset += bytes_disassembled;
     }
+    printf("\n");
 }
 
 

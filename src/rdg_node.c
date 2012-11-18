@@ -6,6 +6,8 @@
 #include "instruction.h"
 #include "label.h"
 #include "list.h"
+#include "string.h"
+#include "util.h"
 
 
 static const struct _object rdg_node_object = {
@@ -224,6 +226,30 @@ cairo_surface_t * rdg_node_draw_full (struct _graph_node * node,
             }
         }
 
+        if (ins->references->size > 0) {
+            char references_str[256];
+            strcpy(references_str, " ");
+            struct _list_it * lit;
+            
+            for (lit = list_iterator(ins->references);
+                 lit != NULL;
+                 lit = lit->next) {
+                struct _reference * reference = lit->data;
+                if (reference->type == REFERENCE_CONSTANT)
+                    continue;
+
+                char reference_str[32];
+                snprintf(reference_str, 32, "%04llx ",
+                         (unsigned long long) reference->address);
+                rdstrcat(references_str, reference_str, 256);
+            }
+            cairo_move_to(ctx, line_x, top);
+            cairo_set_source_rgb(ctx, RDG_NODE_REFERENCE_COLOR);
+            cairo_show_text(ctx, references_str);
+            cairo_text_extents(ctx, references_str, &te);
+            line_x += te.width;
+        }
+
         if (ins->comment != NULL) {
             snprintf(tmp, 128, " ; %s", ins->comment);
             cairo_move_to(ctx, line_x, top);
@@ -257,8 +283,8 @@ cairo_surface_t * rdg_node_draw_full (struct _graph_node * node,
     // copy this surface to our final, cropped surface
     cairo_surface_t * dest;
     dest = cairo_image_surface_create(CAIRO_FORMAT_ARGB32,
-                                      (RDG_NODE_PADDING * 2) + max_width + 2,
-                                      (RDG_NODE_PADDING * 2) + top + 2);
+                                      (RDG_NODE_PADDING * 2) + max_width + 1,
+                                      (RDG_NODE_PADDING * 2) + top + 1);
     ctx = cairo_create(dest);
 
     // draw background

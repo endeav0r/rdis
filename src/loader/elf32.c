@@ -688,8 +688,8 @@ struct _graph * elf32_graph_functions (struct _elf32 * elf32, struct _map * func
 
     object_delete(wqueue);
 
-    graph_reduce(graph);
     remove_function_predecessors(graph, functions);
+    graph_reduce(graph);
 
     return graph;
 }

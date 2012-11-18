@@ -21,12 +21,13 @@ enum {
 #define RDG_NODE_FONT_FACE "monospace"
 #define RDG_NODE_PADDING   8.0
 
-#define RDG_NODE_BG_COLOR      1,   1,   1
-#define RDG_NODE_ADDR_COLOR    0,   0.2, 0.5
-#define RDG_NODE_BYTE_COLOR    0.5, 0.2, 0
-#define RDG_NODE_DESC_COLOR    0,   0,   0
-#define RDG_NODE_LABEL_COLOR   0,   0,   1
-#define RDG_NODE_COMMENT_COLOR 0,   0.5, 0
+#define RDG_NODE_BG_COLOR        1,   1,   1
+#define RDG_NODE_ADDR_COLOR      0,   0.2, 0.5
+#define RDG_NODE_BYTE_COLOR      0.5, 0.2, 0
+#define RDG_NODE_DESC_COLOR      0,   0,   0
+#define RDG_NODE_LABEL_COLOR     0,   0,   1
+#define RDG_NODE_COMMENT_COLOR   0,   0.5, 0
+#define RDG_NODE_REFERENCE_COLOR 0.5, 0.0, 0.2
 
 #define RDG_EDGE_NORMAL_COLOR    0,   0,   0
 #define RDG_EDGE_JUMP_COLOR      0,   0,   0.5
@@ -41,9 +42,9 @@ enum {
 #define RDG_NODE_LEVEL_SET    (1 << 2)
 #define RDG_NODE_POSITIONED   (1 << 4)
 
-#define RDG_NODE_X_SPACING  12
+#define RDG_NODE_X_SPACING  16
 //#define RDG_NODE_X_MAX_SPACING 200
-#define RDG_NODE_Y_SPACING  80
+#define RDG_NODE_Y_SPACING  48
 #define RDG_SURFACE_PADDING 16
 
 enum {
@@ -152,8 +153,9 @@ uint64_t rdg_get_node_by_coords (struct _rdg * rdg, int x, int y);
 
 // rdg       = the rdg
 // ins_graph = an instruction graph returned by the loader
-uint64_t rdg_get_ins_by_coords (struct _rdg * rdg,
+uint64_t rdg_get_ins_by_coords (struct _rdg   * rdg,
                                 struct _graph * ins_graph,
+                                struct _map   * labels,
                                 int x, int y);
 
 int rdg_node_source_x (struct _rdg * rdg,
