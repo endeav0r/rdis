@@ -8,68 +8,32 @@
         <div id="content_wrapper">
             <div id="content">
 
-<p><em>
-    <strong><span style="color: red;">Limited Closed Release Alpha<span></strong>
-</em></p>
-<p><em>
-    We are looking for people to test rdis. Send your distro/architecture
-    to (endeavor @ rainbowsandpwnies dot com) and we will send you a binary with
-    instructions on how to run it. We ask for your thoughts, requests,
-    criticisms and bug reports so we can make rdis better.
-</em></p>
-
 <p>
     Rdis, the Rainbowsandpwnies DISassembler, is a 
-    <strong>binary analysis platform</strong> under development by
+    <strong>binary analysis tool</strong> under development by
     rainbowsandpwnies.
-</p>
-
-<p>
-    <strong>What rdis will do:</strong>
-    <ul>
-        <li>Analyze multiple binary formats with multiple instruction sets.</li>
-        <li>Translate assembly into an IR for analysis.</li>
-        <li>Create interactive Control Flow Graphs.</li>
-        <li>Provide a scriptable interface through <a href="lua.html">Lua</a>.</li>
-    </ul>
 </p>
 
 <p>
     <strong>What works now:</strong>
     <ul>
-        <li>ELF and PE binaries.</li>
+        <li>ELF and PE binaries (32/64-bit).</li>
         <li>x86 and x86-64 instruction sets.</li>
-        <li>Identification of functions through multiple methods, including
-            recursive disassembly.</li>
-        <li>Control Flow Graphs</li>
+        <li>Custom binary formats and instructions sets through lua scripting.</li>
+        <li>Instruction -> Data References.</li>
+        <li>Dump/load disassembler state to/from json.</li>
+        <li>Call graphs.</li>
         <li>User defined entry points for recursive function discovery
-            and disassembly</li>
+            and disassembly.</li>
         <li>Interactive control flow graphs.</li>
         <li>Lua scripting.</li>
     </ul>
 </p>
 
 <p>
-    <strong>What's planned for the first release:</strong>
-    <ul>
-        <li><span style="color: green;">ELF, PE</span>
-            and <span style="color: red;">Mach-O</span> binaries.</li>
-        <li><span style="color: green;">x86, x86-64</span>
-            and <span style="color: red;">ARM</span> assembly.</li>
-        <li><span style="color: orange;">Translation of assembly to IR</span>.
-        </li>
-        <li><span style="color: red;">Remote debugging</span>.</li>
-        <li><span style="color: red;">Realtime collaborative analysis</span>.</li>
-    </ul>
-</p>
-
-<p>
     <strong>Other Significant Details:</strong>
     <ul>
-        <li>rdis requires Gtk3 which is not currently supported by backtrack.
-            Get a real distro.</li>
-        <li>We do not know under what terms rdis will be released.</li>
-        <li>Release date is unknown. Expect early 2013.</li>
+        <li>rdis requires Gtk3 which is not currently supported by backtrack.</li>
     </ul>
 </p>
 
@@ -77,17 +41,26 @@
     For development updates follow 
     <a href="http://twitter.com/rednovae">@rednovae</a>,
     <a href="http://twitter.com/pwntherainbow">@pwntherainbow</a>, or read
-    <a href="http://rednovae.blogspot.com/">rednovae.blogspot.com</a>
+    <a href="http://rednovae.blogspot.com/">rednovae.blogspot.com</a>.
 </p>
 
-<p align="center">For your enjoyment, here are some development screenshots:</p>
+<p>
+    For your enjoyment, here are some screenshots from various stages of
+    development:
+</p>
 
 <p align="center">
-<table><tr><td valign="top">
-    <a href="ss.png"><img src="ss_thumbnail.png" border="0"/></a>
-</td><td valign="top">
-    <a href="ss12nov2012.png"><img src="ss12nov2012_thumbnail.png" border="0"/></a>
-</td></tr></table>
+<table>
+    <tr><td valign="top">
+        <a href="ss.png"><img src="ss_thumbnail.png" border="0"/></a>
+    </td><td valign="top">
+        <a href="ss12nov2012.png"><img src="ss12nov2012_thumbnail.png" border="0"/></a>
+    </td></tr>
+    <tr><td valign="top">
+        <a href="ss18nov2012.png"><img src="ss18nov2012_thumbnail.png" border="0"/></a>
+    </td><td>
+    </td></tr>
+</table>
 </p>
 
             </div>
