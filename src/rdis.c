@@ -53,12 +53,16 @@ struct _rdis * rdis_create_with_console (_loader * loader,
     rdis->gui = NULL;
 
     rdis->functions  = loader_functions(loader);
+    printf("functions loaded\n");fflush(stdout);
     rdis_console(rdis, "functions loaded");
     rdis->graph      = loader_graph_functions(loader, rdis->functions);
+    printf("graph loaded\n");fflush(stdout);
     rdis_console(rdis, "graph loaded");
     rdis->labels     = loader_labels_functions(loader, rdis->functions);
+    printf("labels loaded\n");fflush(stdout);
     rdis_console(rdis, "labels loaded");
     rdis->memory_map = loader_memory_map(loader);
+    printf("memory loaded\n");fflush(stdout);
     rdis_console(rdis, "memory loaded");
 
     rdis_check_references(rdis);
@@ -275,8 +279,6 @@ void rdis_clear_gui (struct _rdis * rdis)
 
 int rdis_user_function (struct _rdis * rdis, uint64_t address)
 {
-    printf("rdis_user_function %llx\n", (unsigned long long) address);
-
     // get a tree of all functions reachable at this address
     struct _map * functions = loader_function_address(rdis->loader, address);
 
@@ -291,13 +293,9 @@ int rdis_user_function (struct _rdis * rdis, uint64_t address)
         struct _function * function = map_it_data(mit);
         uint64_t fitaddress = function->address;
 
-        printf("adding user function: %llx\n", (unsigned long long) fitaddress);
-
         // if we already have this function, skip it
         if (map_fetch(rdis->functions, function->address) != NULL)
             continue;
-
-        printf("a\n");
 
         // add this function to the rdis->function_tree
         map_insert(rdis->functions, function->address, function);
@@ -448,13 +446,10 @@ void rdis_callback (struct _rdis * rdis, int type_mask)
 
     for (it = map_iterator(rdis->callbacks); it != NULL; it = map_it_next(it)) {
         struct _rdis_callback * rc = map_it_data(it);
-        printf("rc->data %p rc->type_mask %x type_mask %x\n",
-               rc->data, rc->type_mask, type_mask);
+
         if ((rc->type_mask & type_mask) == 0)
             continue;
 
-        printf("callback %p %llx\n",
-               rc->callback, (unsigned long long) rc->identifier);
         fflush(stdout);
 
         rc->callback(rc->data);

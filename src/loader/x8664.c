@@ -56,11 +56,6 @@ void * x8664_graph_wqueue (struct _x8664_wqueue * x8664_wqueue)
 
 void * x8664_functions_wqueue (struct _x8664_wqueue * x8664_wqueue)
 {
-    printf("x8664_functions_wqueue %llx, %llx, %p, %llx\n",
-           (unsigned long long) x8664_wqueue->address,
-           (unsigned long long) x8664_wqueue->offset,
-           x8664_wqueue->data,
-           (unsigned long long) x8664_wqueue->data_size);
     fflush(stdout);
     return x8664_functions(x8664_wqueue->address,
                            x8664_wqueue->offset,
@@ -77,22 +72,6 @@ struct _ins * x8664_ins (uint64_t address, ud_t * ud_obj)
                      ud_insn_len(ud_obj),
                      ud_insn_asm(ud_obj),
                      NULL);
-
-    if (ud_obj->mnemonic == UD_Ilea) {
-        printf("%s ", ud_insn_asm(ud_obj));
-        switch (ud_obj->operand[1].type) {
-        case UD_OP_IMM : printf("UD_OP_IMM\n"); break;
-        case UD_OP_MEM :
-            printf("UD_OP_MEM %d %d %d %d\n",
-                   ud_obj->operand[1].base,
-                   ud_obj->operand[1].scale,
-                   ud_obj->operand[1].index,
-                   ud_obj->operand[1].offset);
-            break;
-        case UD_OP_JIMM : printf("UD_OP_JIMM\n"); break;
-        default : printf("UD_OP_???\n"); break;
-        }
-    }
 
     if (udis86_target(address, &(ud_obj->operand[0])) != -1) {
         char * mnemonic_str = NULL;

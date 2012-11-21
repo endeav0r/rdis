@@ -668,8 +668,6 @@ struct _graph * elf32_graph_functions (struct _elf32 * elf32, struct _map * func
          it  = map_it_next(it)) {
         struct _function * function = map_it_data(it);
 
-        printf("graphing %llx\n", (unsigned long long) function->address);
-
         struct _x86_wqueue * x86w;
         x86w = x86_wqueue_create(elf32_base_address(elf32),
                                  function->address - elf32_base_address(elf32),
