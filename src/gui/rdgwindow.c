@@ -8,9 +8,6 @@
 #include <gdk/gdk.h>
 
 
-
-
-
 GtkWidget * tipwindow (const char * text)
 {
     GtkWidget * window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
@@ -31,7 +28,7 @@ GtkWidget * tipwindow (const char * text)
     gint x, y;
     gdk_window_get_device_position(rw, pointer, &x, &y, NULL);
 
-    gtk_window_move(GTK_WINDOW(window), x, y);
+    gtk_window_move(GTK_WINDOW(window), x + 1, y - 1);
 
     gtk_window_set_keep_above(GTK_WINDOW(window), TRUE);
 
@@ -253,7 +250,12 @@ gboolean rdgwindow_image_motion_notify_event (GtkWidget * widget,
                                                image_x, image_y);
 
     if (hover_ins != -1) {
-        struct _ins * ins = graph_fetch_ins(rdgwindow->gui->rdis->graph, hover_ins);
+        struct _ins * ins = graph_fetch_ins(rdgwindow->graph, hover_ins);
+        if (ins == NULL) {
+            printf("could not get hover_ins %llx\n",
+            (unsigned long long) hover_ins);
+            return FALSE;
+        }
         if (ins->references->size > 0) {
             char references_text[512];
             strcpy(references_text, "<span background=\"#ffffff\" font_family=\"monospace\" font=\"9.0\">");
@@ -291,26 +293,22 @@ gboolean rdgwindow_image_motion_notify_event (GtkWidget * widget,
                                          reference->address + i);
                     if (c == -1) {
                         ascii_valid = 0;
-                        printf("a\n");
                         break;
                     }
 
                     if (c == 0) {
                         if (i > 4) {
                             ascii[ai] = 0;
-                            printf("b\n");
                             break;
                         }
                         else {
                             ascii_valid = 0;
-                            printf("c\n");
                             break;
                         }
                     }
 
                     if ((c != '\n') && ((c < 0x20) || (c >= 0x7f))) {
                         ascii_valid = 0;
-                        printf("d %d %d\n", c, (int) i);
                         break;
                     }
 
@@ -338,7 +336,6 @@ gboolean rdgwindow_image_motion_notify_event (GtkWidget * widget,
                 }
                 ascii[ai] = 0;
                 if (ascii_valid) {
-                    printf("ascii: %s\n", ascii);
                     rdstrcat(references_text, "\n    <span foreground=\"#009900\">", 512);
                     rdstrcat(references_text, ascii, 512);
                     rdstrcat(references_text, "</span>", 512);

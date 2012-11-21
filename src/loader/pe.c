@@ -54,7 +54,6 @@ struct _pe * pe_create (const char * filename)
     fclose(fh);
 
     // make sure this is a PE
-    printf("pe 1.");fflush(stdout);
     if (pe->data_size < PE_FILE_OFFSET + 4) {
         pe_delete(pe);
         return NULL;
@@ -62,14 +61,12 @@ struct _pe * pe_create (const char * filename)
 
     uint32_t offset = *((uint32_t *) &(pe->data[PE_FILE_OFFSET]));
 
-    printf("2.");fflush(stdout);
     printf("offset: %x pe->data_size: %x\n", offset, (int) pe->data_size);
     if (offset + 4 + sizeof(Pe_FileHeader) >= pe->data_size) {
         pe_delete(pe);
         return NULL;
     }
 
-    printf("3.");fflush(stdout);
     printf("offset: %x, %x %x %x %x\n",
            offset,
            pe->data[offset],
@@ -86,13 +83,10 @@ struct _pe * pe_create (const char * filename)
 
     pe->offset = offset + 4;
 
-    printf("4.");fflush(stdout);
     if (pe_plus(pe) == -1) {
         object_delete(pe);
         return NULL;
     }
-
-    printf("5.");fflush(stdout);
 
     return pe;
 }

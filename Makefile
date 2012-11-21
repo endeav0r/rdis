@@ -3,7 +3,7 @@ all :
 
 
 install :
-	mv src/rdis /usr/bin/rdis
+	cp src/rdis /usr/bin/rdis
 
 clean :
 	make -C src clean

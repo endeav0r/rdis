@@ -123,8 +123,6 @@ void x86_graph_0 (struct _graph * graph,
     if (offset > data_size)
         return;
 
-    printf("%llx\n", (unsigned long long) (address + offset));
-
     ud_init      (&ud_obj);
     ud_set_mode  (&ud_obj, 32);
     ud_set_syntax(&ud_obj, UD_SYN_INTEL);
@@ -157,10 +155,6 @@ void x86_graph_0 (struct _graph * graph,
 
         // create graph node for this instruction
         struct _ins * ins = x86_ins(address + offset, &ud_obj);
-        printf("%llx %s (%p)\n",
-               (unsigned long long) (address + offset),
-               ins->description,
-               ins);
         struct _list * ins_list = list_create();
         list_append(ins_list, ins);
         graph_add_node(graph, address + offset, ins_list);
@@ -242,7 +236,6 @@ void x86_graph_0 (struct _graph * graph,
 
         offset += bytes_disassembled;
     }
-    printf("\n");
 }
 
 

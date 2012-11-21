@@ -130,6 +130,12 @@ void hexwindow_draw_memmap (struct _hexwindow * hexwindow)
                     else
                         ascii[i] = '.';
                 }
+                else {
+                    bytes_str[bsi++] = ' ';
+                    bytes_str[bsi++] = ' ';
+                    bytes_str[bsi++] = ' ';
+                    ascii[i] = ' ';
+                }
             }
             bytes_str[bsi] = '\0';
             ascii[i] = '\0';
