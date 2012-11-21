@@ -391,7 +391,7 @@ int rdg_node_source_y (struct _rdg * rdg,
                        struct _rdg_node * dst_node)
 {
     if (src_node->level == dst_node->level)
-        return src_node->y + (rdg_node_height(src_node) / 2);
+        return src_node->y;// + (rdg_node_height(src_node) / 2);
 
     if (src_node->y < dst_node->y)
         return src_node->y + rdg_node_height(src_node);
@@ -422,7 +422,7 @@ int rdg_node_sink_y (struct _rdg * rdg,
                      struct _rdg_node * dst_node)
 {
     if (src_node->level == dst_node->level)
-        return dst_node->y + (rdg_node_height(dst_node) / 2);
+        return dst_node->y;// + (rdg_node_height(dst_node) / 2);
 
     if (src_node->y < dst_node->y)
         return dst_node->y;
@@ -549,7 +549,9 @@ void rdg_assign_levels2 (struct _graph * graph, uint64_t top_index)
             if (edge->head == rdg_node->index) {
                 struct _rdg_node * tail_node;
                 tail_node = graph_fetch_data(graph, edge->tail);
-                tail_node->level = rdg_node->level + 1;
+                if (rdg_node->level + 1 > tail_node->level) {
+                    tail_node->level = rdg_node->level + 1;
+                }
                 if ((tail_node->flags & RDG_NODE_LEVEL_SET) == 0) {
                     index = index_create(tail_node->index);
                     queue_push(queue, index);
@@ -561,8 +563,8 @@ void rdg_assign_levels2 (struct _graph * graph, uint64_t top_index)
             if (edge->tail == rdg_node->index) {
                 struct _rdg_node * head_node;
                 head_node = graph_fetch_data(graph, edge->head);
-                head_node->level = rdg_node->level - 1;
                 if ((head_node->flags & RDG_NODE_LEVEL_SET) == 0) {
+                    head_node->level = rdg_node->level - 1;
                     index = index_create(head_node->index);
                     queue_push(queue, index);
                     object_delete(index);
@@ -675,14 +677,12 @@ void rdg_assign_levels (struct _graph * graph, uint64_t top_index)
 
     // set level of entry
     rdg_assign_levels2(graph, top_index);
-    /*
-    rdg_node = graph_fetch_data(graph, top_index);
-    rdg_node->flags |= RDG_NODE_LEVEL_SET;
-    */
+    //rdg_node = graph_fetch_data(graph, top_index);
+    //rdg_node->flags |= RDG_NODE_LEVEL_SET;
 
     // set node levels
-    graph_bfs(graph, top_index, rdg_node_assign_level);
-    graph_map(graph, rdg_node_assign_level_by_successor);
+    //graph_bfs(graph, top_index, rdg_node_assign_level);
+    //graph_map(graph, rdg_node_assign_level_by_successor);
 
     // adjust for negative levels
     int lowest_level = 0;
@@ -1255,7 +1255,7 @@ double rdg_node_adjacent_center (struct _rdg * rdg, struct _rdg_node * rdg_node)
 
 void rdg_reduce_edge_crossings (struct _rdg * rdg)
 {
-    int keep_looping = 32;
+    int keep_looping = 64;
 
     while (keep_looping--) {
         // for every node in the graph
@@ -1475,10 +1475,10 @@ void rdg_draw_edge (struct _rdg * rdg,
                 index = index_create(3);
                 map_insert(level_spacings, next_node->level, index);
                 object_delete(index);
-                spacing = 3.0;
+                spacing = 4.0;
             }
             else {
-                index->index += 3;
+                index->index += 4;
                 spacing = (double) index->index;
             }
 
@@ -1506,12 +1506,22 @@ void rdg_draw_edge (struct _rdg * rdg,
         // was this the final node (not virtual)
         if ((next_node->flags & RDG_NODE_VIRTUAL) == 0) {
             int arrow_type = RDG_ARROW_TYPE_FILL;
-            rdg_draw_arrow(ctx,
-                           next_x + RDG_SURFACE_PADDING,
-                           this_y + RDG_SURFACE_PADDING,
-                           next_x + RDG_SURFACE_PADDING,
-                           next_y + RDG_SURFACE_PADDING,
-                           arrow_type);
+            if (next_node->level == last_level) {
+                rdg_draw_arrow(ctx,
+                               next_x + RDG_SURFACE_PADDING,
+                               next_y - 1 + RDG_SURFACE_PADDING,
+                               next_x + RDG_SURFACE_PADDING,
+                               next_y + RDG_SURFACE_PADDING,
+                               arrow_type);
+            }
+            else {
+                rdg_draw_arrow(ctx,
+                               next_x + RDG_SURFACE_PADDING,
+                               this_y + RDG_SURFACE_PADDING,
+                               next_x + RDG_SURFACE_PADDING,
+                               next_y + RDG_SURFACE_PADDING,
+                               arrow_type);
+            }
             break;
         }
 
