@@ -173,6 +173,11 @@ void wqueue_run (struct _wqueue * wqueue)
     pthread_mutex_lock(&(wqueue->lock));
     int free_thread;
     for (free_thread = 0; free_thread < WQUEUE_THREAD_N; free_thread++) {
+        if (wqueue->thread_status[free_thread] == 2) {
+            void * status;
+            pthread_join(wqueue->pthreads[free_thread], &status);
+            break;
+        }
         if (wqueue->thread_status[free_thread] == 0)
             break;
     }
@@ -221,11 +226,11 @@ void * wqueue_launch (struct _wqueue_item * wqueue_item)
         wqueue->results_last = wqueue_result;
     }
 
-    // set this thread as free
-    wqueue->thread_status[wqueue_item->thread_index] = 0;
+    // set this thread as waiting for pthread_join
+    wqueue->thread_status[wqueue_item->thread_index] = 2;
 
     // unlock and look for new work items
     pthread_mutex_unlock(&(wqueue->lock));
 
-    return (void *) 0;
+    pthread_exit(NULL);
 }

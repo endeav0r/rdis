@@ -195,7 +195,6 @@ void x86_graph_0 (struct _graph * graph,
         case UD_Ijle  :
         case UD_Ijg   :
         case UD_Ijmp  :
-        case UD_Icall :
             operand = &(ud_obj.operand[0]);
 
             if (operand->type != UD_OP_JIMM)
