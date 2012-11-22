@@ -38,12 +38,14 @@ enum {
     RDIL_OF,
     RDIL_CF,
     RDIL_ZF,
-    RDIL_SF
+    RDIL_SF,
+
+    RDIL_X86_OPERANDS_SIZE
 };
 
 struct _list * rdil_x86 (struct _ins * ins);
 
-char * rdil_x86_ins_text (struct _rdil_ins * rdil_ins);
+int rdil_x86_ins_text (struct _rdil_ins * rdil_ins, char * buf, size_t buf_size);
 
 int      rdil_x86_full_reg             (int reg);
 int      rdil_x86_udis_reg_to_rdil_reg (int reg);
@@ -72,7 +74,10 @@ void rdil_x86_operand_set (ud_t *   ud_obj,
                            struct _rdil_operand * value,
                            struct _list *         list);
 
+struct _list * rdil_x86_adc  (ud_t * ud_obj, uint64_t address);
 struct _list * rdil_x86_add  (ud_t * ud_obj, uint64_t address);
+struct _list * rdil_x86_and  (ud_t * ud_obj, uint64_t address);
+struct _list * rdil_x86_cmp  (ud_t * ud_obj, uint64_t address);
 struct _list * rdil_x86_mov  (ud_t * ud_obj, uint64_t address);
 struct _list * rdil_x86_push (ud_t * ud_obj, uint64_t address);
 

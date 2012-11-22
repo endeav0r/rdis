@@ -157,7 +157,8 @@ struct _rdgwindow * rdgwindow_create (struct _gui * gui,
     rdgwindow->callback_identifier = rdis_add_callback(rdgwindow->gui->rdis,
                                         RDIS_CALLBACK(rdgwindow_rdis_callback),
                                         rdgwindow,
-                                        RDIS_CALLBACK_GRAPH_NODE);
+                                        RDIS_CALLBACK_GRAPH_NODE
+                                        | RDIS_CALLBACK_LABEL);
 
     return rdgwindow;
 }

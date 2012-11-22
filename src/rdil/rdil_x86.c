@@ -8,23 +8,29 @@ const char * rdil_x86_vars [] = {
     "ah",
     "ax",
     "eax",
+
     "bl",
     "bh",
     "bx",
     "ebx",
+
     "cl",
     "ch",
     "cx",
     "ecx",
+
     "dl",
     "dh",
     "dx"
     "edx",
+
     "esi",
     "edi",
     "esp",
     "ebp",
+
     "fs",
+    
     "of",
     "cf"
     "zf",
@@ -43,7 +49,10 @@ struct _list * rdil_x86 (struct _ins * ins)
 
     if (ud_disassemble(&ud_obj)) {
         switch (ud_obj.mnemonic) {
+            case UD_Iadc  : return rdil_x86_adc (&ud_obj, ins->address);
             case UD_Iadd  : return rdil_x86_add (&ud_obj, ins->address);
+            case UD_Iand  : return rdil_x86_and (&ud_obj, ins->address);
+            case UD_Icmp  : return rdil_x86_cmp (&ud_obj, ins->address);
             case UD_Ipush : return rdil_x86_push(&ud_obj, ins->address);
             case UD_Imov  : return rdil_x86_mov (&ud_obj, ins->address);
             default :
@@ -64,7 +73,7 @@ char * rdil_x86_operand_text (struct _rdil_operand * operand)
                  operand->bits,
                  (unsigned long long) operand->value);
     }
-    else if (operand->value < 0x100) {
+    else if (operand->value < RDIL_X86_OPERANDS_SIZE) {
         snprintf(operand_text, 32,
                  "(%d:%s)",    operand->bits,
                  rdil_x86_vars[operand->value]);
@@ -76,55 +85,53 @@ char * rdil_x86_operand_text (struct _rdil_operand * operand)
 }
 
 
-char * rdil_x86_ins_text (struct _rdil_ins * rdil_ins)
+int rdil_x86_ins_text (struct _rdil_ins * rdil_ins, char * buf, size_t buf_size)
 {
-    char * result = malloc(64);
     char * dst;
     char * src;
     char * cond;
     char * lhs;
     char * rhs;
+    int result;
 
     const char * mnemonic = rdil_ins_mnemonic(rdil_ins);
 
     switch(rdil_ins->type) {
     case RDIL_SYSCALL :
     case RDIL_HLT     :
-        snprintf(result, 64, "%s", mnemonic);
+        result = snprintf(buf, buf_size, "%s", mnemonic);
         break;
 
     case RDIL_LOAD  :
     case RDIL_STORE :
         dst = rdil_x86_operand_text(rdil_ins->dst);
         src = rdil_x86_operand_text(rdil_ins->src);
-        snprintf(result, 64, "%s (%d) %s, %s",
-                 mnemonic,
-                 rdil_ins->bits,
-                 dst,
-                 src);
+        result = snprintf(buf, buf_size, "%s (%d) %s, %s",
+                          mnemonic,
+                          rdil_ins->bits,
+                          dst,
+                          src);
         free(dst);
         free(src);
-        break;
+        return result;
 
     case RDIL_BRC :
         dst  = rdil_x86_operand_text(rdil_ins->dst);
         cond = rdil_x86_operand_text(rdil_ins->cond);
-        snprintf(result, 64, "%s (?%s) %s",
-                 mnemonic,
-                 cond,
-                 dst);
-        break;
+        result = snprintf(buf, buf_size, "%s (?%s) %s", mnemonic, cond, dst);
+        free(dst);
+        free(cond);
+        return result;
 
     case RDIL_ASSIGN :
     case RDIL_NOT    :
     case RDIL_SEXT   :
         dst = rdil_x86_operand_text(rdil_ins->dst);
         src = rdil_x86_operand_text(rdil_ins->src);
-        snprintf(result, 64, "%s %s, %s",
-                 mnemonic,
-                 dst,
-                 src);
-        break;
+        result = snprintf(buf, buf_size, "%s %s, %s", mnemonic, dst, src);
+        free(dst);
+        free(src);
+        return result;
 
     case RDIL_ADD    :
     case RDIL_SUB    :
@@ -144,18 +151,21 @@ char * rdil_x86_ins_text (struct _rdil_ins * rdil_ins)
         dst = rdil_x86_operand_text(rdil_ins->dst);
         lhs = rdil_x86_operand_text(rdil_ins->lhs);
         rhs = rdil_x86_operand_text(rdil_ins->rhs);
-        snprintf(result, 64, "%s %s, %s, %s",
-                 mnemonic,
-                 dst,
-                 lhs,
-                 rhs);
-        break;
+        result = snprintf(buf, buf_size, "%s %s, %s, %s",
+                          mnemonic,
+                          dst,
+                          lhs,
+                          rhs);
+        free(dst);
+        free(lhs);
+        free(rhs);
+        return result;
 
     default :
-        snprintf(result, 64, "invalid instruction");
+        snprintf(buf, buf_size, "invalid instruction");
     }
 
-    return result;
+    return -1;
 }
 
 
@@ -578,6 +588,44 @@ void rdil_x86_operand_set (ud_t *   ud_obj,
 
 
 
+struct _list * rdil_x86_adc (ud_t * ud_obj, uint64_t address)
+{
+    struct _list * list = list_create();
+
+    struct _rdil_operand * lhs     = rdil_x86_operand_get(ud_obj, 0, address, list);
+    struct _rdil_operand * rhs     = rdil_x86_operand_get(ud_obj, 1, address, list);
+    struct _rdil_operand * tmp     = rdil_operand_create(RDIL_VAR, lhs->bits, -1);
+    struct _rdil_operand * OF      = rdil_operand_create(RDIL_VAR, 1, RDIL_OF);
+    struct _rdil_operand * CF      = rdil_operand_create(RDIL_VAR, 1, RDIL_CF);
+    struct _rdil_operand * ZF      = rdil_operand_create(RDIL_VAR, 1, RDIL_ZF);
+    struct _rdil_operand * SF      = rdil_operand_create(RDIL_VAR, 1, RDIL_SF);
+    struct _rdil_operand * zero    = rdil_operand_create(RDIL_CONSTANT, lhs->bits, 0);
+    struct _rdil_operand * SFxorOF = rdil_operand_create(RDIL_VAR, 32, -1);
+
+    struct _rdil_ins * ins[7];
+    ins[0] = rdil_ins_create(RDIL_ADD,    address, tmp,     lhs,     rhs);
+    ins[1] = rdil_ins_create(RDIL_ADD,    address, tmp,     tmp,     CF);
+    ins[2] = rdil_ins_create(RDIL_CMPLTU, address, CF,      tmp,     zero);
+    ins[3] = rdil_ins_create(RDIL_CMPEQ,  address, ZF,      tmp,     zero);
+    ins[4] = rdil_ins_create(RDIL_CMPLTS, address, SF,      tmp,     zero);
+    ins[5] = rdil_ins_create(RDIL_CMPLTS, address, SFxorOF, lhs,     rhs);
+    ins[6] = rdil_ins_create(RDIL_XOR,    address, OF,      SFxorOF, SF);
+
+    int i;
+    for (i = 0; i < 7; i++) {
+        list_append(list, ins[i]);
+        object_delete(ins[i]);
+    }
+
+    objects_delete(lhs, rhs, tmp, OF, CF, ZF, SF, zero, SFxorOF, NULL);
+
+    rdil_x86_operand_set(ud_obj, 0, address, tmp, list);
+
+    return list;
+}
+
+
+
 struct _list * rdil_x86_add (ud_t * ud_obj, uint64_t address)
 {
     struct _list * list = list_create();
@@ -609,6 +657,96 @@ struct _list * rdil_x86_add (ud_t * ud_obj, uint64_t address)
     objects_delete(lhs, rhs, tmp, OF, CF, ZF, SF, zero, SFxorOF, NULL);
 
     rdil_x86_operand_set(ud_obj, 0, address, tmp, list);
+
+    return list;
+}
+
+
+
+struct _list * rdil_x86_and (ud_t * ud_obj, uint64_t address)
+{
+    struct _list * list = list_create();
+
+    struct _rdil_operand * lhs     = rdil_x86_operand_get(ud_obj, 0, address, list);
+    struct _rdil_operand * rhs     = rdil_x86_operand_get(ud_obj, 1, address, list);
+    struct _rdil_operand * tmp     = rdil_operand_create(RDIL_VAR, lhs->bits, -1);
+    struct _rdil_operand * OF      = rdil_operand_create(RDIL_VAR, 1, RDIL_OF);
+    struct _rdil_operand * CF      = rdil_operand_create(RDIL_VAR, 1, RDIL_CF);
+    struct _rdil_operand * ZF      = rdil_operand_create(RDIL_VAR, 1, RDIL_ZF);
+    struct _rdil_operand * SF      = rdil_operand_create(RDIL_VAR, 1, RDIL_SF);
+    struct _rdil_operand * zero    = rdil_operand_create(RDIL_CONSTANT, lhs->bits, 0);
+
+    // 8-bit immiedates are always sign extended
+    if ((ud_obj->operand[1].type == UD_OP_IMM) && (rhs->bits == 8)) {
+        struct _rdil_operand * new_rhs = rdil_operand_create(RDIL_VAR, 32, -1);
+        struct _rdil_ins * ins = rdil_ins_create(RDIL_SEXT, address, new_rhs, rhs);
+        list_append(list, ins);
+        objects_delete(rhs, ins, NULL);
+        rhs = new_rhs;
+    }
+
+    struct _rdil_ins * ins[5];
+    ins[0] = rdil_ins_create(RDIL_AND,    address, tmp,     lhs,     rhs);
+    ins[1] = rdil_ins_create(RDIL_ASSIGN, address, OF,      zero);
+    ins[2] = rdil_ins_create(RDIL_ASSIGN, address, CF,      zero);
+    ins[3] = rdil_ins_create(RDIL_CMPEQ,  address, ZF,      tmp,     zero);
+    ins[4] = rdil_ins_create(RDIL_CMPLTS, address, SF,      tmp,     zero);
+
+    int i;
+    for (i = 0; i < 5; i++) {
+        list_append(list, ins[i]);
+        object_delete(ins[i]);
+    }
+
+    objects_delete(lhs, rhs, tmp, OF, CF, ZF, SF, zero, NULL);
+
+    rdil_x86_operand_set(ud_obj, 0, address, tmp, list);
+
+    return list;
+}
+
+
+
+struct _list * rdil_x86_cmp (ud_t * ud_obj, uint64_t address)
+{
+
+    struct _list * list = list_create();
+
+    struct _rdil_operand * lhs     = rdil_x86_operand_get(ud_obj, 0, address, list);
+    struct _rdil_operand * rhs     = rdil_x86_operand_get(ud_obj, 1, address, list);
+    struct _rdil_operand * tmp     = rdil_operand_create(RDIL_VAR, lhs->bits, -1);
+
+    struct _rdil_operand * CF          = rdil_operand_create(RDIL_VAR, 1, RDIL_CF);
+    struct _rdil_operand * CForZF      = rdil_operand_create(RDIL_VAR, 1, -1);
+    struct _rdil_operand * SFxorOF     = rdil_operand_create(RDIL_VAR, 1, -1);
+    struct _rdil_operand * SFxorOForZF = rdil_operand_create(RDIL_VAR, 1, -1);
+    struct _rdil_operand * ZF          = rdil_operand_create(RDIL_VAR, 1, RDIL_ZF);
+    struct _rdil_operand * OF          = rdil_operand_create(RDIL_VAR, 1, RDIL_OF);
+    struct _rdil_operand * SF          = rdil_operand_create(RDIL_VAR, 1, RDIL_SF);
+    struct _rdil_operand * zero        = rdil_operand_create(RDIL_CONSTANT, lhs->bits, 0);
+
+    struct _rdil_operand * sext        = rdil_operand_create(RDIL_VAR, lhs->bits, -1);
+
+    struct _rdil_ins * ins[9];
+
+    ins[0] = rdil_ins_create(RDIL_SEXT,   address, sext,        rhs);
+    ins[1] = rdil_ins_create(RDIL_CMPLTU, address, CF,          lhs,     sext);
+    ins[2] = rdil_ins_create(RDIL_CMPLEU, address, CForZF,      lhs,     sext);
+    ins[3] = rdil_ins_create(RDIL_CMPLTS, address, SFxorOF,     lhs,     sext);
+    ins[4] = rdil_ins_create(RDIL_CMPLES, address, SFxorOForZF, lhs,     sext);
+    ins[5] = rdil_ins_create(RDIL_CMPEQ,  address, ZF,          lhs,     sext);
+    ins[6] = rdil_ins_create(RDIL_SUB,    address, tmp,         lhs,     sext);
+    ins[7] = rdil_ins_create(RDIL_CMPLTS, address, SF,          tmp,     zero);
+    ins[8] = rdil_ins_create(RDIL_XOR,    address, OF,          SFxorOF, SF);
+
+    int i;
+    for (i = 0; i < 9; i++) {
+        list_append(list, ins[i]);
+        object_delete(ins[i]);
+    }
+
+    objects_delete(lhs,         rhs, tmp, CF, CForZF, SFxorOF,
+                   SFxorOForZF, ZF,  OF,  SF, zero,   sext,    NULL);
 
     return list;
 }

@@ -93,6 +93,7 @@ struct _ins * x8664_ins (uint64_t address, ud_t * ud_obj)
         case UD_Ijle  : mnemonic_str = "jle"; break;
         case UD_Ijg   : mnemonic_str = "jg"; break;
         case UD_Ijmp  : mnemonic_str = "jmp"; break;
+        case UD_Iloop : mnemonic_str = "loop"; break;
         case UD_Icall : mnemonic_str = "call"; break;
         default : break;
         }
@@ -275,6 +276,7 @@ void x8664_graph_0 (struct _graph * graph,
         case UD_Ijle  :
         case UD_Ijg   :
         case UD_Ijmp  :
+        case UD_Iloop :
         //case UD_Icall :
             operand = &(ud_obj.operand[0]);
 
@@ -476,6 +478,7 @@ void x8664_functions_r (struct _map  * functions,
         case UD_Ijle  :
         case UD_Ijg   :
         case UD_Ijmp  :
+        case UD_Iloop :
         case UD_Icall :
             operand = &(ud_obj.operand[0]);
 
