@@ -1,0 +1,19 @@
+ GGG
+G   
+G  GG
+G   G
+ GGG  raph Truncation and Cross Graph References
+
+Graph truncation will cause a loader graph to destroy (or truncate) a node and
+remove all of its successors. Imagine a program which modifies the destination
+of a jump instruction, causing a portion of an existing graph to become
+invalid.
+
+The decision becomes what to do with cross graph references, for example a call
+to another function, in portions of the graph that will become truncated.
+If the targeted function is targeted solely from the truncated portion of the
+graph, what happens to this function?
+
+    No change to the function
+    Function is removed
+    Function remains but has some indicator that it is no longer referenced

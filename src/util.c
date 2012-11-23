@@ -223,7 +223,7 @@ int mem_map_byte (struct _map * mem_map, uint64_t address)
 int mem_map_set (struct _map * mem_map, uint64_t address, struct _buffer * buf)
 {
     struct _buffer * buf2 = map_fetch_max(mem_map, address + buf->size);
-    uint64_t key            = map_fetch_max_key(mem_map, address + buf->size);
+    uint64_t key          = map_fetch_max_key(mem_map, address + buf->size);
 
     if (    (buf2 != NULL)
          && (    ((address <= key) && (address + buf->size > key))

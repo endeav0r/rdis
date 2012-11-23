@@ -94,7 +94,7 @@ void hexwindow_draw_memmap (struct _hexwindow * hexwindow)
     gtk_text_buffer_get_start_iter(hexwindow->textBuffer, &iter);
 
     struct _map_it * it;
-    for (it = map_iterator(hexwindow->gui->rdis->memory_map);
+    for (it = map_iterator(hexwindow->gui->rdis->memory);
          it != NULL;
          it = map_it_next(it)) {
         struct _buffer * buffer = map_it_data(it);

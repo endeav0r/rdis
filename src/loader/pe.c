@@ -7,6 +7,7 @@
 #include "index.h"
 #include "label.h"
 #include "util.h"
+#include "wqueue.h"
 #include "x8664.h"
 #include "x86.h"
 
@@ -18,16 +19,16 @@ static const struct _loader_object pe_object = {
         NULL,
         (json_t * (*) (void *)) pe_serialize
     },
-    (uint64_t        (*) (void *))                pe_entry,
-    (struct _graph * (*) (void *))                pe_graph,
-    (struct _map  *  (*) (void *))                pe_functions,
-    (struct _map  *  (*) (void *))                pe_labels,
-    (struct _graph * (*) (void *, uint64_t))      pe_graph_address,
-    (struct _map *   (*) (void *))                pe_memory_map,
-    (struct _map  *  (*) (void *, uint64_t))      pe_function_address,
-    (struct _label * (*) (void *, uint64_t))      pe_label_address,
-    (struct _graph * (*) (void *, struct _map *)) pe_graph_functions,
-    (struct _map *   (*) (void *, struct _map *)) pe_labels_functions
+    (uint64_t        (*) (void *))                               pe_entry,
+    (struct _graph * (*) (void *, struct _map *))                pe_graph,
+    (struct _map  *  (*) (void *, struct _map *))                pe_functions,
+    (struct _map  *  (*) (void *, struct _map *))                pe_labels,
+    (struct _graph * (*) (void *, struct _map *, uint64_t))      pe_graph_address,
+    (struct _map *   (*) (void *))                               pe_memory_map,
+    (struct _map  *  (*) (void *, struct _map *, uint64_t))      pe_function_address,
+    (struct _label * (*) (void *, struct _map *, uint64_t))      pe_label_address,
+    (struct _graph * (*) (void *, struct _map *, struct _map *)) pe_graph_functions,
+    (struct _map *   (*) (void *, struct _map *, struct _map *)) pe_labels_functions
 };
 
 
@@ -388,19 +389,17 @@ uint64_t pe_entry (struct _pe * pe)
 }
 
 
-struct _graph * pe_graph (struct _pe * pe)
+struct _graph * pe_graph (struct _pe * pe, struct _map * memory)
 {
-    struct _map   * functions = pe_functions(pe);
-
-    struct _graph * graph     = pe_graph_functions(pe, functions);
-
+    struct _map   * functions = pe_functions(pe, memory);
+    struct _graph * graph     = pe_graph_functions(pe, memory, functions);
     object_delete(functions);
 
     return graph;
 }
 
 
-struct _map * pe_functions (struct _pe * pe)
+struct _map * pe_functions (struct _pe * pe, struct _map * memory)
 {
     uint64_t entry_address = -1;
     if (pe_plus(pe)) {
@@ -412,7 +411,7 @@ struct _map * pe_functions (struct _pe * pe)
         entry_address = pe_image_base(pe) + ohs->AddressOfEntryPoint;
     }
 
-    struct _map * functions = pe_function_address(pe, entry_address);
+    struct _map * functions = pe_function_address(pe, memory, entry_address);
 
     struct _function * function = function_create(entry_address);
     if (map_fetch(functions, function->address) == NULL)
@@ -423,48 +422,28 @@ struct _map * pe_functions (struct _pe * pe)
 }
 
 
-struct _map * pe_labels (struct _pe * pe)
+struct _map * pe_labels (struct _pe * pe, struct _map * memory)
 {
-    struct _map * functions = pe_functions(pe);
-
-    struct _map * labels    = pe_labels_functions(pe, functions);
-
+    struct _map * functions = pe_functions(pe, memory);
+    struct _map * labels    = pe_labels_functions(pe, memory, functions);
     object_delete(functions);
 
     return labels;
 }
 
 
-struct _graph * pe_graph_address (struct _pe * pe, uint64_t address)
+struct _graph * pe_graph_address (struct _pe  * pe,
+                                  struct _map * memory,
+                                  uint64_t      address)
 {
-    int section_i = pe_section_index_by_address(pe, address);
-    if (section_i == -1)
-        return NULL;
-
-    Pe_SectionHeader * sh = pe_sh_safe(pe, section_i);
-    if (sh == NULL)
-        return NULL;
-
-    uint64_t section_base = pe_image_base(pe) + sh->VirtualAddress;
-    uint64_t section_size = sh->SizeOfRawData;
-    if (sh->VirtualSize < section_size)
-        section_size = sh->VirtualSize;
-    uint64_t section_offset = sh->PointerToRawData;
-
     Pe_FileHeader * pfh = pe_fh(pe);
+ 
     struct _graph * graph = NULL;
-    if (pfh->Machine == IMAGE_FILE_MACHINE_AMD64) {
-        graph = x8664_graph(section_base,
-                            address - section_base,
-                            &(pe->data[section_offset]),
-                            section_size);
-    }
-    else if (pfh->Machine == IMAGE_FILE_MACHINE_I386) {
-        graph = x86_graph(section_base,
-                          address - section_base,
-                          &(pe->data[section_offset]),
-                          section_size);
-    }
+ 
+    if      (pfh->Machine == IMAGE_FILE_MACHINE_AMD64)
+        graph = x8664_graph(address, memory);
+    else if (pfh->Machine == IMAGE_FILE_MACHINE_I386)
+        graph = x86_graph(address, memory);
 
     if (graph != NULL)
         graph_reduce(graph);
@@ -473,42 +452,26 @@ struct _graph * pe_graph_address (struct _pe * pe, uint64_t address)
 }
 
 
-struct _map * pe_function_address (struct _pe * pe, uint64_t address)
+struct _map * pe_function_address (struct _pe  * pe,
+                                   struct _map * memory,
+                                   uint64_t      address)
 {
-    int section_i = pe_section_index_by_address(pe, address);
-    if (section_i == -1)
-        return NULL;
-
-    Pe_SectionHeader * sh = pe_sh_safe(pe, section_i);
-    if (sh == NULL)
-        return NULL;
-
-    uint64_t section_base = pe_image_base(pe) + sh->VirtualAddress;
-    uint64_t section_size = sh->SizeOfRawData;
-    if (sh->VirtualSize < section_size)
-        section_size = sh->VirtualSize;
-    uint64_t section_offset = sh->PointerToRawData;
-
     Pe_FileHeader * pfh = pe_fh(pe);
+    
     struct _map * functions = NULL;
-    if (pfh->Machine == IMAGE_FILE_MACHINE_AMD64) {
-        functions = x8664_functions(section_base,
-                                    address - section_base,
-                                    &(pe->data[section_offset]),
-                                    section_size);
-    }
-    else if (pfh->Machine == IMAGE_FILE_MACHINE_I386) {
-        functions = x86_functions(section_base,
-                                  address - section_base,
-                                  &(pe->data[section_offset]),
-                                  section_size);
-    }
+
+    if (pfh->Machine == IMAGE_FILE_MACHINE_AMD64)
+        functions = x8664_functions(address, memory);
+    else if (pfh->Machine == IMAGE_FILE_MACHINE_I386)
+        functions = x86_functions(address, memory);
 
     return functions;
 }
 
 
-struct _label * pe_label_address (struct _pe * pe, uint64_t address)
+struct _label * pe_label_address (struct _pe  * pe,
+                                  struct _map * memory,
+                                  uint64_t address)
 {
     // see if we have a symbol for this address
     Pe_FileHeader * pfh = pe_fh(pe);
@@ -605,31 +568,52 @@ struct _map * pe_memory_map (struct _pe * pe)
 }
 
 
-struct _graph * pe_graph_functions (struct _pe * pe, struct _map * functions)
+struct _graph * pe_graph_functions (struct _pe  * pe,
+                                    struct _map * memory,
+                                    struct _map * functions)
 {
-    struct _graph * graph     = graph_create();
+    struct _graph * graph   = graph_create();
+    struct _wqueue * wqueue = wqueue_create();
+
+    Pe_FileHeader * pfh = pe_fh(pe);
 
     struct _map_it * it;
     for (it = map_iterator(functions); it != NULL; it = map_it_next(it)) {
         struct _function * function = map_it_data(it);
 
-        struct _graph * function_graph = pe_graph_address(pe, function->address);
-        if (function_graph == NULL) {
-            printf("null function graph: %llx\n",
-                   (unsigned long long) function->address);
+        if (pfh->Machine == IMAGE_FILE_MACHINE_AMD64) {
+            struct _x8664_wqueue * x8664w;
+            x8664w = x8664_wqueue_create(function->address, memory);
+            wqueue_push(wqueue, WQUEUE_CALLBACK(x8664_graph_wqueue), x8664w);
+            object_delete(x8664w);
         }
-        graph_merge(graph, function_graph);
-        object_delete(function_graph);
+        else {
+            struct _x86_wqueue * x86w;
+            x86w = x86_wqueue_create(function->address, memory);
+            wqueue_push(wqueue, WQUEUE_CALLBACK(x86_graph_wqueue), x86w);
+            object_delete(x86w);
+        }
     }
+
+    wqueue_wait(wqueue);
+
+    while (wqueue_peek(wqueue) != NULL) {
+        graph_merge(graph, wqueue_peek(wqueue));
+        wqueue_pop(wqueue);
+    }
+
+    object_delete(wqueue);
 
     remove_function_predecessors(graph, functions);
     graph_reduce(graph);
- 
+
     return graph;
 }
 
 
-struct _map * pe_labels_functions (struct _pe * pe, struct _map * functions)
+struct _map * pe_labels_functions (struct _pe  * pe,
+                                   struct _map * memory,
+                                   struct _map * functions)
 {
     struct _map * labels    = map_create();
 
@@ -637,7 +621,7 @@ struct _map * pe_labels_functions (struct _pe * pe, struct _map * functions)
     for (it = map_iterator(functions); it != NULL; it = map_it_next(it)) {
         struct _function * function = map_it_data(it);
 
-        struct _label * label = pe_label_address(pe, function->address);
+        struct _label * label = pe_label_address(pe, memory, function->address);
         if (label != NULL)
             map_insert(labels, function->address, label);
         object_delete(label);

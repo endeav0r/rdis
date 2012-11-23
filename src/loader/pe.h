@@ -27,15 +27,15 @@ json_t *     pe_serialize   (struct _pe * pe);
 struct _pe * pe_deserialize (json_t * json);
 
 uint64_t        pe_entry            (struct _pe *);
-struct _graph * pe_graph            (struct _pe *);
-struct _map  *  pe_functions        (struct _pe *);
-struct _map *   pe_labels           (struct _pe *);
-struct _graph * pe_graph_address    (struct _pe *, uint64_t);
+struct _graph * pe_graph            (struct _pe *, struct _map *);
+struct _map  *  pe_functions        (struct _pe *, struct _map *);
+struct _map *   pe_labels           (struct _pe *, struct _map *);
+struct _graph * pe_graph_address    (struct _pe *, struct _map *, uint64_t);
 struct _map *   pe_memory_map       (struct _pe *);
-struct _map  *  pe_function_address (struct _pe *, uint64_t);
-struct _label * pe_label_address    (struct _pe *, uint64_t);
-struct _graph * pe_graph_functions  (struct _pe * pe, struct _map *);
-struct _map   * pe_labels_functions (struct _pe * pe, struct _map *);
+struct _map  *  pe_function_address (struct _pe *, struct _map *, uint64_t);
+struct _label * pe_label_address    (struct _pe *, struct _map *, uint64_t);
+struct _graph * pe_graph_functions  (struct _pe *, struct _map *, struct _map *);
+struct _map   * pe_labels_functions (struct _pe *, struct _map *, struct _map *);
 
 
 Pe_FileHeader *                 pe_fh     (struct _pe * pe);

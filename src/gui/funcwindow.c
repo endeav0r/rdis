@@ -53,10 +53,18 @@ struct _funcwindow * funcwindow_create (struct _gui * gui)
                      G_CALLBACK(funcwindow_call_graph),
                      funcwindow);
     gtk_menu_shell_append(GTK_MENU_SHELL(funcwindow->menu_popup), menuItem);
+    
     menuItem = gtk_menu_item_new_with_label("Mark Reachable");
     g_signal_connect(menuItem,
                      "activate",
                      G_CALLBACK(funcwindow_mark_reachable),
+                     funcwindow);
+    gtk_menu_shell_append(GTK_MENU_SHELL(funcwindow->menu_popup), menuItem);
+    
+    menuItem = gtk_menu_item_new_with_label("Remove Function");
+    g_signal_connect(menuItem,
+                     "activate",
+                     G_CALLBACK(funcwindow_remove_function),
                      funcwindow);
     gtk_menu_shell_append(GTK_MENU_SHELL(funcwindow->menu_popup), menuItem);
 
@@ -325,11 +333,8 @@ gboolean funcwindow_button_press_event  (GtkWidget * widget,
 }
 
 
-void funcwindow_call_graph (GtkMenuItem * menuItem,
-                            struct _funcwindow * funcwindow)
+uint64_t funcwindow_selected_item (struct _funcwindow * funcwindow)
 {
-    printf("funcwindow call graph\n");
-
     GtkTreeSelection * selection;
     GtkTreeIter treeIter;
     GtkTreeModel * model = GTK_TREE_MODEL(funcwindow->listStore);
@@ -344,22 +349,36 @@ void funcwindow_call_graph (GtkMenuItem * menuItem,
                            &treeIter,
                            COL_INDEX, &index,
                            -1);
-        printf("selected %llx\n", (unsigned long long) index);
-
-        if (graph_fetch_node(funcwindow->gui->rdis->graph, index) == NULL) {
-            printf("we are in trouble, not found %llx\n", (unsigned long long) index);
-        }
-        else
-            printf("found %llx\n", (unsigned long long) index);
-
-        struct _graph * graph = create_call_graph(funcwindow->gui->rdis->graph, index);
-
-        graph_debug(graph);
-
-        gui_rdgwindow(funcwindow->gui, graph, RDGWINDOW_CALL_GRAPH, index);
-
-        object_delete(graph);
+        return index;
     }
+
+    return -1;
+}
+
+
+void funcwindow_call_graph (GtkMenuItem * menuItem,
+                            struct _funcwindow * funcwindow)
+{
+    printf("funcwindow call graph\n");
+
+    uint64_t index = funcwindow_selected_item(funcwindow);
+
+    if (index == -1)
+        return;
+
+    if (graph_fetch_node(funcwindow->gui->rdis->graph, index) == NULL) {
+        printf("we are in trouble, not found %llx\n", (unsigned long long) index);
+    }
+    else
+        printf("found %llx\n", (unsigned long long) index);
+
+    struct _graph * graph = create_call_graph(funcwindow->gui->rdis->graph, index);
+
+    graph_debug(graph);
+
+    gui_rdgwindow(funcwindow->gui, graph, RDGWINDOW_CALL_GRAPH, index);
+
+    object_delete(graph);
 }
 
 
@@ -368,31 +387,30 @@ void funcwindow_mark_reachable (GtkMenuItem * menuItem,
 {
     printf("funcwindow mark reachable\n");
 
-    GtkTreeSelection * selection;
-    GtkTreeIter treeIter;
-    GtkTreeModel * model = GTK_TREE_MODEL(funcwindow->listStore);
+    uint64_t index = funcwindow_selected_item(funcwindow);
 
-    selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(funcwindow->treeView));
+    if (index == -1)
+        return;
 
-    if (gtk_tree_selection_get_selected(selection,
-                                        &model,
-                                        &treeIter)) {
-        uint64_t index;
-        gtk_tree_model_get(GTK_TREE_MODEL(funcwindow->listStore),
-                           &treeIter,
-                           COL_INDEX, &index,
-                           -1);
-        printf("selected %llx\n", (unsigned long long) index);
-
-        if (graph_fetch_node(funcwindow->gui->rdis->graph, index) == NULL) {
-            printf("we are in trouble, not found %llx\n", (unsigned long long) index);
-        }
-        else
-            printf("found %llx\n", (unsigned long long) index);
-
-        rdis_function_reachable(funcwindow->gui->rdis, index);
-        funcwindow_redraw(funcwindow);
+    if (graph_fetch_node(funcwindow->gui->rdis->graph, index) == NULL) {
+        printf("we are in trouble, not found %llx\n", (unsigned long long) index);
     }
+    else
+        printf("found %llx\n", (unsigned long long) index);
+
+    rdis_function_reachable(funcwindow->gui->rdis, index);
+    rdis_callback(funcwindow->gui->rdis, RDIS_CALLBACK_FUNCTION);
+}
+
+void funcwindow_remove_function (GtkMenuItem * menuItem,
+                                 struct _funcwindow * funcwindow)
+{
+    uint64_t index = funcwindow_selected_item(funcwindow);
+
+    if (index == -1)
+        return;
+
+    rdis_remove_function(funcwindow->gui->rdis, index);
 }
 
 

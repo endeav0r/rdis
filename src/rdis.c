@@ -52,18 +52,21 @@ struct _rdis * rdis_create_with_console (_loader * loader,
 
     rdis->gui = NULL;
 
-    rdis->functions  = loader_functions(loader);
-    printf("functions loaded\n");fflush(stdout);
-    rdis_console(rdis, "functions loaded");
-    rdis->graph      = loader_graph_functions(loader, rdis->functions);
-    printf("graph loaded\n");fflush(stdout);
-    rdis_console(rdis, "graph loaded");
-    rdis->labels     = loader_labels_functions(loader, rdis->functions);
-    printf("labels loaded\n");fflush(stdout);
-    rdis_console(rdis, "labels loaded");
-    rdis->memory_map = loader_memory_map(loader);
+    rdis->memory = loader_memory_map(loader);
     printf("memory loaded\n");fflush(stdout);
     rdis_console(rdis, "memory loaded");
+
+    rdis->functions  = loader_functions(loader, rdis->memory);
+    printf("functions loaded\n");fflush(stdout);
+    rdis_console(rdis, "functions loaded");
+
+    rdis->graph      = loader_graph_functions(loader, rdis->memory, rdis->functions);
+    printf("graph loaded\n");fflush(stdout);
+    rdis_console(rdis, "graph loaded");
+
+    rdis->labels     = loader_labels_functions(loader, rdis->memory, rdis->functions);
+    printf("labels loaded\n");fflush(stdout);
+    rdis_console(rdis, "labels loaded");
 
     rdis_check_references(rdis);
 
@@ -81,7 +84,7 @@ void rdis_delete (struct _rdis * rdis)
     object_delete(rdis->graph);
     object_delete(rdis->labels);
     object_delete(rdis->functions);
-    object_delete(rdis->memory_map);
+    object_delete(rdis->memory);
     if (rdis->loader != NULL)
         object_delete(rdis->loader);
     rdis_lua_delete(rdis->rdis_lua);
@@ -93,11 +96,11 @@ json_t * rdis_serialize (struct _rdis * rdis)
 {
     json_t * json = json_object();
 
-    json_object_set(json, "ot",            json_integer(SERIALIZE_RDIS));
-    json_object_set(json, "graph",         object_serialize(rdis->graph));
-    json_object_set(json, "labels",        object_serialize(rdis->labels));
+    json_object_set(json, "ot",       json_integer(SERIALIZE_RDIS));
+    json_object_set(json, "graph",    object_serialize(rdis->graph));
+    json_object_set(json, "labels",   object_serialize(rdis->labels));
     json_object_set(json, "function", object_serialize(rdis->functions));
-    json_object_set(json, "memory_map",    object_serialize(rdis->memory_map));
+    json_object_set(json, "memory",   object_serialize(rdis->memory));
 
     return json;
 }
@@ -105,10 +108,10 @@ json_t * rdis_serialize (struct _rdis * rdis)
 
 struct _rdis * rdis_deserialize (json_t * json)
 {
-    json_t * graph      = json_object_get(json, "graph");
-    json_t * labels     = json_object_get(json, "labels");
-    json_t * functions  = json_object_get(json, "functions");
-    json_t * memory_map = json_object_get(json, "memory_map");
+    json_t * graph     = json_object_get(json, "graph");
+    json_t * labels    = json_object_get(json, "labels");
+    json_t * functions = json_object_get(json, "functions");
+    json_t * memory    = json_object_get(json, "memory");
 
     if (! json_is_object(graph))
         return NULL;
@@ -116,7 +119,7 @@ struct _rdis * rdis_deserialize (json_t * json)
         return NULL;
     if (! json_is_object(functions))
         return NULL;
-    if (! json_is_object(memory_map))
+    if (! json_is_object(memory))
         return NULL;
 
     struct _graph * ggraph = deserialize(graph);
@@ -133,11 +136,11 @@ struct _rdis * rdis_deserialize (json_t * json)
         object_delete(llabels);
         return NULL;
     }
-    struct _map * mmemory_map = deserialize(memory_map);
-    if (mmemory_map == NULL) {
+    struct _map * mmemory = deserialize(memory);
+    if (mmemory == NULL) {
         object_delete(ggraph);
         object_delete(llabels);
-        object_delete(mmemory_map);
+        object_delete(mmemory);
         return NULL;
     }
 
@@ -151,7 +154,7 @@ struct _rdis * rdis_deserialize (json_t * json)
     rdis->graph            = ggraph;
     rdis->labels           = llabels;
     rdis->functions        = ffunctions;
-    rdis->memory_map       = mmemory_map;
+    rdis->memory           = mmemory;
 
     return rdis;
 }
@@ -175,8 +178,8 @@ void rdis_check_references (struct _rdis * rdis)
                 struct _reference * reference = rit->data;
 
                 if (reference->type == REFERENCE_CONSTANT) {
-                    uint64_t lower = map_fetch_max_key(rdis->memory_map, reference->address);
-                    struct _buffer * buffer = map_fetch(rdis->memory_map, lower);
+                    uint64_t lower = map_fetch_max_key(rdis->memory, reference->address);
+                    struct _buffer * buffer = map_fetch(rdis->memory, lower);
                     if (buffer == NULL)
                         continue;
                     uint64_t upper = lower + buffer->size;
@@ -212,8 +215,8 @@ struct _map * rdis_g_references (struct _rdis * rdis)
                 int delete_reference = 0;
 
                 if (reference->type == REFERENCE_CONSTANT) {
-                    uint64_t lower = map_fetch_max_key(rdis->memory_map, reference->address);
-                    struct _buffer * buffer = map_fetch(rdis->memory_map, lower);
+                    uint64_t lower = map_fetch_max_key(rdis->memory, reference->address);
+                    struct _buffer * buffer = map_fetch(rdis->memory, lower);
                     if (buffer == NULL)
                         continue;
                     uint64_t upper = lower + buffer->size;
@@ -280,7 +283,9 @@ void rdis_clear_gui (struct _rdis * rdis)
 int rdis_user_function (struct _rdis * rdis, uint64_t address)
 {
     // get a tree of all functions reachable at this address
-    struct _map * functions = loader_function_address(rdis->loader, address);
+    struct _map * functions = loader_function_address(rdis->loader,
+                                                      rdis->memory,
+                                                      address);
 
     // add in this address as a new function as well
     struct _function * function = function_create(address);
@@ -301,7 +306,9 @@ int rdis_user_function (struct _rdis * rdis, uint64_t address)
         map_insert(rdis->functions, function->address, function);
 
         // add label
-        struct _label * label = loader_label_address(rdis->loader, fitaddress);
+        struct _label * label = loader_label_address(rdis->loader,
+                                                     rdis->memory,
+                                                     fitaddress);
         map_insert(rdis->labels, fitaddress, label);
         object_delete(label);
 
@@ -368,7 +375,9 @@ int rdis_user_function (struct _rdis * rdis, uint64_t address)
         }
 
         // we need to create a new graph for this node
-        struct _graph * graph = loader_graph_address(rdis->loader, fitaddress);
+        struct _graph * graph = loader_graph_address(rdis->loader,
+                                                     rdis->memory,
+                                                     fitaddress);
         graph_merge(rdis->graph, graph);
         object_delete(graph);
     }
@@ -376,6 +385,39 @@ int rdis_user_function (struct _rdis * rdis, uint64_t address)
     object_delete(functions);
 
     rdis_callback(rdis, RDIS_CALLBACK_ALL);
+
+    return 0;
+}
+
+
+int rdis_remove_function (struct _rdis * rdis, uint64_t address)
+{
+    map_remove(rdis->functions, address);
+    map_remove(rdis->labels, address);
+
+    struct _graph * family = graph_family(rdis->graph, address);
+    if (family == NULL)
+        return -1;
+
+    struct _graph_it * it;
+
+    for (it = graph_iterator(family); it != NULL; it = graph_it_next(it)) {
+        struct _graph_node * node = graph_it_node(it);
+
+        printf("rdis_remove_function %p %p %p %llx\n",
+               node,
+               node->data,
+               node->edges,
+               (unsigned long long) node->index);
+
+        graph_remove_node(rdis->graph, node->index);
+    }
+
+    object_delete(family);
+
+    rdis_callback(rdis, RDIS_CALLBACK_GRAPH
+                        | RDIS_CALLBACK_FUNCTION
+                        | RDIS_CALLBACK_LABEL);
 
     return 0;
 }

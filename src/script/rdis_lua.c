@@ -632,10 +632,10 @@ int rl_rdis_peek (lua_State * L)
     uint64_t addr = rl_check_uint64(L, -1);
     lua_pop(L, 1);
 
-    struct _buffer * buffer = map_fetch_max(rdis_lua->rdis->memory_map, addr);
-    uint64_t base = map_fetch_max_key(rdis_lua->rdis->memory_map, addr);
+    struct _buffer * buffer = map_fetch_max(rdis_lua->rdis->memory, addr);
+    uint64_t base = map_fetch_max_key(rdis_lua->rdis->memory, addr);
 
-    if (buffer->size + base > addr)
+    if ((buffer == NULL) || (buffer->size + base > addr))
         luaL_error(L, "%llx not in memory", addr);
 
     uint8_t c = buffer->bytes[addr - base];
@@ -674,28 +674,27 @@ int rl_rdis_load (lua_State * L)
     if (ll == NULL)
         rdis_console(rdis_lua->rdis, "did not get a valid lua loader object");
 
-    // see if we get valid internal objects from the lua loader
-    struct _graph * graph = lua_loader_graph(ll);
-    if (graph == NULL) {
-        rdis_console(rdis_lua->rdis, "did not get a valid graph from lua loader");
+    struct _map * memory    = lua_loader_memory_map(ll);
+    if (memory == NULL) {
+        rdis_console(rdis_lua->rdis, "could not get a memory map from lua loader");
     }
 
-    struct _map * functions = lua_loader_functions(ll);
+    struct _graph * graph = lua_loader_graph(ll, memory);
+    if (graph == NULL) {
+        rdis_console(rdis_lua->rdis, "did not get a valid graph from lua loader");
+        object_delete(memory);
+    }
+
+    struct _map * functions = lua_loader_functions(ll, memory);
     if (functions == NULL) {
-        object_delete(graph);
+        objects_delete(memory, graph, NULL);
         rdis_console(rdis_lua->rdis, "did not get a valid list of functions from lua loader");
     }
 
-    struct _map * labels = lua_loader_labels(ll);
+    struct _map * labels = lua_loader_labels(ll, memory);
     if (labels == NULL) {
-        objects_delete(graph, functions, NULL);
+        objects_delete(memory, graph, functions, NULL);
         rdis_console(rdis_lua->rdis, "could not get labels for all functions from lua loader");
-    }
-
-    struct _map   * memory_map    = lua_loader_memory_map(ll);
-    if (memory_map == NULL) {
-        objects_delete(graph, functions, labels, NULL);
-        rdis_console(rdis_lua->rdis, "could not get a memory map from lua loader");
     }
 
     printf("got all valid objects from lua loader\n");
@@ -708,15 +707,15 @@ int rl_rdis_load (lua_State * L)
                    rdis_lua->rdis->graph,
                    rdis_lua->rdis->labels,
                    rdis_lua->rdis->functions,
-                   rdis_lua->rdis->memory_map,
+                   rdis_lua->rdis->memory,
                    NULL);
 
     // reset rdis
-    rdis_lua->rdis->loader     = (_loader *) ll;
-    rdis_lua->rdis->graph      = graph;
-    rdis_lua->rdis->labels     = labels;
-    rdis_lua->rdis->functions  = functions;
-    rdis_lua->rdis->memory_map = memory_map;
+    rdis_lua->rdis->loader    = (_loader *) ll;
+    rdis_lua->rdis->graph     = graph;
+    rdis_lua->rdis->labels    = labels;
+    rdis_lua->rdis->functions = functions;
+    rdis_lua->rdis->memory    = memory;
 
     return 0;
 }

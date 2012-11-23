@@ -25,16 +25,16 @@ static const struct _loader_object elf32_object = {
         NULL,
         (json_t * (*) (void *)) elf32_serialize
     },
-    (uint64_t        (*) (void *))                elf32_entry,
-    (struct _graph * (*) (void *))                elf32_graph,
-    (struct _map *   (*) (void *))                elf32_functions,
-    (struct _map  *  (*) (void *))                elf32_labels,
-    (struct _graph * (*) (void *, uint64_t))      elf32_graph_address,
-    (struct _map *   (*) (void *))                elf32_memory_map,
-    (struct _map *   (*) (void *, uint64_t))      elf32_function_address,
-    (struct _label * (*) (void *, uint64_t))      elf32_label_address,
-    (struct _graph * (*) (void *, struct _map *)) elf32_graph_functions,
-    (struct _map *   (*) (void *, struct _map *)) elf32_labels_functions
+    (uint64_t        (*) (void *))                               elf32_entry,
+    (struct _graph * (*) (void *, struct _map *))                elf32_graph,
+    (struct _map *   (*) (void *, struct _map *))                elf32_functions,
+    (struct _map  *  (*) (void *, struct _map *))                elf32_labels,
+    (struct _graph * (*) (void *, struct _map *, uint64_t))      elf32_graph_address,
+    (struct _map *   (*) (void *))                               elf32_memory_map,
+    (struct _map *   (*) (void *, struct _map *, uint64_t))      elf32_function_address,
+    (struct _label * (*) (void *, struct _map *, uint64_t))      elf32_label_address,
+    (struct _graph * (*) (void *, struct _map *, struct _map *)) elf32_graph_functions,
+    (struct _map *   (*) (void *, struct _map *, struct _map *)) elf32_labels_functions
 };
 
 
@@ -358,11 +358,11 @@ const char * elf32_rel_name_by_address (struct _elf32 * elf32, uint64_t address)
 
 
 
-struct _graph * elf32_graph (struct _elf32 * elf32)
+struct _graph * elf32_graph (struct _elf32 * elf32, struct _map * memory)
 {
-    struct _map * functions = elf32_functions(elf32);
+    struct _map * functions = elf32_functions(elf32, memory);
 
-    struct _graph * graph = elf32_graph_functions(elf32, functions);
+    struct _graph * graph = elf32_graph_functions(elf32, memory, functions);
 
     object_delete(functions);
 
@@ -371,43 +371,55 @@ struct _graph * elf32_graph (struct _elf32 * elf32)
 
 
 
-struct _map * elf32_functions (struct _elf32 * elf32)
+struct _map * elf32_functions_wqueue (struct _elf32 * elf32,
+                                      struct _map *   memory,
+                                      struct _list *  entries)
 {
-    struct _map  * functions = map_create();
+    struct _map * functions = map_create();
+    struct _wqueue * wqueue = wqueue_create();
+    struct _list_it * it;
+    for (it = list_iterator(entries); it != NULL; it = it->next) {
+        struct _function * function = it->data;
+
+        if (map_fetch(functions, function->address) == NULL)
+            map_insert(functions, function->address, function);
+
+        struct _x86_wqueue * x86w;
+        x86w = x86_wqueue_create(function->address, memory);
+
+        wqueue_push(wqueue, WQUEUE_CALLBACK(x86_functions_wqueue), x86w);
+        object_delete(x86w);
+    }
+
+    wqueue_wait(wqueue);
+
+    struct _map * fmap;
+    while ((fmap = wqueue_peek(wqueue)) != NULL) {
+        struct _map_it * mit;
+        for (mit = map_iterator(fmap); mit != NULL; mit = map_it_next(mit)) {
+            struct _function * function = map_it_data(mit);
+
+            if (map_fetch(functions, function->address) == NULL)
+                map_insert(functions, function->address, function);
+        }
+        wqueue_pop(wqueue);
+    }
+
+    object_delete(wqueue);
+
+    return functions;
+}
+
+
+
+struct _map * elf32_functions (struct _elf32 * elf32, struct _map * memory)
+{
     struct _list * entries   = list_create();
 
     // add the entry point
     struct _function * function = function_create(elf32_entry(elf32));
     list_append(entries, function);
     object_delete(function);
-
-    // symbols are easy
-    int sec_i;
-    for (sec_i = 0; sec_i < elf32->ehdr->e_shnum; sec_i++) {
-        Elf32_Shdr * shdr = elf32_shdr(elf32, sec_i);
-        if (shdr == NULL)
-            break;
-
-        if (shdr->sh_type != SHT_SYMTAB)
-            continue;
-
-        int sym_i;
-        for (sym_i = 0; sym_i < shdr->sh_size / shdr->sh_entsize; sym_i++) {
-            Elf32_Sym * sym = elf32_section_element(elf32, sec_i, sym_i);
-            if (sym == NULL)
-                break;
-
-            if (ELF32_ST_TYPE(sym->st_info) != STT_FUNC)
-                continue;
-
-            if (sym->st_value == 0)
-                continue;
-
-            struct _function * function = function_create(sym->st_value);
-            list_append(entries, function);
-            object_delete(function);
-        }
-    }
 
     // check for __libc_start_main loader
     uint64_t target_offset = elf32_entry(elf32) - elf32_base_address(elf32) + 0x17;
@@ -438,29 +450,55 @@ struct _map * elf32_functions (struct _elf32 * elf32)
                    (unsigned long long) target_offset);
     }
 
-    struct _list_it * it;
-    for (it = list_iterator(entries); it != NULL; it = it->next) {
-        struct _function * function = it->data;
+    struct _map * functions = elf32_functions_wqueue(elf32, memory, entries);
 
-        if (map_fetch(functions, function->address) == NULL)
-            map_insert(functions, function->address, function);
-
-        struct _map * recursive_functions;
-        recursive_functions = x86_functions(elf32_base_address(elf32),
-                                            function->address - elf32_base_address(elf32),
-                                            elf32->data, elf32->data_size);
-        struct _map_it * mit;
-        for (mit = map_iterator(recursive_functions);
-             mit != NULL;
-             mit = map_it_next(mit)) {
-            struct _function * function = map_it_data(mit);
-            if (map_fetch(functions, function->address) == NULL)
-                map_insert(functions, function->address, function);
-        }
-
-        object_delete(recursive_functions);
+    // these are the reachable functions
+    struct _map_it * mit;
+    for (mit = map_iterator(functions); mit != NULL; mit = map_it_next(mit)) {
+        struct _function * function = map_it_data(mit);
+        function->flags |= FUNCTION_REACHABLE;
     }
 
+    // reset entries
+    object_delete(entries);
+    entries = list_create();
+
+    // symbols are easy
+    int sec_i;
+    for (sec_i = 0; sec_i < elf32->ehdr->e_shnum; sec_i++) {
+        Elf32_Shdr * shdr = elf32_shdr(elf32, sec_i);
+        if (shdr == NULL)
+            break;
+
+        if (shdr->sh_type != SHT_SYMTAB)
+            continue;
+
+        int sym_i;
+        for (sym_i = 0; sym_i < shdr->sh_size / shdr->sh_entsize; sym_i++) {
+            Elf32_Sym * sym = elf32_section_element(elf32, sec_i, sym_i);
+            if (sym == NULL)
+                break;
+
+            if (ELF32_ST_TYPE(sym->st_info) != STT_FUNC)
+                continue;
+
+            if (sym->st_value == 0)
+                continue;
+
+            struct _function * function = function_create(sym->st_value);
+            list_append(entries, function);
+            object_delete(function);
+        }
+    }
+
+    struct _map * sym_functions = elf32_functions_wqueue(elf32, memory, entries);
+    for (mit = map_iterator(sym_functions); mit != NULL; mit = map_it_next(mit)) {
+        struct _function * function = map_it_data(mit);
+        if (map_fetch(functions, function->address) == NULL)
+            map_insert(functions, function->address, function);
+    }
+
+    object_delete(sym_functions);
     object_delete(entries);
 
     return functions;
@@ -468,11 +506,11 @@ struct _map * elf32_functions (struct _elf32 * elf32)
 
 
 
-struct _map * elf32_labels (struct _elf32 * elf32)
+struct _map * elf32_labels (struct _elf32 * elf32, struct _map * memory)
 {
-    struct _map * functions  = elf32_functions(elf32);
+    struct _map * functions  = elf32_functions(elf32, memory);
 
-    struct _map * labels = elf32_labels_functions(elf32, functions);
+    struct _map * labels = elf32_labels_functions(elf32, memory, functions);
 
     object_delete(functions);
 
@@ -480,14 +518,13 @@ struct _map * elf32_labels (struct _elf32 * elf32)
 }
 
 
-struct _graph * elf32_graph_address (struct _elf32 * elf32, uint64_t address)
+struct _graph * elf32_graph_address (struct _elf32 * elf32,
+                                     struct _map * memory,
+                                     uint64_t address)
 {
     struct _graph * graph;
 
-    graph = x86_graph(elf32_base_address(elf32),
-                      address - elf32_base_address(elf32),
-                      elf32->data,
-                      elf32->data_size);
+    graph = x86_graph(address, memory);
 
     graph_reduce(graph);
     return graph;
@@ -572,18 +609,17 @@ struct _map * elf32_memory_map (struct _elf32 * elf32)
 }
 
 
-struct _map * elf32_function_address (struct _elf32 * elf32, uint64_t address)
+struct _map * elf32_function_address (struct _elf32 * elf32,
+                                      struct _map *   memory,
+                                      uint64_t        address)
 {
-    struct _map * functions = x86_functions(elf32_base_address(elf32),
-                                            address - elf32_base_address(elf32),
-                                            elf32->data,
-                                            elf32->data_size);
-
-    return functions;
+    return x86_functions(address, memory);
 }
 
 
-struct _label * elf32_label_address (struct _elf32 * elf32, uint64_t address)
+struct _label * elf32_label_address (struct _elf32 * elf32,
+                                     struct _map *   memory,
+                                     uint64_t        address)
 {
     Elf32_Shdr * plt_shdr = elf32_shdr_by_name(elf32, ".plt");
     uint64_t plt_bottom;
@@ -642,23 +678,15 @@ struct _label * elf32_label_address (struct _elf32 * elf32, uint64_t address)
 
 
 
-struct _graph * elf32_graph_functions (struct _elf32 * elf32, struct _map * functions)
+struct _graph * elf32_graph_functions (struct _elf32 * elf32,
+                                       struct _map *   memory,
+                                       struct _map *   functions)
 {
-
     struct _graph  * graph;
     struct _wqueue * wqueue;
 
-    uint64_t base_address = elf32_base_address(elf32);
-    uint64_t base_offset  = elf32_base_offset(elf32);
-
-    if (base_offset >= elf32->data_size)
-        return NULL;
-
     // disassemble from entry point
-    graph = x86_graph(base_address,
-                      elf32_entry(elf32) - base_address,
-                      &(elf32->data[base_offset]),
-                      elf32->data_size - base_offset);
+    graph = x86_graph(elf32_entry(elf32), memory);
 
     struct _map_it * it;
 
@@ -669,10 +697,7 @@ struct _graph * elf32_graph_functions (struct _elf32 * elf32, struct _map * func
         struct _function * function = map_it_data(it);
 
         struct _x86_wqueue * x86w;
-        x86w = x86_wqueue_create(elf32_base_address(elf32),
-                                 function->address - elf32_base_address(elf32),
-                                 elf32->data,
-                                 elf32->data_size);
+        x86w = x86_wqueue_create(function->address, memory);
         wqueue_push(wqueue, WQUEUE_CALLBACK(x86_graph_wqueue), x86w);
         object_delete(x86w);
     }
@@ -694,7 +719,9 @@ struct _graph * elf32_graph_functions (struct _elf32 * elf32, struct _map * func
 
 
 
-struct _map * elf32_labels_functions (struct _elf32 * elf32, struct _map * functions)
+struct _map * elf32_labels_functions (struct _elf32 * elf32,
+                                      struct _map * memory,
+                                      struct _map * functions)
 {
     struct _map * labels_map = map_create();
 
@@ -702,7 +729,7 @@ struct _map * elf32_labels_functions (struct _elf32 * elf32, struct _map * funct
     for (it = map_iterator(functions); it != NULL; it = map_it_next(it)) {
         struct _function * function = map_it_data(it);
 
-        struct _label * label = elf32_label_address(elf32, function->address);
+        struct _label * label = elf32_label_address(elf32, memory, function->address);
         map_insert(labels_map, function->address, label);
         object_delete(label);
     }

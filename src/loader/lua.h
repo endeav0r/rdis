@@ -18,14 +18,14 @@ json_t *             lua_loader_serialize   (struct _lua_loader * lua_loader);
 struct _lua_loader * lua_loader_deserialize (json_t * json);
 
 uint64_t        lua_loader_entry            (struct _lua_loader *);
-struct _graph * lua_loader_graph            (struct _lua_loader *);
-struct _map   * lua_loader_functions        (struct _lua_loader *);
-struct _map   * lua_loader_labels           (struct _lua_loader *);
-struct _graph * lua_loader_graph_address    (struct _lua_loader *, uint64_t);
+struct _graph * lua_loader_graph            (struct _lua_loader *, struct _map * memory);
+struct _map   * lua_loader_functions        (struct _lua_loader *, struct _map * memory);
+struct _map   * lua_loader_labels           (struct _lua_loader *, struct _map * memory);
+struct _graph * lua_loader_graph_address    (struct _lua_loader *, struct _map * memory, uint64_t);
 struct _map   * lua_loader_memory_map       (struct _lua_loader *);
-struct _label * lua_loader_label_address    (struct _lua_loader *, uint64_t);
-struct _map   * lua_loader_function_address (struct _lua_loader *, uint64_t);
-struct _graph * lua_loader_graph_functions  (struct _lua_loader *, struct _map *);
-struct _map   * lua_loader_labels_functions (struct _lua_loader *, struct _map *);
+struct _label * lua_loader_label_address    (struct _lua_loader *, struct _map * memory, uint64_t);
+struct _map   * lua_loader_function_address (struct _lua_loader *, struct _map * memory, uint64_t);
+struct _graph * lua_loader_graph_functions  (struct _lua_loader *, struct _map * memory, struct _map *);
+struct _map   * lua_loader_labels_functions (struct _lua_loader *, struct _map * memory, struct _map *);
 
 #endif

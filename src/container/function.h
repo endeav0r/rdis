@@ -13,7 +13,12 @@ struct _function {
 	                         // all functions are fixed. leave this in place until
 							 // beta release;
 	uint64_t address;
-	int flags;
+	int      flags;
+
+	struct {
+		uint64_t low;
+		uint64_t high;
+	} addr;
 };
 
 

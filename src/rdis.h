@@ -41,7 +41,7 @@ struct _rdis {
     struct _graph    * graph;
     struct _map      * labels;
     struct _map      * functions;
-    struct _map      * memory_map;
+    struct _map      * memory;
 };
 
 // rdis will assume control of the loader, and rdis will delete the loader
@@ -69,6 +69,10 @@ void rdis_clear_gui   (struct _rdis * rdis);
 // updates graph, labels and function_tree appropriately
 // and then calls callbacks
 int rdis_user_function (struct _rdis * rdis, uint64_t address);
+
+// removes a function, including its nodes from the graph, entry in functions,
+// and label
+int rdis_remove_function (struct _rdis * rdis, uint64_t address);
 
 // marks function as reachable, and recursively marks all functions reachable
 // by this function as reachable

@@ -271,7 +271,7 @@ gboolean rdgwindow_image_motion_notify_event (GtkWidget * widget,
 
                 size_t i;
                 for (i = 0; i < 16; i++) {
-                    int c = mem_map_byte(rdgwindow->gui->rdis->memory_map,
+                    int c = mem_map_byte(rdgwindow->gui->rdis->memory,
                                          reference->address + i);
                     if (c == -1) {
                         break;
@@ -290,7 +290,7 @@ gboolean rdgwindow_image_motion_notify_event (GtkWidget * widget,
                 int ascii_valid = 1;
                 int ai = 0;
                 for (i = 0; i < 64; i++) {
-                    int c = mem_map_byte(rdgwindow->gui->rdis->memory_map,
+                    int c = mem_map_byte(rdgwindow->gui->rdis->memory,
                                          reference->address + i);
                     if (c == -1) {
                         ascii_valid = 0;

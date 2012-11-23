@@ -39,7 +39,7 @@ void           tree_map (struct _tree * tree, void (* callback) (void *));
 void           tree_insert      (struct _tree * tree, void * data);
 void *         tree_fetch       (struct _tree * tree, void * data);
 void *         tree_fetch_max   (struct _tree * tree, void * data);
-void           tree_delete_node (struct _tree * tree, void * data);
+void           tree_remove      (struct _tree * tree, void * data);
 
 struct _tree_node * tree_node_create  (void * data);
 void                tree_node_map     (struct _tree_node * node,

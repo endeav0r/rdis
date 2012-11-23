@@ -20,16 +20,16 @@ static const struct _loader_object lua_loader_object = {
         NULL,
         (json_t * (*) (void *)) lua_loader_serialize
     },
-    (uint64_t        (*) (void *))                lua_loader_entry,
-    (struct _graph * (*) (void *))                lua_loader_graph,
-    (struct _map  *  (*) (void *))                lua_loader_functions,
-    (struct _map  *  (*) (void *))                lua_loader_labels,
-    (struct _graph * (*) (void *, uint64_t))      lua_loader_graph_address,
-    (struct _map *   (*) (void *))                lua_loader_memory_map,
-    (struct _map  *  (*) (void *, uint64_t))      lua_loader_function_address,
-    (struct _label * (*) (void *, uint64_t))      lua_loader_label_address,
-    (struct _graph * (*) (void *, struct _map *)) lua_loader_graph_functions,
-    (struct _map *   (*) (void *, struct _map *)) lua_loader_labels_functions
+    (uint64_t        (*) (void *))                               lua_loader_entry,
+    (struct _graph * (*) (void *, struct _map *))                lua_loader_graph,
+    (struct _map  *  (*) (void *, struct _map *))                lua_loader_functions,
+    (struct _map  *  (*) (void *, struct _map *))                lua_loader_labels,
+    (struct _graph * (*) (void *, struct _map *, uint64_t))      lua_loader_graph_address,
+    (struct _map *   (*) (void *))                               lua_loader_memory_map,
+    (struct _map  *  (*) (void *, struct _map *, uint64_t))      lua_loader_function_address,
+    (struct _label * (*) (void *, struct _map *, uint64_t))      lua_loader_label_address,
+    (struct _graph * (*) (void *, struct _map *, struct _map *)) lua_loader_graph_functions,
+    (struct _map *   (*) (void *, struct _map *, struct _map *)) lua_loader_labels_functions
 };
 
 
@@ -135,13 +135,13 @@ uint64_t lua_loader_entry (struct _lua_loader * ll)
 }
 
 
-struct _graph * lua_loader_graph (struct _lua_loader * ll)
+struct _graph * lua_loader_graph (struct _lua_loader * ll, struct _map * memory)
 {
-    struct _map * functions = lua_loader_functions(ll);
+    struct _map * functions = lua_loader_functions(ll, memory);
     if (functions == NULL)
         return NULL;
 
-    struct _graph * graph = lua_loader_graph_functions(ll, functions);
+    struct _graph * graph = lua_loader_graph_functions(ll, memory, functions);
 
     object_delete(functions);
 
@@ -180,7 +180,7 @@ struct _map * lua_loader_functions_table (lua_State * L)
 }
 
 
-struct _map * lua_loader_functions (struct _lua_loader * ll)
+struct _map * lua_loader_functions (struct _lua_loader * ll, struct _map * memory)
 {
     lua_State * L = ll->rdis_lua->L;
 
@@ -212,13 +212,13 @@ struct _map * lua_loader_functions (struct _lua_loader * ll)
 }
 
 
-struct _map * lua_loader_labels (struct _lua_loader * ll)
+struct _map * lua_loader_labels (struct _lua_loader * ll, struct _map * memory)
 {
-    struct _map * functions = lua_loader_functions(ll);
+    struct _map * functions = lua_loader_functions(ll, memory);
     if (functions == NULL)
         return NULL;
 
-    struct _map * labels = lua_loader_labels_functions(ll, functions);
+    struct _map * labels = lua_loader_labels_functions(ll, memory, functions);
 
     object_delete(functions);
 
@@ -299,7 +299,9 @@ struct _ins * lua_loader_ins (lua_State * L)
 }
 
 
-struct _graph * lua_loader_graph_address (struct _lua_loader * ll, uint64_t addr)
+struct _graph * lua_loader_graph_address (struct _lua_loader * ll,
+                                          struct _map        * memory,
+                                          uint64_t             addr)
 {
     lua_State     * L          = ll->rdis_lua->L;
     struct _queue * queue      = queue_create();
@@ -467,7 +469,9 @@ struct _map * lua_loader_memory_map (struct _lua_loader * ll)
 }
 
 
-struct _label * lua_loader_label_address (struct _lua_loader * ll, uint64_t addr)
+struct _label * lua_loader_label_address (struct _lua_loader * ll,
+                                          struct _map        * memory,
+                                          uint64_t             addr)
 {
     lua_State     * L          = ll->rdis_lua->L;
     const char * ll_index_name = lua_loader_index_name(ll->loader_index);
@@ -497,7 +501,8 @@ struct _label * lua_loader_label_address (struct _lua_loader * ll, uint64_t addr
 
 
 struct _map * lua_loader_function_address (struct _lua_loader * ll,
-                                                 uint64_t addr)
+                                           struct _map        * memory,
+                                           uint64_t             addr)
 {
     lua_State     * L          = ll->rdis_lua->L;
     const char * ll_index_name = lua_loader_index_name(ll->loader_index);
@@ -525,7 +530,9 @@ struct _map * lua_loader_function_address (struct _lua_loader * ll,
 }
 
 
-struct _graph * lua_loader_graph_functions (struct _lua_loader * ll, struct _map * functions)
+struct _graph * lua_loader_graph_functions (struct _lua_loader * ll,
+                                            struct _map * memory,
+                                            struct _map * functions)
 {
     if (functions == NULL)
         return NULL;
@@ -535,7 +542,7 @@ struct _graph * lua_loader_graph_functions (struct _lua_loader * ll, struct _map
     struct _map_it * it;
     for (it = map_iterator(functions); it != NULL; it = map_it_next(it)) {
         struct _function * function = map_it_data(it);
-        struct _graph * func_graph  = lua_loader_graph_address(ll, function->address);
+        struct _graph * func_graph  = lua_loader_graph_address(ll, memory, function->address);
         if (func_graph == NULL) {
             objects_delete(functions, graph, NULL);
             return NULL;
@@ -552,6 +559,7 @@ struct _graph * lua_loader_graph_functions (struct _lua_loader * ll, struct _map
 
 
 struct _map * lua_loader_labels_functions (struct _lua_loader * ll,
+                                           struct _map * memory,
                                            struct _map * functions)
 {
     if (functions == NULL)
@@ -561,7 +569,7 @@ struct _map * lua_loader_labels_functions (struct _lua_loader * ll,
     struct _map_it * it;
     for (it = map_iterator(functions); it != NULL; it = map_it_next(it)) {
         struct _function * function = map_it_data(it);
-        struct _label * label = lua_loader_label_address(ll, function->address);
+        struct _label * label = lua_loader_label_address(ll, memory, function->address);
         if (label == NULL) {
             objects_delete(functions, labels, NULL);
             return NULL;

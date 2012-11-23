@@ -327,7 +327,7 @@ void graph_reduce (struct _graph * graph)
         object_delete(successors);
 
         // remove tail node from graph
-        tree_delete_node(graph->nodes, tail_node);
+        tree_remove(graph->nodes, tail_node);
 
         // continue processing this node
     }
@@ -418,7 +418,6 @@ void graph_remove_node (struct _graph * graph, uint64_t index)
         return;
 
     // remove all edges to/from this node
-    /*
     struct _queue * queue = queue_create();
     struct _list_it * eit;
     for (eit = list_iterator(node->edges); eit != NULL; eit = eit->next) {
@@ -437,9 +436,8 @@ void graph_remove_node (struct _graph * graph, uint64_t index)
     }
 
     object_delete(queue);
-    */
 
-    graph_node_delete(node);
+    tree_remove(graph->nodes, node);
 }
 
 
@@ -782,53 +780,6 @@ void graph_node_delete (struct _graph_node * node)
     object_delete(node->edges);
     free(node);
 }
-
-
-
-// removes all edges to and from this node, and then deletes
-// node from the graph tree which will call graph_node_delete
-/*
-void graph_node_delete_tree (struct _graph_node * node)
-{
-    struct _graph      * graph = node->graph;
-    struct _graph_node * sibling;
-    struct _list_it    * sib_it;
-
-    // remove edges to and from this node
-    struct _list_it * it;
-    for (it = list_iterator(node->edges); it != NULL; it = it->next) {
-        struct _graph_edge * edge = it->data;
-
-        if (edge->head == node->index) {
-            sibling = graph_fetch_node(graph, edge->tail);
-            for (sib_it  = list_iterator(sibling->edges);
-                 sib_it != NULL;
-                 sib_it  = sib_it->next) {
-                struct _graph_edge * sib_edge = sib_it->data;
-                if (sib_edge->head == node->index) {
-                    list_remove(sibling->edges, sib_it);
-                    break;
-                }
-            }
-        }
-        else {
-            sibling = graph_fetch_node(graph, edge->head);
-            for (sib_it  = list_iterator(sibling->edges);
-                 sib_it != NULL;
-                 sib_it  = sib_it->next) {
-                struct _graph_edge * sib_edge = sib_it->data;
-                if (sib_edge->tail == node->index) {
-                    list_remove(sibling->edges, sib_it);
-                    break;
-                }
-            }
-        }
-    }
-
-    // delete node from tree, which will also delete node
-    tree_delete_node(graph->nodes, node);
-}
-*/
 
 
 

@@ -441,7 +441,7 @@ void rdg_acyclicize (struct _graph * graph, uint64_t index)
     if (node == NULL) {
         printf("acyclicize NULL node error, index: %llx\n",
                (unsigned long long) index);
-        exit(-1);
+        return;
     }
     struct _rdg_node * rdg_node = node->data;
     struct _queue * queue = queue_create();
@@ -478,7 +478,7 @@ void rdg_acyclicize_pre (struct _graph * graph, uint64_t index)
     if (node == NULL) {
         printf("acyclicize NULL node error, index: %llx\n",
                (unsigned long long) index);
-        exit(-1);
+        return;
     }
     struct _rdg_node * rdg_node = node->data;
     struct _queue * queue = queue_create();
@@ -540,6 +540,10 @@ void rdg_assign_levels2 (struct _graph * graph, uint64_t top_index)
         struct _index * index = queue_peek(queue);
 
         struct _graph_node * node = graph_fetch_node(graph, index->index);
+        if (node == NULL) {
+            queue_pop(queue);
+            continue;
+        }
         struct _rdg_node * rdg_node = node->data;
 
         struct _list_it * it;
@@ -861,6 +865,10 @@ void rdg_remove_virtual_nodes (struct _rdg * rdg)
 
         // get predecessor and successor for this node
         struct _graph_node * node = graph_fetch_node(rdg->graph, rdg_node->index);
+        if (node == NULL) {
+            queue_pop(queue);
+            continue;
+        }
         uint64_t successor_index = -1;
         uint64_t predecessor_index = -1;
         struct _list_it * eit;
@@ -905,6 +913,8 @@ void rdg_set_graph_width (struct _rdg * rdg)
              position++) {
 
             rdg_node = graph_fetch_data(rdg->graph, index->index);
+            if (rdg_node == NULL)
+                continue;
 
             if (rdg_node_width(rdg_node) + rdg_node->x > x)
                 x = rdg_node_width(rdg_node) + rdg_node->x;
@@ -930,6 +940,8 @@ int rdg_level_top (struct _rdg * rdg, int level)
 
     struct _rdg_node * rdg_node;
     rdg_node = graph_fetch_data(rdg->graph, index->index);
+    if (rdg_node == NULL)
+        return -1;
 
     return rdg_node->y;
 }
@@ -941,6 +953,8 @@ void rdg_assign_node_x (struct _rdg * rdg, int level, int position, int x)
     struct _map       * level_map = map_fetch(rdg->levels, level);
     struct _index     * index     = map_fetch(level_map, position);
     struct _rdg_node  * rdg_node  = graph_fetch_data(rdg->graph, index->index);
+    if (rdg_node == NULL)
+        return;
 
     rdg_node->x = x;
 
@@ -950,6 +964,8 @@ void rdg_assign_node_x (struct _rdg * rdg, int level, int position, int x)
     // get the left node
     index = map_fetch(level_map, position - 1);
     struct _rdg_node  * left_node = graph_fetch_data(rdg->graph, index->index);
+    if (left_node == NULL)
+        return;
 
     // do these nodes overlap?
     if (rdg_node->x < left_node->x + rdg_node_width(left_node) + RDG_NODE_X_SPACING) {
@@ -1006,6 +1022,9 @@ void rdg_assign_x (struct _rdg * rdg)
 {
     // assign initial x value for nodes in the top level
     struct _map * level_map = map_fetch(rdg->levels, 0);
+    if (level_map == NULL)
+        return;
+
     int position = 0;
     for (position = 0; position < level_map->size; position++) {
         rdg_assign_node_x(rdg, 0, position, position);

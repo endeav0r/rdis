@@ -52,6 +52,9 @@ void funcwindow_call_graph (GtkMenuItem * menuItem,
 void funcwindow_mark_reachable (GtkMenuItem * menuItem,
                                 struct _funcwindow * funcwindow);
 
+void funcwindow_remove_function (GtkMenuItem * menuItem,
+                                 struct _funcwindow * funcwindow);
+
 void funcwindow_changed_event (GtkComboBox * comboBox,
                                struct _funcwindow * funcwindow);
 

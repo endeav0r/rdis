@@ -102,7 +102,7 @@ int map_remove (struct _map * map, uint64_t key)
     if (tree_fetch(map->tree, needle) == NULL)
         result = -1;
     else {
-        tree_delete_node(map->tree, needle);
+        tree_remove(map->tree, needle);
         map->size--;
     }
 

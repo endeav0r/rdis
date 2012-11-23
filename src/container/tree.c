@@ -148,8 +148,7 @@ void * tree_fetch_max (struct _tree * tree, void * data)
 }
 
 
-
-void tree_delete_node (struct _tree * tree, void * data)
+void tree_remove (struct _tree * tree, void * data)
 {
     tree->nodes = tree_node_delete(tree, tree->nodes, data);
 }

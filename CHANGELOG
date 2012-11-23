@@ -1,0 +1,5 @@
+ALPHA CHARLIE
+- Internally reworked loaders to disassemble from a memory map instead of
+	the file stored internally.
+- Threaded function discovery and disassembly for all internally implemented
+	loaders (ELF32, ELF64, PE).
