@@ -31,7 +31,7 @@ struct _list    * list_copy        (struct _list * list);
 
 void            * list_first       (struct _list * list);
 
-// iterator is no longer valid after this call
+// returns iterator to next element, or NULL if there is no next element
 struct _list_it * list_remove (struct _list * list, struct _list_it * iterator);
 
 #endif

@@ -12,6 +12,11 @@
 #define INS_FLAG_TARGET_SET 1
 #define INS_FLAG_CALL       2
 
+/*
+*  Changes to instructions should maybe pay attention to rdis_regraph_function
+*  which does funky things with instructions...
+*/
+
 enum {
     INS_EDGE_NORMAL,
     INS_EDGE_JUMP,

@@ -3,3 +3,12 @@ ALPHA CHARLIE
 	the file stored internally.
 - Threaded function discovery and disassembly for all internally implemented
 	loaders (ELF32, ELF64, PE).
+- Remove Function added to function window
+- Changing the content of rdis' representation of memory triggers regraphing of
+  	functions where the change intersects or falls within the functions lowest
+  	upper and greatest lower bounds.
+- rdis is now linked against luajit instead of lua
+
+
+PURPOSE OF THIS RELEASE
+	Test validity of runtime graph manipulations

@@ -194,16 +194,17 @@ void graph_merge (struct _graph * graph, struct _graph * rhs)
     for (it = graph_iterator(rhs); it != NULL; it = graph_it_next(it)) {
         struct _graph_node * node = graph_it_node(it);
 
-        if (graph_fetch_node(graph, node->index) != NULL)
-            continue;
-
-        graph_add_node(graph, node->index, node->data);
-
-        // add this node's edge to queue
+        // add this node's edge to queue. Even if this node already exists,
+        // we want all the new edges
         struct _list_it * eit;
         for (eit = list_iterator(node->edges); eit != NULL; eit = eit->next) {
             queue_push(queue, eit->data);
         }
+
+        if (graph_fetch_node(graph, node->index) != NULL)
+            continue;
+
+        graph_add_node(graph, node->index, node->data);
     }
 
     // then add all new edges

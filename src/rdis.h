@@ -1,6 +1,7 @@
 #ifndef rdis_HEADER
 #define rdis_HEADER
 
+#include "buffer.h"
 #include "graph.h"
 #include "loader.h"
 #include "map.h"
@@ -77,6 +78,16 @@ int rdis_remove_function (struct _rdis * rdis, uint64_t address);
 // marks function as reachable, and recursively marks all functions reachable
 // by this function as reachable
 int rdis_function_reachable (struct _rdis * rdis, uint64_t address);
+
+// set the bounds of a function
+int rdis_function_bounds (struct _rdis * rdis, uint64_t address);
+
+// set the bounds of all functions
+int rdis_functions_bounds (struct _rdis * rdis);
+
+int rdis_update_memory (struct _rdis *   rdis,
+                        uint64_t         address,
+                        struct _buffer * buffer);
 
 // returns callback identifier so callback can be removed later
 uint64_t rdis_add_callback    (struct _rdis * rdis,

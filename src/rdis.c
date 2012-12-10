@@ -10,6 +10,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 static const struct _object rdis_callback_object = {
     (void     (*) (void *))         rdis_callback_delete, 
@@ -69,6 +70,7 @@ struct _rdis * rdis_create_with_console (_loader * loader,
     rdis_console(rdis, "labels loaded");
 
     rdis_check_references(rdis);
+    rdis_functions_bounds(rdis);
 
     // this should be the last thing done so startup script accesses a valid
     // rdis
@@ -451,6 +453,183 @@ int rdis_function_reachable (struct _rdis * rdis, uint64_t address)
             }
         }
     }
+
+    return 0;
+}
+
+
+int rdis_function_bounds (struct _rdis * rdis, uint64_t address)
+{
+    struct _function * function = map_fetch(rdis->functions, address);
+    
+    if (function == NULL)
+        return -1;
+
+    struct _graph * family = graph_family(rdis->graph, address);
+
+    if (family == NULL)
+        return -1;
+
+    uint64_t lower = -1;
+    uint64_t upper = 0;
+
+    struct _graph_it * it;
+    for (it = graph_iterator(family); it != NULL; it = graph_it_next(it)) {
+        struct _graph_node * node = graph_it_node(it);
+        struct _list * ins_list   = node->data;
+        struct _list_it * iit;
+        for (iit = list_iterator(ins_list); iit != NULL; iit = iit->next) {
+            struct _ins * ins = iit->data;
+
+            if (ins->address < lower)
+                lower = ins->address;
+            if (ins->address + ins->size > upper)
+                upper = ins->address + ins->size;
+        }
+    }
+
+    object_delete(family);
+
+    function->bounds.lower = lower;
+    function->bounds.upper = upper;
+
+    return 0;
+}
+
+
+int rdis_functions_bounds (struct _rdis * rdis)
+{
+    struct _map_it * it;
+    int result = 0;
+
+    for (it = map_iterator(rdis->functions); it != NULL; it = map_it_next(it)) {
+        struct _function * function = map_it_data(it);
+
+        result |= rdis_function_bounds(rdis, function->address);
+    }
+
+    return result;
+}
+
+
+int rdis_update_memory (struct _rdis *   rdis,
+                        uint64_t         address,
+                        struct _buffer * buffer)
+{
+    if (buffer == NULL)
+        return -1;
+
+    mem_map_set (rdis->memory, address, buffer);
+
+    // we will regraph functions whose bounds fall within this updated memory,
+    // and all functions whose bounds fall within the bounds of functions to be
+    // regraphed (step 2 simplifies things later on)
+    struct _queue * queue = queue_create();
+    struct _map_it * it;
+    for (it = map_iterator(rdis->functions); it != NULL; it = map_it_next(it)) {
+        struct _function * function = map_it_data(it);
+        if (    (    (function->bounds.lower >= address)
+                  && (function->bounds.lower <  address + buffer->size))
+             || (    (function->bounds.upper >= address)
+                  && (function->bounds.upper <  address + buffer->size))
+             || (    (function->bounds.lower <= address)
+                  && (function->bounds.upper >= address + buffer->size))) {
+            queue_push(queue, function);
+        }
+    }
+
+    struct _map * regraph_functions = map_create();
+    while (queue->size > 0) {
+        struct _function * function = queue_peek(queue);
+
+        if (map_fetch(regraph_functions, function->address) != NULL) {
+            queue_pop(queue);
+            continue;
+        }
+
+        printf("adding regraph function %llx\n",
+               (unsigned long long) function->address);
+
+        map_insert(regraph_functions, function->address, function);
+
+        for (it = map_iterator(rdis->functions); it != NULL; it = map_it_next(it)) {
+            struct _function * cmp_function = map_it_data(it);
+
+            if (    (    (cmp_function->bounds.lower >= function->bounds.lower)
+                      && (cmp_function->bounds.lower <  function->bounds.upper))
+                 || (    (cmp_function->bounds.upper >= function->bounds.lower)
+                      && (cmp_function->bounds.upper <  function->bounds.upper))
+                 || (    (cmp_function->bounds.lower <= function->bounds.lower)
+                      && (cmp_function->bounds.upper >= function->bounds.upper)))
+                queue_push(queue, cmp_function);
+        }
+    }
+
+    // regraph dem functions
+    struct _graph * new_graph;
+    new_graph = loader_graph_functions(rdis->loader,
+                                       rdis->memory,
+                                       regraph_functions);
+
+    // We are now going to go through all nodes in our regraph functions. We
+    // will copy over comments to the new instructions and then remove the
+    // regraph function nodes from the original graph
+    for (it = map_iterator(regraph_functions); it != NULL; it = map_it_next(it)) {
+        struct _function * function = map_it_data(it);
+        struct _graph    * family   = graph_family(rdis->graph, function->address);
+        if (family == NULL)
+            continue;
+
+        struct _graph_it * git;
+        for (git  = graph_iterator(family);
+             git != NULL;
+             git  = graph_it_next(git)) {
+            struct _list * ins_list = graph_it_data(git);
+            struct _list_it * iit;
+            for (iit = list_iterator(ins_list); iit != NULL; iit = iit->next) {
+                struct _ins * ins = iit->data;
+
+                if (ins->comment == NULL)
+                    continue;
+
+                struct _ins * new_ins = graph_fetch_ins(new_graph, ins->address);
+
+                if (ins->size != new_ins->size)
+                    continue;
+
+                if (memcmp(ins->bytes, new_ins->bytes, ins->size) == 0) {
+                    printf("copy over comment from instruction at %llx\n",
+                           (unsigned long long) ins->address);
+                    ins_s_comment(new_ins, ins->comment);
+                }
+            }
+            // add node for deletion
+            struct _index * index = index_create(graph_it_index(git));
+            queue_push(queue, index);
+            object_delete(index);
+        }
+
+        object_delete(family);
+
+        while (queue->size > 0) {
+            struct _index * index = queue_peek(queue);
+            graph_remove_node(rdis->graph, index->index);
+            queue_pop(queue);
+        }
+    }
+
+    // merge the new graph with the old graph
+    graph_merge(rdis->graph, new_graph);
+
+    // reset bounds of these functions
+    for (it = map_iterator(regraph_functions); it != NULL; it = map_it_next(it)) {
+        struct _function * function = map_it_data(it);
+        rdis_function_bounds(rdis, function->address);
+    }
+
+    objects_delete(queue, new_graph, regraph_functions, NULL);
+
+    rdis_callback(rdis, RDIS_CALLBACK_ALL);
 
     return 0;
 }
