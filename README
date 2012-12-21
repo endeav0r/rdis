@@ -1,0 +1,41 @@
+Rdis is a Binary Analysis Tool for Linux.
+
+More information can be found here: http://rainbowsandpwnies.com/rdis/
+
+Please send feedback here: http://haxathon.com/forums/
+
+We are currently NOT accepting pull requests
+
+-----------------------------------------------------------
+
+// BUILDING
+
+Dependencies: gtk3, luajit, cairo, jansson
+
+There's not autoconf for rdis, so you may need to make some changes to get it
+to build on your platform. Rdis is developed in Arch Linux and should work fine
+with Arch.
+
+-----------------------------------------------------------
+
+// LICENSE
+
+GTK    : http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html
+luajit : http://opensource.org/licenses/mit-license.php
+cairo  : LGPL 2.1 or MPL 1.1 (developer choice)
+jansson: http://www.opensource.org/licenses/mit-license.php
+
+Rdis is released under the GPLv3 License.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
