@@ -180,13 +180,14 @@ struct _ins * graph_fetch_ins (struct _graph * graph, uint64_t address)
 {
     struct _graph_node * node = graph_fetch_node_max(graph, address);
 
-    struct _list_it * it;
-    for (it = list_iterator(node->data); it != NULL; it = it->next) {
-        struct _ins * ins = it->data;
-        if (ins->address == address)
-            return ins;
+    if (node != NULL) {
+        struct _list_it * it;
+        for (it = list_iterator(node->data); it != NULL; it = it->next) {
+            struct _ins * ins = it->data;
+            if (ins->address == address)
+                return ins;
+        }
     }
-
 
     struct _graph_it * git;
     for (git = graph_iterator(graph); git != NULL; git = graph_it_next(git)) {
