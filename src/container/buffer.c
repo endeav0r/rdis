@@ -12,7 +12,7 @@ static const struct _object buffer_object = {
 };
 
 
-struct _buffer * buffer_create (uint8_t * bytes, size_t size)
+struct _buffer * buffer_create (const uint8_t * bytes, size_t size)
 {
     struct _buffer * buffer = (struct _buffer *) malloc(sizeof(struct _buffer));
 

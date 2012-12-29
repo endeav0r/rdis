@@ -69,6 +69,7 @@ struct _rdis_lua * rl_get_rdis_lua (lua_State * L);
 int rl_rdis_console   (lua_State * L);
 int rl_rdis_functions (lua_State * L);
 int rl_rdis_peek      (lua_State * L);
+int rl_rdis_poke      (lua_State * L);
 int rl_rdis_node      (lua_State * L);
 int rl_rdis_load      (lua_State * L);
 

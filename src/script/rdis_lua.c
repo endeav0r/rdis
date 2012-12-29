@@ -57,6 +57,7 @@ static const struct luaL_Reg rl_rdis_lib_f [] = {
     {"console",   rl_rdis_console},
     {"functions", rl_rdis_functions},
     {"peek",      rl_rdis_peek},
+    {"poke",      rl_rdis_poke},
     {"node",      rl_rdis_node},
     {"load",      rl_rdis_load},
     {NULL, NULL}
@@ -643,6 +644,22 @@ int rl_rdis_peek (lua_State * L)
     lua_pushinteger(L, c);
 
     return 1;
+}
+
+
+int rl_rdis_poke (lua_State * L)
+{
+    struct _rdis_lua * rdis_lua = rl_get_rdis_lua(L);
+
+    uint64_t         address    = rl_check_uint64(L, -1);
+    const uint8_t *  bytes      = (const uint8_t *) luaL_checkstring(L, -2);
+    size_t           bytes_size = lua_objlen(L, -2);
+    struct _buffer * buffer = buffer_create(bytes, bytes_size);
+    lua_pop(L, 2);
+
+    rdis_update_memory(rdis_lua->rdis, address, buffer);
+
+    return 0;
 }
 
 

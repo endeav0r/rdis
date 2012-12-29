@@ -18,7 +18,7 @@ struct _buffer {
     size_t    size;
 };
 
-struct _buffer * buffer_create      (uint8_t * bytes, size_t size);
+struct _buffer * buffer_create      (const uint8_t * bytes, size_t size);
 void             buffer_delete      (struct _buffer * buffer);
 struct _buffer * buffer_copy        (struct _buffer * buffer);
 json_t *         buffer_serialize   (struct _buffer * buffer);
