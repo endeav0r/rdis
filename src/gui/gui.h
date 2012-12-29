@@ -5,6 +5,12 @@
 
 #include "rdis.h"
 
+#ifndef LANG
+	#include "lang/en.h"
+#else
+	#include "lang/"LANG".h"
+#endif
+
 struct _gui_window {
     const struct _object * object;
     GtkWidget * window;

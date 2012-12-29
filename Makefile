@@ -1,7 +1,6 @@
 all :
 	make -C src/
 
-
 install :
 	cp src/rdis /usr/bin/rdis
 

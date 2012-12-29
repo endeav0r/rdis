@@ -13,9 +13,9 @@ struct _rdiswindow * rdiswindow_create (struct _gui * gui)
     rdiswindow->buttonsBox          = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
     rdiswindow->vbox                = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
 
-    rdiswindow->hexButton           = gtk_button_new_with_label("Hex View");
-    rdiswindow->functionsButton     = gtk_button_new_with_label("Functions");
-    rdiswindow->refButton           = gtk_button_new_with_label("References");
+    rdiswindow->hexButton           = gtk_button_new_with_label(LANG_HEXVIEW);
+    rdiswindow->functionsButton     = gtk_button_new_with_label(LANG_FUNCTIONS);
+    rdiswindow->refButton           = gtk_button_new_with_label(LANG_REFERENCES);
     rdiswindow->scrolledWindow      = gtk_scrolled_window_new(NULL, NULL);
     rdiswindow->consoleTagTable     = gtk_text_tag_table_new();
     rdiswindow->consoleBuffer       =
@@ -33,10 +33,10 @@ struct _rdiswindow * rdiswindow_create (struct _gui * gui)
                                NULL);
 
 
-    GtkWidget * menuItemFile = gtk_menu_item_new_with_label("File");
-    GtkWidget * menuItemOpen = gtk_menu_item_new_with_label("Open .rdis");
-    GtkWidget * menuItemSave = gtk_menu_item_new_with_label("Save .rdis");
-    GtkWidget * menuItemLoad = gtk_menu_item_new_with_label("Load Executable");
+    GtkWidget * menuItemFile = gtk_menu_item_new_with_label(LANG_MENUFILE);
+    GtkWidget * menuItemOpen = gtk_menu_item_new_with_label(LANG_OPENRDIS);
+    GtkWidget * menuItemSave = gtk_menu_item_new_with_label(LANG_SAVERDIS);
+    GtkWidget * menuItemLoad = gtk_menu_item_new_with_label(LANG_LOADEXEC);
     GtkWidget * menuFile     = gtk_menu_new();
 
     gtk_container_add(GTK_CONTAINER(menuFile), menuItemOpen);
@@ -210,7 +210,7 @@ void rdiswindow_open (GtkMenuItem * menuItem, struct _rdiswindow * rdiswindow)
 {
     GtkWidget * dialog;
 
-    dialog = gtk_file_chooser_dialog_new("Open Rdis File",
+    dialog = gtk_file_chooser_dialog_new(LANG_OPENRDISFILE,
                                          GTK_WINDOW(rdiswindow->window),
                                          GTK_FILE_CHOOSER_ACTION_OPEN,
                                          GTK_STOCK_CANCEL,
@@ -261,7 +261,7 @@ void rdiswindow_save (GtkMenuItem * menuItem, struct _rdiswindow * rdiswindow)
         return;
     }
 
-    dialog = gtk_file_chooser_dialog_new("Save Rdis File",
+    dialog = gtk_file_chooser_dialog_new(LANG_SAVERDISFILE,
                                          GTK_WINDOW(rdiswindow->window),
                                          GTK_FILE_CHOOSER_ACTION_SAVE,
                                          GTK_STOCK_CANCEL,
@@ -295,7 +295,7 @@ void rdiswindow_load (GtkMenuItem * menuItem, struct _rdiswindow * rdiswindow)
 {
     GtkWidget * dialog;
 
-    dialog = gtk_file_chooser_dialog_new("Load Executable File",
+    dialog = gtk_file_chooser_dialog_new(LANG_LOADEXECFILE,
                                          GTK_WINDOW(rdiswindow->window),
                                          GTK_FILE_CHOOSER_ACTION_OPEN,
                                          GTK_STOCK_CANCEL,

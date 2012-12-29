@@ -40,28 +40,28 @@ struct _funcwindow * funcwindow_create (struct _gui * gui)
     funcwindow->vbox           = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
 
     gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(funcwindow->comboBoxText),
-                                   "all");
+                                   LANG_ALL);
     gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(funcwindow->comboBoxText),
-                                   "reachable");
+                                   LANG_REACHABLE);
     gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(funcwindow->comboBoxText),
-                                   "unreachable");
+                                   LANG_UNREACHABLE);
 
     // popup menu stuff
-    GtkWidget * menuItem = gtk_menu_item_new_with_label("Call Graph");
+    GtkWidget * menuItem = gtk_menu_item_new_with_label(LANG_CALLGRAPH);
     g_signal_connect(menuItem,
                      "activate",
                      G_CALLBACK(funcwindow_call_graph),
                      funcwindow);
     gtk_menu_shell_append(GTK_MENU_SHELL(funcwindow->menu_popup), menuItem);
     
-    menuItem = gtk_menu_item_new_with_label("Mark Reachable");
+    menuItem = gtk_menu_item_new_with_label(LANG_MARKREACHABLE);
     g_signal_connect(menuItem,
                      "activate",
                      G_CALLBACK(funcwindow_mark_reachable),
                      funcwindow);
     gtk_menu_shell_append(GTK_MENU_SHELL(funcwindow->menu_popup), menuItem);
     
-    menuItem = gtk_menu_item_new_with_label("Remove Function");
+    menuItem = gtk_menu_item_new_with_label(LANG_REMOVEFUNC);
     g_signal_connect(menuItem,
                      "activate",
                      G_CALLBACK(funcwindow_remove_function),
@@ -81,7 +81,7 @@ struct _funcwindow * funcwindow_create (struct _gui * gui)
     GtkCellRenderer   * renderer;
     GtkTreeViewColumn * column;
     renderer = gtk_cell_renderer_text_new();
-    column   = gtk_tree_view_column_new_with_attributes("address",
+    column   = gtk_tree_view_column_new_with_attributes(LANG_ADDRESS,
                                                         renderer,
                                                         "text", COL_ADDR,
                                                         NULL);
@@ -90,7 +90,7 @@ struct _funcwindow * funcwindow_create (struct _gui * gui)
     gtk_tree_view_append_column(GTK_TREE_VIEW(funcwindow->treeView), column);
     
     renderer = gtk_cell_renderer_text_new();
-    column   = gtk_tree_view_column_new_with_attributes("name",
+    column   = gtk_tree_view_column_new_with_attributes(LANG_NAME,
                                                         renderer,
                                                         "text", COL_LABEL,
                                                         NULL);
@@ -185,11 +185,11 @@ void funcwindow_redraw (struct _funcwindow * funcwindow)
 
     int bits = 0;
     int mask = 0;
-    if (strcmp(type, "reachable") == 0) {
+    if (strcmp(type, LANG_REACHABLE) == 0) {
         bits = FUNCTION_REACHABLE;
         mask = FUNCTION_REACHABLE;
     }
-    else if (strcmp(type, "unreachable") == 0) {
+    else if (strcmp(type, LANG_UNREACHABLE) == 0) {
         bits = 0;
         mask = FUNCTION_REACHABLE;
     }

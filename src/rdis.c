@@ -55,19 +55,19 @@ struct _rdis * rdis_create_with_console (_loader * loader,
 
     rdis->memory = loader_memory_map(loader);
     printf("memory loaded\n");fflush(stdout);
-    rdis_console(rdis, "memory loaded");
+    rdis_console(rdis, LANG_MEMORYLOADED);
 
     rdis->functions  = loader_functions(loader, rdis->memory);
     printf("functions loaded\n");fflush(stdout);
-    rdis_console(rdis, "functions loaded");
+    rdis_console(rdis, LANG_FUNCSLOADED);
 
     rdis->graph      = loader_graph_functions(loader, rdis->memory, rdis->functions);
     printf("graph loaded\n");fflush(stdout);
-    rdis_console(rdis, "graph loaded");
+    rdis_console(rdis, LANG_GRAPHLOADED);
 
     rdis->labels     = loader_labels_functions(loader, rdis->memory, rdis->functions);
     printf("labels loaded\n");fflush(stdout);
-    rdis_console(rdis, "labels loaded");
+    rdis_console(rdis, LANG_LABELSLOADED);
 
     rdis_check_references(rdis);
     rdis_functions_bounds(rdis);

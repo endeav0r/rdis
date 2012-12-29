@@ -45,7 +45,7 @@ struct _refwindow * refwindow_create (struct _gui * gui)
     GtkTreeViewColumn * column;
 
     renderer = gtk_cell_renderer_text_new();
-    column   = gtk_tree_view_column_new_with_attributes("address",
+    column   = gtk_tree_view_column_new_with_attributes(LANG_ADDRESS,
                                                         renderer,
                                                         "text", COL_ADDRESS,
                                                         NULL);
@@ -54,7 +54,7 @@ struct _refwindow * refwindow_create (struct _gui * gui)
     gtk_tree_view_append_column(GTK_TREE_VIEW(refwindow->treeView), column);
     
     renderer = gtk_cell_renderer_text_new();
-    column   = gtk_tree_view_column_new_with_attributes("referencers",
+    column   = gtk_tree_view_column_new_with_attributes(LANG_REFERENCERS,
                                                         renderer,
                                                         "text", COL_REFERENCERS,
                                                         NULL);

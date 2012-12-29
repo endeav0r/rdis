@@ -241,7 +241,7 @@ void hexwindow_populate_popup (GtkTextView * text_view,
 {
     printf("populate popup\n");
     // popup menu stuff
-    GtkWidget * menuItem = gtk_menu_item_new_with_label("User Function");
+    GtkWidget * menuItem = gtk_menu_item_new_with_label(LANG_USERFUNCTION);
     g_signal_connect(menuItem,
                      "activate",
                      G_CALLBACK(hexwindow_user_function),

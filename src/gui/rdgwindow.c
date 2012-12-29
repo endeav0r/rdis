@@ -81,7 +81,7 @@ struct _rdgwindow * rdgwindow_create (struct _gui * gui,
                                 rdgwindow->gui->rdis->labels);
 
     // popup menu stuff
-    GtkWidget * menuItem = gtk_menu_item_new_with_label("User Function");
+    GtkWidget * menuItem = gtk_menu_item_new_with_label(LANG_USERFUNCTION);
     g_signal_connect(menuItem,
                      "activate",
                      G_CALLBACK(rdgwindow_user_function),

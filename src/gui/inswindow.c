@@ -93,7 +93,7 @@ struct _inswindow * inswindow_create (struct _gui * gui)
     GtkCellRenderer   * renderer;
     GtkTreeViewColumn * column;
     renderer = gtk_cell_renderer_text_new();
-    column   = gtk_tree_view_column_new_with_attributes("address",
+    column   = gtk_tree_view_column_new_with_attributes(LANG_ADDRESS,
                                                         renderer,
                                                         "text", COL_ADDR,
                                                         NULL);
@@ -102,7 +102,7 @@ struct _inswindow * inswindow_create (struct _gui * gui)
     gtk_tree_view_append_column(GTK_TREE_VIEW(inswindow->treeView), column);
     
     renderer = gtk_cell_renderer_text_new();
-    column   = gtk_tree_view_column_new_with_attributes("bytes",
+    column   = gtk_tree_view_column_new_with_attributes(LANG_BYTES,
                                                         renderer,
                                                         "text", COL_BYTES,
                                                         NULL);
@@ -111,7 +111,7 @@ struct _inswindow * inswindow_create (struct _gui * gui)
     gtk_tree_view_append_column(GTK_TREE_VIEW(inswindow->treeView), column);
     
     renderer = gtk_cell_renderer_text_new();
-    column   = gtk_tree_view_column_new_with_attributes("description",
+    column   = gtk_tree_view_column_new_with_attributes(LANG_DESCRIPTION,
                                                         renderer,
                                                         "text", COL_DESCRIPTION,
                                                         NULL);
@@ -120,7 +120,7 @@ struct _inswindow * inswindow_create (struct _gui * gui)
     gtk_tree_view_append_column(GTK_TREE_VIEW(inswindow->treeView), column);
     
     renderer = gtk_cell_renderer_text_new();
-    column   = gtk_tree_view_column_new_with_attributes("comment",
+    column   = gtk_tree_view_column_new_with_attributes(LANG_COMMENT,
                                                         renderer,
                                                         "text", COL_COMMENT,
                                                         NULL);
