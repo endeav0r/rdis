@@ -72,5 +72,6 @@ int rl_rdis_peek      (lua_State * L);
 int rl_rdis_poke      (lua_State * L);
 int rl_rdis_node      (lua_State * L);
 int rl_rdis_load      (lua_State * L);
+int rl_rdis_loader    (lua_State * L);
 
 #endif

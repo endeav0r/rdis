@@ -60,6 +60,7 @@ static const struct luaL_Reg rl_rdis_lib_f [] = {
     {"poke",      rl_rdis_poke},
     {"node",      rl_rdis_node},
     {"load",      rl_rdis_load},
+    {"loader",    rl_rdis_loader},
     {NULL, NULL}
 };
 
@@ -738,4 +739,52 @@ int rl_rdis_load (lua_State * L)
     rdis_lua->rdis->memory    = memory;
 
     return 0;
+}
+
+
+int rl_rdis_loader (lua_State * L)
+{
+    printf("rdis loader\n");
+    struct _rdis_lua * rdis_lua = rl_get_rdis_lua(L);
+
+    const char * filename = luaL_checkstring(L, -1);
+
+    // do we get a valid loader from this file?
+    _loader * loader = loader_create(filename);
+
+    if (loader == NULL) {
+        char tmp[256];
+        snprintf(tmp, 256, "No valid loader for %s\n", filename);
+        rdis_console(rdis_lua->rdis, tmp);
+        lua_pop(L, 1);
+        lua_pushboolean(L, 0);
+        return 1;
+    }
+
+    // clear all gui windows
+    rdis_clear_gui(rdis_lua->rdis);
+
+    // clear rdis
+    objects_delete(rdis_lua->rdis->loader,
+                   rdis_lua->rdis->graph,
+                   rdis_lua->rdis->labels,
+                   rdis_lua->rdis->functions,
+                   rdis_lua->rdis->memory,
+                   NULL);
+
+    // reset rdis
+    rdis_lua->rdis->loader    = loader;
+    rdis_lua->rdis->memory    = loader_memory_map(loader);
+    rdis_lua->rdis->functions = loader_functions(loader,
+                                                 rdis_lua->rdis->memory);
+    rdis_lua->rdis->graph     = loader_graph_functions(loader,
+                                                       rdis_lua->rdis->memory,
+                                                       rdis_lua->rdis->functions);
+    rdis_lua->rdis->labels    = loader_labels_functions(loader,
+                                                        rdis_lua->rdis->memory,
+                                                        rdis_lua->rdis->functions);
+
+    lua_pop(L, 1);
+    lua_pushboolean(L, 1);
+    return 1;
 }
