@@ -654,10 +654,13 @@ int rl_rdis_poke (lua_State * L)
     uint64_t         address    = rl_check_uint64(L, -1);
     const uint8_t *  bytes      = (const uint8_t *) luaL_checkstring(L, -2);
     size_t           bytes_size = lua_objlen(L, -2);
+
     struct _buffer * buffer = buffer_create(bytes, bytes_size);
     lua_pop(L, 2);
 
     rdis_update_memory(rdis_lua->rdis, address, buffer);
+
+    object_delete(buffer);
 
     return 0;
 }
