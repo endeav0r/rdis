@@ -7,6 +7,7 @@ More information can be found here: http://rainbowsandpwnies.com/rdis/
 // BUILDING
 
 Dependencies: gtk3, luajit, cairo, jansson
+Optional Dependencies (in case you plan to use rdis-lua scripts and the GDB backend) : lua51-socket
 
 There's not autoconf for rdis, so you may need to make some changes to get it
 to build on your platform. Rdis is developed in Arch Linux and should work fine
