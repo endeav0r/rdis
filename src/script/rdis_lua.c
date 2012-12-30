@@ -652,9 +652,12 @@ int rl_rdis_poke (lua_State * L)
 {
     struct _rdis_lua * rdis_lua = rl_get_rdis_lua(L);
 
-    uint64_t         address    = rl_check_uint64(L, -1);
-    const uint8_t *  bytes      = (const uint8_t *) luaL_checkstring(L, -2);
-    size_t           bytes_size = lua_objlen(L, -2);
+    printf("rdis_poke arg 1\n");
+    uint64_t         address    = rl_check_uint64(L, -2);
+    printf("rdis_poke arg 2\n");
+    const uint8_t *  bytes      = (const uint8_t *) luaL_checkstring(L, -1);
+    printf("rdis_poke arg done\n");
+    size_t           bytes_size = lua_objlen(L, -1);
 
     struct _buffer * buffer = buffer_create(bytes, bytes_size);
     lua_pop(L, 2);
