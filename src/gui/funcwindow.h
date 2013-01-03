@@ -46,6 +46,11 @@ gboolean funcwindow_button_press_event (GtkWidget * widget,
                                         GdkEventButton * event,
                                         struct _funcwindow * funcwindow);
 
+void funcwindow_launch_graph (struct _funcwindow * funcwindow, uint64_t index);
+
+void funcwindow_view_graph (GtkMenuItem * menuItem,
+                            struct _funcwindow * funcwindow);
+
 void funcwindow_call_graph (GtkMenuItem * menuItem,
                             struct _funcwindow * funcwindow);
 

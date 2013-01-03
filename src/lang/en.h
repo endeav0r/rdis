@@ -26,6 +26,7 @@
 #define LANG_SAVERDISFILE  "Safe Rdis File"
 #define LANG_UNREACHABLE   "Unreachable"
 #define LANG_USERFUNCTION  "User Function"
+#define LANG_VIEWGRAPH     "View Graph"
 
 // RDIS
 #define LANG_MEMORYLOADED "Memory Loaded"
