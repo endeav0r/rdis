@@ -14,8 +14,7 @@ struct _hexwindow * hexwindow_create (struct _gui * gui)
     hexwindow->scrolledWindow = gtk_scrolled_window_new(NULL, NULL);
     hexwindow->textTagTable   = gtk_text_tag_table_new();
     hexwindow->textBuffer     = gtk_text_buffer_new(hexwindow->textTagTable);
-    hexwindow->textView       =
-                          gtk_text_view_new_with_buffer(hexwindow->textBuffer);
+    hexwindow->textView       = gtk_text_view_new_with_buffer(hexwindow->textBuffer);
     hexwindow->menu_popup     = gtk_menu_new();
     hexwindow->gui            = gui;
     hexwindow->gui_identifier = gui_add_window(gui, hexwindow->window);
@@ -70,6 +69,7 @@ struct _hexwindow * hexwindow_create (struct _gui * gui)
 void hexwindow_delete (struct _hexwindow * hexwindow)
 {
     gui_remove_window(hexwindow->gui, hexwindow->gui_identifier);
+    gtk_widget_destroy(hexwindow->menu_popup);
     free(hexwindow);
 }
 
@@ -89,7 +89,7 @@ void hexwindow_draw_memmap (struct _hexwindow * hexwindow)
 
     gtk_text_buffer_get_start_iter(hexwindow->textBuffer, &iterStart);
     gtk_text_buffer_get_end_iter  (hexwindow->textBuffer, &iterEnd);
-    gtk_text_buffer_delete(hexwindow->textBuffer, &iterStart, &iterEnd);
+    gtk_text_buffer_delete        (hexwindow->textBuffer, &iterStart, &iterEnd);
 
     gtk_text_buffer_get_start_iter(hexwindow->textBuffer, &iter);
 
@@ -105,7 +105,7 @@ void hexwindow_draw_memmap (struct _hexwindow * hexwindow)
         while (offset < buffer->size) {
             char addr_str[32];
             if (offset % 16 == 0) {
-                snprintf(addr_str, 32, "%04llx", 
+                snprintf(addr_str, 31, "%04llx", 
                          (unsigned long long) base + offset);
             }
 
@@ -140,7 +140,7 @@ void hexwindow_draw_memmap (struct _hexwindow * hexwindow)
             bytes_str[bsi] = '\0';
             ascii[i] = '\0';
 
-            snprintf(line, 256, "%s  %s %s\n", addr_str, bytes_str, ascii);
+            snprintf(line, 255, "%s  %s %s\n", addr_str, bytes_str, ascii);
 
             gtk_text_buffer_insert(hexwindow->textBuffer,
                                    &iter,
@@ -170,7 +170,7 @@ void hexwindow_mark_set     (GtkTextBuffer     * textBuffer,
     hexwindow->selected_address = -1;
 
     // unselect any selected text
-    gtk_text_buffer_select_range(textBuffer, iter, iter);
+    gtk_text_buffer_select_range(hexwindow->textBuffer, iter, iter);
 
     // iterator to the first character on this line
     int lineno = gtk_text_iter_get_line(iter);
@@ -226,7 +226,7 @@ void hexwindow_mark_set     (GtkTextBuffer     * textBuffer,
                                             &lastCharIter,
                                             lineno,
                                             offset + 2);
-    gtk_text_buffer_select_range(textBuffer, &firstCharIter, &lastCharIter);
+    gtk_text_buffer_select_range(hexwindow->textBuffer, &firstCharIter, &lastCharIter);
 
     g_free(address_text);
 
