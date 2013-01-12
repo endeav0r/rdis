@@ -47,7 +47,14 @@ struct _funcwindow * funcwindow_create (struct _gui * gui)
                                    LANG_UNREACHABLE);
 
     // popup menu stuff
-    GtkWidget * menuItem = gtk_menu_item_new_with_label(LANG_CALLGRAPH);
+    GtkWidget * menuItem = gtk_menu_item_new_with_label(LANG_VIEWGRAPH);
+    g_signal_connect(menuItem,
+                     "activate",
+                     G_CALLBACK(funcwindow_view_graph),
+                     funcwindow);
+    gtk_menu_shell_append(GTK_MENU_SHELL(funcwindow->menu_popup), menuItem);
+
+    menuItem = gtk_menu_item_new_with_label(LANG_CALLGRAPH);
     g_signal_connect(menuItem,
                      "activate",
                      G_CALLBACK(funcwindow_call_graph),
@@ -241,9 +248,9 @@ void funcwindow_destroy_event (GtkWidget * widget,
 
 
 void funcwindow_row_activated (GtkTreeView * treeView,
-                                           GtkTreePath * treePath,
-                                           GtkTreeViewColumn * treeViewColumn,
-                                           struct _funcwindow * funcwindow)
+                               GtkTreePath * treePath,
+                               GtkTreeViewColumn * treeViewColumn,
+                               struct _funcwindow * funcwindow)
 {
     uint64_t index;
 
@@ -259,17 +266,7 @@ void funcwindow_row_activated (GtkTreeView * treeView,
 
     printf("funcwindow_row_activated %llx\n", (unsigned long long) index);
 
-    struct _graph * graph = graph_family(funcwindow->gui->rdis->graph, index);
-    if (graph != NULL) {
-        gui_rdgwindow(funcwindow->gui, graph, RDGWINDOW_INS_GRAPH, index);
-        object_delete(graph);
-    }
-    else {
-        char tmp[128];
-        snprintf(tmp, 128, "Could not create graph family for %llx\n",
-                 (unsigned long long) index);
-        gui_console(funcwindow->gui, tmp);
-    }
+    funcwindow_launch_graph(funcwindow, index);
 }
 
 
@@ -353,6 +350,30 @@ uint64_t funcwindow_selected_item (struct _funcwindow * funcwindow)
     }
 
     return -1;
+}
+
+
+void funcwindow_launch_graph (struct _funcwindow * funcwindow, uint64_t index)
+{
+    struct _graph * graph = graph_family(funcwindow->gui->rdis->graph, index);
+    if (graph != NULL) {
+        gui_rdgwindow(funcwindow->gui, graph, RDGWINDOW_INS_GRAPH, index);
+        object_delete(graph);
+    }
+    else {
+        char tmp[128];
+        snprintf(tmp, 128, "Could not create graph family for %llx\n",
+                 (unsigned long long) index);
+        gui_console(funcwindow->gui, tmp);
+    }
+}
+
+
+void funcwindow_view_graph (GtkMenuItem * menuItem,
+                            struct _funcwindow * funcwindow)
+{
+    uint64_t index = funcwindow_selected_item(funcwindow);
+    funcwindow_launch_graph(funcwindow, index);
 }
 
 
