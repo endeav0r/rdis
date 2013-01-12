@@ -87,6 +87,12 @@ struct _rdgwindow * rdgwindow_create (struct _gui * gui,
                      G_CALLBACK(rdgwindow_user_function),
                      rdgwindow);
     gtk_menu_shell_append(GTK_MENU_SHELL(rdgwindow->menu_popup), menuItem);
+    menuItem = gtk_menu_item_new_with_label(LANG_REMOVEALLAFTER);
+    g_signal_connect(menuItem,
+                     "activate",
+                     G_CALLBACK(rdgwindow_remove_all_after),
+                     rdgwindow);
+    gtk_menu_shell_append(GTK_MENU_SHELL(rdgwindow->menu_popup), menuItem);
 
     gtk_widget_show_all(rdgwindow->menu_popup);
 
@@ -689,5 +695,23 @@ void rdgwindow_user_function (GtkMenuItem * menuItem,
     rdis_user_function(rdgwindow->gui->rdis, rdgwindow->selected_ins);
 
     printf("user function click on %llx\n",
+           (unsigned long long) rdgwindow->selected_ins);
+}
+
+
+
+void rdgwindow_remove_all_after (GtkMenuItem * menuItem,
+                                 struct _rdgwindow * rdgwindow)
+{
+    if (rdgwindow->selected_ins != -1) {
+        struct _graph_node * node;
+        node = graph_fetch_node(rdgwindow->gui->rdis->graph, rdgwindow->selected_node);
+        if (node != NULL) {
+            remove_all_after(node, rdgwindow->selected_ins);
+            rdis_callback(rdgwindow->gui->rdis, RDIS_CALLBACK_GRAPH | RDIS_CALLBACK_GRAPH_NODE);
+        }
+    }
+
+    printf("remove all after click on %llx\n",
            (unsigned long long) rdgwindow->selected_ins);
 }

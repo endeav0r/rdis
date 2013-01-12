@@ -95,5 +95,7 @@ void rdgwindow_rdis_callback (struct _rdgwindow * rdgwindow);
 void rdgwindow_menu_popup    (struct _rdgwindow * rdgwindow);
 void rdgwindow_user_function (GtkMenuItem * menuItem,
                               struct _rdgwindow * rdgwindow);
+void rdgwindow_remove_all_after (GtkMenuItem * menuItem,
+                                 struct _rdgwindow * rdgwindow);
 
 #endif

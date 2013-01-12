@@ -278,3 +278,68 @@ int mem_map_set (struct _map * mem_map, uint64_t address, struct _buffer * buf)
 
     return 0;
 }
+
+
+
+int remove_all_after (struct _graph_node * node, uint64_t index)
+{
+    // start by removing all instructions after the given instruction in this node
+    struct _list_it * lit;
+    int ins_found = 0;
+    for (lit = list_iterator(node->data); lit != NULL; lit = lit->next) {
+        struct _ins * ins = lit->data;
+        if (ins->address == index) {
+            ins_found = 1;
+            while (lit != NULL)
+                lit = list_remove(node->data, lit);
+            break;
+        }
+    }
+
+    if (ins_found == 0)
+        return -1;
+
+    // now remove all successor nodes in the graph
+    // start by adding all of this node's successors to the queue
+    struct _queue * queue = queue_create();
+    struct _graph * graph = node->graph;
+
+    struct _list * successors = graph_node_successors(node);
+    for (lit = list_iterator(successors); lit != NULL; lit = lit->next) {
+        struct _graph_edge * edge = lit->data;
+        queue_push(queue, graph_fetch_node(graph, edge->tail));
+    }
+    object_delete(successors);
+
+    // we only add this node if it is empty, IE the instruction we removed was
+    // the first instruction for this node
+    struct _list * ins_list = node->data;
+    if (ins_list->size == 0)
+        queue_push(queue, node);
+
+    // now we begin removing nodes
+    while (queue->size > 0) {
+        struct _graph_node * node = queue_peek(queue);
+        // does this node still exist in the graph?
+        if (graph_fetch_node(graph, node->index) == NULL) {
+            queue_pop(queue);
+            continue;
+        }
+
+        struct _list * successors = graph_node_successors(node);
+        struct _list_it * lit;
+        for (lit = list_iterator(successors); lit != NULL; lit = lit->next) {
+            struct _graph_edge * edge = lit->data;
+            struct _graph_node * sucnode = graph_fetch_node(graph, edge->tail);
+            queue_push(queue, sucnode);
+        }
+        object_delete(successors);
+
+        graph_remove_node(graph, node->index);
+        queue_pop(queue);
+    }
+
+    object_delete(queue);
+
+    return 0;
+}
