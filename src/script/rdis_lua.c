@@ -62,6 +62,7 @@ static const struct luaL_Reg rl_rdis_lib_f [] = {
     {"load",               rl_rdis_load},
     {"loader",             rl_rdis_loader},
     {"set_function_label", rl_rdis_set_function_label},
+    {"user_function",      rl_rdis_user_function},
     {NULL, NULL}
 };
 
@@ -810,6 +811,19 @@ int rl_rdis_set_function_label (lua_State * L)
     }
 
     label_set_text(label, text);
+
+    return 0;
+}
+
+
+int rl_rdis_user_function (lua_State * L)
+{
+    struct _rdis_lua * rdis_lua = rl_get_rdis_lua(L);
+
+    uint64_t address  = rl_check_uint64(L, -1);
+    lua_pop(L, 1);
+
+    rdis_user_function(rdis_lua->rdis, address);
 
     return 0;
 }

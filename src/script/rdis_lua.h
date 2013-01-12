@@ -74,5 +74,6 @@ int rl_rdis_node               (lua_State * L);
 int rl_rdis_load               (lua_State * L);
 int rl_rdis_loader             (lua_State * L);
 int rl_rdis_set_function_label (lua_State * L);
+int rl_rdis_user_function      (lua_State * L);
 
 #endif
