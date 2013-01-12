@@ -66,12 +66,13 @@ int rl_graph_node_instructions (lua_State * L);
 
 struct _rdis_lua * rl_get_rdis_lua (lua_State * L);
 
-int rl_rdis_console   (lua_State * L);
-int rl_rdis_functions (lua_State * L);
-int rl_rdis_peek      (lua_State * L);
-int rl_rdis_poke      (lua_State * L);
-int rl_rdis_node      (lua_State * L);
-int rl_rdis_load      (lua_State * L);
-int rl_rdis_loader    (lua_State * L);
+int rl_rdis_console            (lua_State * L);
+int rl_rdis_functions          (lua_State * L);
+int rl_rdis_peek               (lua_State * L);
+int rl_rdis_poke               (lua_State * L);
+int rl_rdis_node               (lua_State * L);
+int rl_rdis_load               (lua_State * L);
+int rl_rdis_loader             (lua_State * L);
+int rl_rdis_set_function_label (lua_State * L);
 
 #endif
