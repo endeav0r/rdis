@@ -51,6 +51,8 @@ void * deserialize (json_t * json)
 {
     serialize_error = 0;
 
+    printf("deserialize 0\n");
+
     if (! json_is_object(json)) {
         serialize_error = SERIALIZE_ERROR;
         return NULL;
