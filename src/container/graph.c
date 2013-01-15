@@ -77,7 +77,7 @@ struct _graph * graph_create ()
 
     graph = (struct _graph *) malloc(sizeof(struct _graph));
     graph->object = &graph_object;
-    graph->nodes = tree_create(graph_cmp);
+    graph->nodes = tree_create();
 
     return graph;
 }
