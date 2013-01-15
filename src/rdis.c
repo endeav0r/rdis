@@ -98,11 +98,11 @@ json_t * rdis_serialize (struct _rdis * rdis)
 {
     json_t * json = json_object();
 
-    json_object_set(json, "ot",       json_integer(SERIALIZE_RDIS));
-    json_object_set(json, "graph",    object_serialize(rdis->graph));
-    json_object_set(json, "labels",   object_serialize(rdis->labels));
-    json_object_set(json, "function", object_serialize(rdis->functions));
-    json_object_set(json, "memory",   object_serialize(rdis->memory));
+    json_object_set(json, "ot",        json_integer(SERIALIZE_RDIS));
+    json_object_set(json, "graph",     object_serialize(rdis->graph));
+    json_object_set(json, "labels",    object_serialize(rdis->labels));
+    json_object_set(json, "functions", object_serialize(rdis->functions));
+    json_object_set(json, "memory",    object_serialize(rdis->memory));
 
     return json;
 }
