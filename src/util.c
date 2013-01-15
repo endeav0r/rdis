@@ -280,6 +280,22 @@ int mem_map_set (struct _map * mem_map, uint64_t address, struct _buffer * buf)
 }
 
 
+struct _ins * graph_node_ins (struct _graph_node * node, uint64_t address)
+{
+    if (node == NULL)
+        return NULL;
+
+    struct _list_it * lit;
+    for (lit = list_iterator(node->data); lit != NULL; lit = lit->next) {
+        struct _ins * ins = lit->data;
+        if (ins->address == address)
+            return ins;
+    }
+
+    return NULL;
+}
+
+
 
 int remove_all_after (struct _graph_node * node, uint64_t index)
 {

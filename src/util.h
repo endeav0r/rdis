@@ -38,6 +38,8 @@ int mem_map_byte (struct _map * mem_map, uint64_t address);
 
 int mem_map_set (struct _map * mem_map, uint64_t address, struct _buffer * buffer);
 
+struct _ins * graph_node_ins (struct _graph_node * node, uint64_t address);
+
 /*
 * Removes all instructions and successor nodes starting with an instruction in
 * a node from a loader graph

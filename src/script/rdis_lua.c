@@ -6,8 +6,11 @@
 #include "lua.h"
 #include "map.h"
 #include "tree.h"
+#include "util.h"
 
+#include <openssl/sha.h>
 #include <stdlib.h>
+#include <string.h>
 
 static const struct luaL_Reg rl_uint64_lib_m [] = {
     {"__add", rl_uint64_add},
@@ -59,9 +62,12 @@ static const struct luaL_Reg rl_rdis_lib_f [] = {
     {"peek",               rl_rdis_peek},
     {"poke",               rl_rdis_poke},
     {"node",               rl_rdis_node},
+    {"nodes",              rl_rdis_nodes},
     {"load",               rl_rdis_load},
     {"loader",             rl_rdis_loader},
     {"set_function_label", rl_rdis_set_function_label},
+    {"set_ins_comment",    rl_rdis_set_ins_comment},
+    {"sha256",             rl_rdis_sha256},
     {"user_function",      rl_rdis_user_function},
     {"dump_json",          rl_rdis_dump_json},
     {NULL, NULL}
@@ -426,6 +432,7 @@ int rl_ins_comment (lua_State * L)
     struct _ins * ins = rl_check_ins(L, -1);
     lua_pop(L, 1);
 
+
     if (ins->comment == NULL)
         lua_pushnil(L);
     else
@@ -690,6 +697,29 @@ int rl_rdis_node (lua_State * L)
 }
 
 
+int rl_rdis_nodes (lua_State * L)
+{
+    struct _rdis_lua * rdis_lua = rl_get_rdis_lua(L);
+
+    lua_newtable(L);
+
+    struct _graph_it * it;
+    int i = 1;
+    for (it  = graph_iterator(rdis_lua->rdis->graph);
+         it != NULL;
+         it  = graph_it_next(it)) {
+        struct _graph_node * node = graph_it_node(it);
+
+        lua_pushinteger(L, i++);
+        rl_graph_node_push(L, node);
+
+        lua_settable(L, -3);
+    }
+
+    return 1;
+}
+
+
 int rl_rdis_load (lua_State * L)
 {
     printf("rdis load\n");
@@ -814,6 +844,60 @@ int rl_rdis_set_function_label (lua_State * L)
     label_set_text(label, text);
 
     return 0;
+}
+
+
+int rl_rdis_set_ins_comment (lua_State * L)
+{
+    struct _rdis_lua * rdis_lua = rl_get_rdis_lua(L);
+
+    uint64_t node_index = rl_check_uint64(L, -3);
+    uint64_t ins_address = rl_check_uint64(L, -2);
+    const char * new_comment = luaL_checkstring(L, -1);
+
+    lua_pop(L, 3);
+
+    struct _graph_node * node = graph_fetch_node(rdis_lua->rdis->graph, node_index);
+    if (node == NULL) {
+        luaL_error(L, "could not find graph node");
+        return 0;
+    }
+
+    struct _ins * ins = graph_node_ins(node, ins_address);
+    if (ins == NULL) {
+        luaL_error(L, "could not find instruction");
+        return 0;
+    }
+
+    ins_s_comment(ins, new_comment);
+
+    return 0;
+}
+
+
+int rl_rdis_sha256 (lua_State * L)
+{
+    size_t plaintext_size;
+    const char * plaintext = luaL_checklstring(L, -1, &plaintext_size);
+    lua_pop(L, 1);
+
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256_CTX ctx;
+    SHA256_Init(&ctx);
+    SHA256_Update(&ctx, plaintext, plaintext_size);
+    SHA256_Final(hash, &ctx);
+
+    char outstr[65];
+    memset(outstr, 0, 65);
+
+    int i;
+    for (i = 0; i < 32; i++) {
+        snprintf(&(outstr[i * 2]), 3, "%02x", hash[i]);
+    }
+
+    lua_pushstring(L, outstr);
+
+    return 1;
 }
 
 

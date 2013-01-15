@@ -71,9 +71,12 @@ int rl_rdis_functions          (lua_State * L);
 int rl_rdis_peek               (lua_State * L);
 int rl_rdis_poke               (lua_State * L);
 int rl_rdis_node               (lua_State * L);
+int rl_rdis_nodes              (lua_State * L);
 int rl_rdis_load               (lua_State * L);
 int rl_rdis_loader             (lua_State * L);
 int rl_rdis_set_function_label (lua_State * L);
+int rl_rdis_set_ins_comment    (lua_State * L);
+int rl_rdis_sha256             (lua_State * L);
 int rl_rdis_user_function      (lua_State * L);
 int rl_rdis_dump_json          (lua_State * L);
 
