@@ -2,7 +2,7 @@ OBJS = buffer.o function.o graph.o index.o instruction.o label.o list.o map.o qu
 	rdstring.o reference.o tree.o 
 
 CCFLAGS=-Wall -O2 -g -Werror
-INCLUDE=-iquote../
+INCLUDE=`pkg-config --cflags gtk+-3.0` -iquote../
 
 all : $(OBJS)
 

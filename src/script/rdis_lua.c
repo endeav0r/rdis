@@ -63,6 +63,7 @@ static const struct luaL_Reg rl_rdis_lib_f [] = {
     {"loader",             rl_rdis_loader},
     {"set_function_label", rl_rdis_set_function_label},
     {"user_function",      rl_rdis_user_function},
+    {"dump_json",          rl_rdis_dump_json},
     {NULL, NULL}
 };
 
@@ -826,4 +827,21 @@ int rl_rdis_user_function (lua_State * L)
     rdis_user_function(rdis_lua->rdis, address);
 
     return 0;
+}
+
+
+int rl_rdis_dump_json (lua_State * L)
+{
+    struct _rdis_lua * rdis_lua = rl_get_rdis_lua(L);
+
+    json_t * json = rdis_serialize(rdis_lua->rdis);
+    char * json_str = json_dumps(json, JSON_COMPACT);
+
+    lua_pushstring(L, json_str);
+
+    free(json_str);
+
+    json_decref(json);
+
+    return 1;
 }

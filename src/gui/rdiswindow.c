@@ -229,7 +229,6 @@ void rdiswindow_open (GtkMenuItem * menuItem, struct _rdiswindow * rdiswindow)
         if (json == NULL) {
             snprintf(tmp, 256, "json error: %s", json_error.text);
             gui_console(rdiswindow->gui, tmp);
-            json_decref(json);
         }
         else {
             struct _rdis * rdis = rdis_deserialize(json);
@@ -243,6 +242,7 @@ void rdiswindow_open (GtkMenuItem * menuItem, struct _rdiswindow * rdiswindow)
                 snprintf(tmp, 256, "opened file %s", filename);
                 gui_console(rdiswindow->gui, tmp);
             }
+            json_decref(json);
         }
         g_free(filename);
     }

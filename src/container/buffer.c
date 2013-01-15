@@ -1,5 +1,6 @@
 #include "buffer.h"
 
+#include <glib.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -46,11 +47,9 @@ json_t * buffer_serialize (struct _buffer * buffer)
 
     json_object_set(json, "ot",   json_integer(SERIALIZE_BUFFER));
 
-    json_t * bytes = json_array();
-    size_t i;
-    for (i = 0; i < buffer->size; i++) {
-        json_array_append(bytes, json_integer(buffer->bytes[i]));
-    }
+    gchar * base64_string = g_base64_encode(buffer->bytes, buffer->size);
+    json_t * bytes = json_string(base64_string);
+    g_free(base64_string);
 
     json_object_set(json, "bytes", bytes);
     json_object_set(json, "permissions", json_integer(buffer->permissions));
@@ -65,7 +64,7 @@ struct _buffer * buffer_deserialize (json_t * json)
     json_t * permissions = json_object_get(json, "permissions");
 
     // some sanity checking
-    if (! json_is_array(bytes)) {
+    if (! json_is_string(bytes)) {
         serialize_error = SERIALIZE_BUFFER;
         return NULL;
     }
@@ -74,23 +73,11 @@ struct _buffer * buffer_deserialize (json_t * json)
         return NULL;
     }
 
-    struct _buffer * buffer = (struct _buffer *) malloc(sizeof(struct _buffer));
-    
-    buffer->object      = &buffer_object;
-    buffer->size        = json_array_size(bytes);
-    buffer->bytes       = (uint8_t *) malloc(buffer->size);
-    buffer->permissions = json_integer_value(permissions);
+    size_t out_len;
+    guchar         * bytes_decoded = g_base64_decode(json_string_value(bytes), &out_len);
+    struct _buffer * buffer        = buffer_create(bytes_decoded, out_len);
 
-    uint64_t i;
-    for (i = 0; i < buffer->size; i++) {
-        json_t * byte = json_array_get(bytes, i);
-        if (! json_is_integer(byte)) {
-            serialize_error = SERIALIZE_BUFFER;
-            free(buffer);
-            return NULL;
-        }
-        buffer->bytes[i] = json_integer_value(byte);
-    }
+    buffer->permissions |= json_integer_value(permissions);
 
     return buffer;
 }
