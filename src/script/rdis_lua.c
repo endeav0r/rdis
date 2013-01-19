@@ -394,7 +394,7 @@ int rl_ins_target (lua_State * L)
     struct _ins * ins = rl_check_ins(L, -1);
     lua_pop(L, 1);
 
-    if (ins->flags & INS_FLAG_TARGET_SET)
+    if (ins->flags & INS_TARGET_SET)
         rl_uint64_push(L, ins->target);
     else
         lua_pushnil(L);

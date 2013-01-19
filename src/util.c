@@ -50,7 +50,7 @@ void create_call_graph_list (struct _graph_node * node, struct _list * call_list
     struct _list_it * it;
     for (it = list_iterator(ins_list); it != NULL; it = it->next) {
         struct _ins * ins = it->data;
-        if (ins->flags & INS_FLAG_CALL) {
+        if (ins->flags & INS_CALL) {
             list_append(call_list, ins);
         }
     }
@@ -95,7 +95,7 @@ struct _graph * create_call_graph (struct _graph * graph, uint64_t indx)
             // if it has a target and the target points to a valid node and
             // we haven't already added that function
             struct _ins * ins = it->data;
-            if (    (ins->flags & INS_FLAG_TARGET_SET)
+            if (    (ins->flags & INS_TARGET_SET)
                  && (graph_fetch_node(graph, ins->target) != NULL)
                  && (graph_fetch_node(call_graph, ins->target) == NULL)) {
                 // add the target to the function queue

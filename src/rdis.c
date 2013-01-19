@@ -443,8 +443,8 @@ int rdis_function_reachable (struct _rdis * rdis, uint64_t address)
         for (lit = list_iterator(ins_list); lit != NULL; lit = lit->next) {
             struct _ins * ins = lit->data;
             // insure function has correct flags
-            if (    (ins->flags & (INS_FLAG_TARGET_SET | INS_FLAG_CALL))
-                 == (INS_FLAG_TARGET_SET | INS_FLAG_CALL)) {
+            if (    (ins->flags & (INS_TARGET_SET | INS_CALL))
+                 == (INS_TARGET_SET | INS_CALL)) {
 
                 function = map_fetch(rdis->functions, ins->target);
                 if (function == NULL)

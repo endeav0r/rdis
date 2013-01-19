@@ -9,8 +9,8 @@
 #include "reference.h"
 #include "serialize.h"
 
-#define INS_FLAG_TARGET_SET 1
-#define INS_FLAG_CALL       2
+#define INS_TARGET_SET 1
+#define INS_CALL       2
 
 /*
 *  Changes to instructions should maybe pay attention to rdis_regraph_function

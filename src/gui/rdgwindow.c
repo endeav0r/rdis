@@ -434,12 +434,48 @@ gboolean rdgwindow_image_button_press_event  (GtkWidget * widget,
 
     rdgwindow_color_node(rdgwindow);
 
-    // right click for popup menu
     printf("selected_ins: %llx, event->button: %d\n",
            (unsigned long long) selected_ins,
            event->button);
+
+    // right click for popup menu
     if ((selected_ins != -1) && (event->button == 3)) {
         rdgwindow_menu_popup(rdgwindow);
+    }
+
+    // double click on an instruction of type CALL spawns an rdgwindow for
+    // that instruction
+    if ((rdgwindow->selected_ins != -1) && (event->type == GDK_2BUTTON_PRESS)) {
+        struct _graph_node * node = graph_fetch_node(rdgwindow->gui->rdis->graph,
+                                                     rdgwindow->selected_node);
+        if (node == NULL) {
+            printf("double-click node %llx didn't find node\n",
+                   (unsigned long long) rdgwindow->selected_node);
+            return FALSE;
+        }
+        struct _ins * ins = graph_node_ins(node, rdgwindow->selected_ins);
+        if (ins == NULL) {
+            printf("double-click ins %llx didn't find ins\n",
+                   (unsigned long long) rdgwindow->selected_ins);
+            return FALSE;
+        }
+
+        // if this ins is a call and the target is set
+        if ((ins->flags & INS_CALL) && (ins->flags & INS_TARGET_SET)) {
+            struct _graph * family = graph_family(rdgwindow->gui->rdis->graph,
+                                                  ins->target);
+            if (family == NULL) {
+                printf("could not find graph family for call target (call at %llx\n",
+                       (unsigned long long) rdgwindow->selected_ins);
+                return FALSE;
+            }
+
+            gui_rdgwindow(rdgwindow->gui,
+                          family,
+                          RDGWINDOW_INS_GRAPH,
+                          ins->target);
+            object_delete(family);
+        }
     }
 
     return FALSE;

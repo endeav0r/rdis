@@ -204,14 +204,14 @@ void ins_s_comment (struct _ins * ins, const char * comment)
 
 void ins_s_target (struct _ins * ins, uint64_t target)
 {
-    ins->flags |= INS_FLAG_TARGET_SET;
+    ins->flags |= INS_TARGET_SET;
     ins->target = target;
 }
 
 
 void ins_s_call (struct _ins * ins)
 {
-    ins->flags |= INS_FLAG_CALL;
+    ins->flags |= INS_CALL;
 }
 
 
