@@ -6,13 +6,26 @@ More information can be found here: http://rainbowsandpwnies.com/rdis/
 
 // BUILDING
 
-Dependencies: gtk3, luajit, cairo, jansson
-Optional Dependencies (in case you plan to use rdis-lua scripts and the GDB backend) : lua51-socket
+; If you build rdis for a distro not listed below, let me know how you did it
+; by emailing me at endeavor at rainbowsandpwnies.com
 
-There's not autoconf for rdis, so you may need to make some changes to get it
-to build on your platform. Rdis is developed in Arch Linux and should work fine
-with Arch.
+* Arch Linux
+    There is an rdis package in the aur maintained by TDKPS.
 
+* openSUSE 12.2 x86_64 (from kohelet)
+    - zypper install gtk3-devel libjansson-devel libopenssl-devel
+    - Grab LuaJIT-2.0.0 and install it
+    - Grab udis86-1.7 and install it
+    - Add "export LD_LIBRARY_PATH:/usr/local/lib:$LD_LIBRARY_PATH" to .bashrc
+    - Download rdis from http://github.com/endeav0r
+    - Unzip and install rdis.
+
+* Other
+    Dependencies: gtk3, luajit, cairo, jansson
+
+    There's not autoconf for rdis, so you may need to make some changes to get it
+    to build on your platform.
+    
 -----------------------------------------------------------
 
 // LICENSE
