@@ -10,7 +10,7 @@ More information can be found here: http://rainbowsandpwnies.com/rdis/
 ; by emailing me at endeavor at rainbowsandpwnies.com
 
 * Arch Linux
-    There is an rdis package in the aur maintained by TDKPS.
+    Use the rdis-git PKGBUILD from the aur.
 
 * openSUSE 12.2 x86_64 (from kohelet)
     - zypper install gtk3-devel libjansson-devel libopenssl-devel
@@ -19,6 +19,12 @@ More information can be found here: http://rainbowsandpwnies.com/rdis/
     - Add "export LD_LIBRARY_PATH:/usr/local/lib:$LD_LIBRARY_PATH" to .bashrc
     - Download rdis from http://github.com/endeav0r
     - Unzip and install rdis.
+
+* Ubuntu 12.10
+    The following packages are required to build rdis in Ubuntu 12.10
+    libluajit-5.1-dev libssl-dev libjansson-dev libgtk-3-dev libcairo2-dev
+
+    You will also need to grab udis86 and install it
 
 * Other
     Dependencies: gtk3, luajit, cairo, jansson
