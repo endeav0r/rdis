@@ -94,6 +94,7 @@ struct _funcwindow * funcwindow_create (struct _gui * gui)
                                                         NULL);
     g_object_set(renderer, "font", "monospace", "size-points", 9.0, NULL);
     gtk_tree_view_column_set_resizable(column, TRUE);
+    gtk_tree_view_column_set_sort_column_id(column, COL_ADDR);
     gtk_tree_view_append_column(GTK_TREE_VIEW(funcwindow->treeView), column);
     
     renderer = gtk_cell_renderer_text_new();
@@ -104,6 +105,7 @@ struct _funcwindow * funcwindow_create (struct _gui * gui)
     g_object_set(renderer, "font", "monospace", "size-points", 9.0, NULL);
     g_object_set(renderer, "editable", TRUE, NULL);
     gtk_tree_view_column_set_resizable(column, TRUE);
+    gtk_tree_view_column_set_sort_column_id(column, COL_LABEL);
     gtk_tree_view_append_column(GTK_TREE_VIEW(funcwindow->treeView), column);
     g_signal_connect(renderer,
                      "edited",
