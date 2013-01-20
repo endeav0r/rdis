@@ -255,11 +255,11 @@ struct _map_node * map_node_deserialize (json_t * json)
 
     void * value_object = deserialize(value);
 
+    if (value_object == NULL)
+        return NULL;
+
     struct _map_node * map_node;
     map_node = map_node_create(json_uint64_t_value(key), value_object);
-
-    if (value_object != NULL)
-        object_delete(value_object);
 
     return map_node;
 }

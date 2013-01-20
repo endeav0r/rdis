@@ -72,8 +72,8 @@ struct _function * function_deserialize (json_t * json)
 
     if (    (! json_is_uint64_t(address))
          || (! json_is_integer(flags))
-         || (! json_is_integer(lower_bound))
-         || (! json_is_integer(upper_bound))) {
+         || (! json_is_uint64_t(lower_bound))
+         || (! json_is_uint64_t(upper_bound))) {
         serialize_error = SERIALIZE_FUNCTION;
         return NULL;
     }
