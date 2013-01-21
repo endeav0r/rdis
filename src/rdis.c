@@ -43,7 +43,7 @@ struct _rdis * rdis_create_with_console (_loader * loader,
 
     rdis = (struct _rdis *) malloc(sizeof(struct _rdis));
 
-    rdis->object = &rdis_object;
+    rdis->object           = &rdis_object;
     rdis->callback_counter = 0;
     rdis->callbacks        = map_create();
     rdis->loader           = loader;
@@ -157,6 +157,7 @@ struct _rdis * rdis_deserialize (json_t * json)
     rdis->labels           = llabels;
     rdis->functions        = ffunctions;
     rdis->memory           = mmemory;
+    rdis->rdis_lua         = rdis_lua_create(rdis);
 
     return rdis;
 }

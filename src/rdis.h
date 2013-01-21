@@ -28,7 +28,6 @@ struct _rdis_callback {
 struct _rdis {
     const struct _object * object;
 
-    struct _rdis_lua * rdis_lua;
 
     uint64_t           callback_counter;
     struct _map      * callbacks;
@@ -43,6 +42,7 @@ struct _rdis {
     struct _map      * labels;
     struct _map      * functions;
     struct _map      * memory;
+    struct _rdis_lua * rdis_lua;
 };
 
 // rdis will assume control of the loader, and rdis will delete the loader
