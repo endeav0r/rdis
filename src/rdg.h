@@ -110,6 +110,11 @@ void          rdg_reduce_and_draw (struct _rdg * rdg);
 int           rdg_width  (struct _rdg * rdg);
 int           rdg_height (struct _rdg * rdg);
 
+// these functions return the x/y coords of a node in the
+// rdg_graph, after they have been laid out
+int rdg_node_x (struct _rdg * rdg, uint64_t index);
+int rdg_node_y (struct _rdg * rdg, uint64_t index);
+
 // rdg       = this graph we want to color
 // ins_graph = a graph, as returned by the loader, which contains the nodes
 //             we want to color

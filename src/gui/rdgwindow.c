@@ -166,6 +166,9 @@ struct _rdgwindow * rdgwindow_create (struct _gui * gui,
                                         RDIS_CALLBACK_GRAPH_NODE
                                         | RDIS_CALLBACK_LABEL);
 
+    gtk_widget_show_all(rdgwindow->window);
+    rdgwindow_center_on_node(rdgwindow, top_index);
+
     return rdgwindow;
 }
 
@@ -575,6 +578,36 @@ void rdgwindow_size_allocate_event (GtkWidget * widget,
 {
     rdgwindow->scrolledWindow_width  = allocation->width;
     rdgwindow->scrolledWindow_height = allocation->height;
+}
+
+
+void rdgwindow_center_on_node (struct _rdgwindow * rdgwindow, uint64_t index)
+{
+    GtkAdjustment * ha = gtk_scrolled_window_get_hadjustment(
+                             GTK_SCROLLED_WINDOW(rdgwindow->scrolledWindow));
+    GtkAdjustment * va = gtk_scrolled_window_get_vadjustment(
+                             GTK_SCROLLED_WINDOW(rdgwindow->scrolledWindow));
+
+    double width  = rdg_width(rdgwindow->rdg);
+    double height = rdg_height(rdgwindow->rdg);
+    int    xx     = rdg_node_x(rdgwindow->rdg, index);
+    int    yy     = rdg_node_y(rdgwindow->rdg, index);
+
+    printf("xx=%d, yy=%d\n", xx, yy);
+
+    if ((xx == -1) || (yy == -1))
+        return;
+
+    double x = xx;
+    double y = yy;
+
+    gtk_adjustment_set_value(ha, gtk_adjustment_get_upper(ha) * (x / width));
+    gtk_adjustment_set_value(va, gtk_adjustment_get_upper(va) * (y / height));
+
+    gtk_scrolled_window_set_hadjustment(
+                             GTK_SCROLLED_WINDOW(rdgwindow->scrolledWindow), ha);
+    gtk_scrolled_window_set_vadjustment(
+                             GTK_SCROLLED_WINDOW(rdgwindow->scrolledWindow), va);
 }
 
 

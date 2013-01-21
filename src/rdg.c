@@ -186,6 +186,30 @@ int rdg_width (struct _rdg * rdg)
 }
 
 
+int rdg_height (struct _rdg * rdg)
+{
+    return rdg->height + RDG_SURFACE_PADDING * 2;
+}
+
+
+int rdg_node_x (struct _rdg * rdg, uint64_t index)
+{
+    struct _rdg_node * rdg_node = graph_fetch_data(rdg->graph, index);
+    if (rdg_node == NULL)
+        return -1;
+    return rdg_node->x;
+}
+
+
+int rdg_node_y (struct _rdg * rdg, uint64_t index)
+{
+    struct _rdg_node * rdg_node = graph_fetch_data(rdg->graph, index);
+    if (rdg_node == NULL)
+        return -1;
+    return rdg_node->y;
+}
+
+
 void rdg_color_nodes (struct _rdg * rdg,
                       struct _graph     * ins_graph,
                       struct _map       * labels,
@@ -277,12 +301,6 @@ int rdg_node_color_cmp (struct _rdg_node_color * lhs, struct _rdg_node_color * r
     else if (lhs->index > rhs->index)
         return 1;
     return 0;
-}
-
-
-int rdg_height (struct _rdg * rdg)
-{
-    return rdg->height + RDG_SURFACE_PADDING * 2;
 }
 
 
