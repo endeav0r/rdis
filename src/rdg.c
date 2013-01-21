@@ -1649,3 +1649,9 @@ void rdg_draw (struct _rdg * rdg)
 
     //cairo_surface_write_to_png(rdg->surface, "cairo.png");
 }
+
+
+int rdg_save_to_png (struct _rdg * rdg, const char * filename)
+{
+    return cairo_surface_write_to_png(rdg->surface, filename);
+}

@@ -213,6 +213,8 @@ cairo_surface_t * rdg_draw_node (struct _graph_node * node, struct _map * labels
 
 cairo_surface_t * cairo_surface_copy (cairo_surface_t * src);
 
-void              rdgraph_draw_node_test (const char * filename,
-                                          struct _graph_node * node);
+// you must call rdg_draw() before this function, as it will not redraw the
+// rdg
+int rdg_save_to_png (struct _rdg * rdg, const char * filename);
+
 #endif

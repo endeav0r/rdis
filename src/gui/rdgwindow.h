@@ -99,5 +99,5 @@ void rdgwindow_user_function (GtkMenuItem * menuItem,
                               struct _rdgwindow * rdgwindow);
 void rdgwindow_remove_all_after (GtkMenuItem * menuItem,
                                  struct _rdgwindow * rdgwindow);
-
+void rdgwindow_save (struct _rdgwindow * rdgwindow);
 #endif

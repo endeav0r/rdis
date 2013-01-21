@@ -499,7 +499,6 @@ gboolean rdgwindow_image_key_press_event (GtkWidget * widget,
                                           GdkEventKey * event,
                                           struct _rdgwindow * rdgwindow)
 {
-    // key 'p'
     if ((event->keyval == ';') && (rdgwindow->selected_ins != -1)) {
         rdgwindow->editing = 1;
         return FALSE;
@@ -564,8 +563,11 @@ gboolean rdgwindow_image_key_press_event (GtkWidget * widget,
         return FALSE;
     }
 
-    if (event->keyval == 0x70) {
+    if (event->keyval == 'p') {
         rdgwindow_color_node_predecessors(rdgwindow);
+    }
+    else if (event->keyval == 's') {
+        rdgwindow_save(rdgwindow);
     }
 
     return FALSE;
@@ -783,4 +785,34 @@ void rdgwindow_remove_all_after (GtkMenuItem * menuItem,
 
     printf("remove all after click on %llx\n",
            (unsigned long long) rdgwindow->selected_ins);
+}
+
+
+
+void rdgwindow_save (struct _rdgwindow * rdgwindow)
+{
+    GtkWidget * dialog;
+
+    dialog = gtk_file_chooser_dialog_new(LANG_SAVE_RDG_AS_PNG,
+                                         GTK_WINDOW(rdgwindow->window),
+                                         GTK_FILE_CHOOSER_ACTION_SAVE,
+                                         GTK_STOCK_CANCEL,
+                                         GTK_RESPONSE_CANCEL,
+                                         GTK_STOCK_SAVE,
+                                         GTK_RESPONSE_ACCEPT,
+                                         NULL);
+
+    if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
+    {
+        const char * filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
+
+        if (rdg_save_to_png(rdgwindow->rdg, filename)) {
+            gui_console(rdgwindow->gui, "error saving rdis graph as png");
+        }
+        else {
+            gui_console(rdgwindow->gui, "Rdis graph saved");
+        }
+    }
+
+    gtk_widget_destroy(dialog);
 }
