@@ -5,6 +5,7 @@
 #include "label.h"
 #include "lua.h"
 #include "map.h"
+#include "rdg.h"
 #include "tree.h"
 #include "util.h"
 
@@ -70,6 +71,7 @@ static const struct luaL_Reg rl_rdis_lib_f [] = {
     {"sha256",             rl_rdis_sha256},
     {"user_function",      rl_rdis_user_function},
     {"dump_json",          rl_rdis_dump_json},
+    {"function_to_png",    rl_rdis_function_to_png},
     {NULL, NULL}
 };
 
@@ -926,6 +928,37 @@ int rl_rdis_dump_json (lua_State * L)
     free(json_str);
 
     json_decref(json);
+
+    return 1;
+}
+
+
+int rl_rdis_function_to_png (lua_State * L)
+{
+    struct _rdis_lua * rdis_lua = rl_get_rdis_lua(L);
+
+    uint64_t     address  = rl_check_uint64(L, -2);
+    const char * filename = luaL_checkstring(L, -1);
+
+    struct _graph * family = graph_family(rdis_lua->rdis->graph, address);
+
+    if (family == NULL) {
+        lua_pop(L, 2);
+        char tmp[128];
+        snprintf(tmp, 128, "Could not find graph for function %llx",
+                 (unsigned long long) address);
+        luaL_error(L, tmp);
+        return 0;
+    }
+    else {
+        struct _rdg * rdg = rdg_create(address, family, rdis_lua->rdis->labels);
+        rdg_draw(rdg);
+        rdg_save_to_png(rdg, filename);
+        lua_pop(L, 2);
+
+        objects_delete(rdg, family, NULL);
+        return 0;
+    }
 
     return 1;
 }
