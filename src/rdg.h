@@ -158,6 +158,7 @@ uint64_t rdg_get_node_by_coords (struct _rdg * rdg, int x, int y);
 
 // rdg       = the rdg
 // ins_graph = an instruction graph returned by the loader
+// returns -1 if ins not found
 uint64_t rdg_get_ins_by_coords (struct _rdg   * rdg,
                                 struct _graph * ins_graph,
                                 struct _map   * labels,
