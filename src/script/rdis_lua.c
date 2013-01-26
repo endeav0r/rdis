@@ -711,10 +711,6 @@ int rl_rdg_highlight_ins (lua_State * L)
     uint64_t   node_index = rl_check_uint64(L, -2);
     uint64_t  ins_address = rl_check_uint64(L, -1);
 
-    printf("node_index = %llx, ins_address = %llx\n",
-           (unsigned long long) node_index,
-           (unsigned long long) ins_address);
-
     struct _list * highlight_list = list_create();
     struct _rdg_node_color * node_color;
     node_color = rdg_node_color_create(node_index, 1.0, 0.9, 0.9);
