@@ -73,6 +73,7 @@ int rl_rdg_gc             (lua_State * L);
 int rl_rdg_save_png       (lua_State * L);
 int rl_rdg_node_by_coords (lua_State * L);
 int rl_rdg_ins_by_coords  (lua_State * L);
+int rl_rdg_highlight_ins  (lua_State * L);
 
 struct _rdis_lua * rl_get_rdis_lua (lua_State * L);
 

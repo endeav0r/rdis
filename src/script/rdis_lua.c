@@ -61,6 +61,7 @@ static const struct luaL_Reg rl_rdg_lib_m [] = {
     {"save_png",       rl_rdg_save_png},
     {"node_by_coords", rl_rdg_node_by_coords},
     {"ins_by_coords",  rl_rdg_ins_by_coords},
+    {"highlight_ins",  rl_rdg_highlight_ins},
     {NULL, NULL}
 };
 
@@ -700,6 +701,39 @@ int rl_rdg_ins_by_coords (lua_State * L)
 
     return 1;
 }
+
+
+int rl_rdg_highlight_ins (lua_State * L)
+{
+    struct _rdis_lua * rdis_lua = rl_get_rdis_lua(L);
+
+    struct _rdg * rdg     = rl_check_rdg(L, -3);
+    uint64_t   node_index = rl_check_uint64(L, -2);
+    uint64_t  ins_address = rl_check_uint64(L, -1);
+
+    printf("node_index = %llx, ins_address = %llx\n",
+           (unsigned long long) node_index,
+           (unsigned long long) ins_address);
+
+    struct _list * highlight_list = list_create();
+    struct _rdg_node_color * node_color;
+    node_color = rdg_node_color_create(node_index, 1.0, 0.9, 0.9);
+    list_append(highlight_list, node_color);
+
+    rdg_custom_nodes(rdg,
+                     rdis_lua->rdis->graph,
+                     rdis_lua->rdis->labels,
+                     highlight_list,
+                     ins_address);
+    rdg_draw(rdg);
+
+    object_delete(highlight_list);
+
+    lua_pop(L, 3);
+
+    return 0;
+}
+
 
 /****************************************************************
 * rl_rdis
