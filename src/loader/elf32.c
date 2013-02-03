@@ -535,6 +535,16 @@ struct _map * elf32_memory_map (struct _elf32 * elf32)
 {
     struct _map * map = map_create();
 
+    // if there are no program headers, load the entire file into memory at
+    // offset 0
+
+    if (elf32->ehdr->e_phnum == 0) {
+        struct _buffer * buffer = buffer_create(elf32->data, elf32->data_size);
+        map_insert(map, 0, buffer);
+        object_delete(buffer);
+        return map;
+    }
+
     int phdr_i;
     for (phdr_i = 0; phdr_i < elf32->ehdr->e_phnum; phdr_i++) {
         Elf32_Phdr * phdr = elf32_phdr(elf32, phdr_i);
