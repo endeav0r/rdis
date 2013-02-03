@@ -391,13 +391,12 @@ void funcwindow_call_graph (GtkMenuItem * menuItem,
 
     if (graph_fetch_node(funcwindow->gui->rdis->graph, index) == NULL) {
         printf("we are in trouble, not found %llx\n", (unsigned long long) index);
+        return;
     }
     else
         printf("found %llx\n", (unsigned long long) index);
 
     struct _graph * graph = create_call_graph(funcwindow->gui->rdis->graph, index);
-
-    graph_debug(graph);
 
     gui_rdgwindow(funcwindow->gui, graph, RDGWINDOW_CALL_GRAPH, index);
 
