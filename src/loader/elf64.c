@@ -552,6 +552,16 @@ struct _map * elf64_memory_map (struct _elf64 * elf64)
 {
     struct _map * map = map_create();
 
+    // if there are no program headers, load the entire file into memory at
+    // offset 0
+
+    if (elf64->ehdr->e_phnum == 0) {
+        struct _buffer * buffer = buffer_create(elf64->data, elf64->data_size);
+        map_insert(map, 0, buffer);
+        object_delete(buffer);
+        return map;
+    }
+
     int phdr_i;
     for (phdr_i = 0; phdr_i < elf64->ehdr->e_phnum; phdr_i++) {
         Elf64_Phdr * phdr = elf64_phdr(elf64, phdr_i);
