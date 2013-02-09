@@ -242,7 +242,7 @@ const char * elf32_sym_name_by_address (struct _elf32 * elf32, uint64_t address)
         if (shdr == NULL)
             break;
 
-        if (shdr->sh_type != SHT_SYMTAB)
+        if ((shdr->sh_type != SHT_SYMTAB) && (shdr->sh_type != SHT_DYNSYM))
             continue;
 
         int sym_i;
@@ -470,7 +470,7 @@ struct _map * elf32_functions (struct _elf32 * elf32, struct _map * memory)
         if (shdr == NULL)
             break;
 
-        if (shdr->sh_type != SHT_SYMTAB)
+        if ((shdr->sh_type != SHT_SYMTAB) && (shdr->sh_type != SH_DYNSYM))
             continue;
 
         int sym_i;

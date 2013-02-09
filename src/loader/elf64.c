@@ -251,7 +251,7 @@ const char * elf64_sym_name_by_address (struct _elf64 * elf64, uint64_t address)
         if (shdr == NULL)
             break;
 
-        if (shdr->sh_type != SHT_SYMTAB)
+        if ((shdr->sh_type != SHT_SYMTAB) && (shdr->sh_type != SHT_DYNSYM))
             continue;
 
         int sym_i;
@@ -486,7 +486,7 @@ struct _map * elf64_functions (struct _elf64 * elf64, struct _map * memory)
         if (shdr == NULL)
             break;
 
-        if (shdr->sh_type != SHT_SYMTAB)
+        if ((shdr->sh_type != SHT_SYMTAB) && (shdr->sh_type != SHT_DYNSYM))
             continue;
 
         int sym_i;
