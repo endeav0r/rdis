@@ -470,7 +470,7 @@ struct _map * elf32_functions (struct _elf32 * elf32, struct _map * memory)
         if (shdr == NULL)
             break;
 
-        if ((shdr->sh_type != SHT_SYMTAB) && (shdr->sh_type != SH_DYNSYM))
+        if ((shdr->sh_type != SHT_SYMTAB) && (shdr->sh_type != SHT_DYNSYM))
             continue;
 
         int sym_i;
