@@ -2,7 +2,7 @@ OBJS=rdis_lua.o
 
 CCFLAGS=-Wall -O2 -Werror -g
 INCLUDE=`pkg-config --cflags cairo` \
-	-iquote../ -iquote../container -iquote../loader -iquote./
+	-iquote../ -iquote../container -iquote../loader -iquote./ -iquote../redis
 
 all : $(OBJS)
 

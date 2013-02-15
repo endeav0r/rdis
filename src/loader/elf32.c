@@ -61,14 +61,14 @@ struct _elf32 * elf32_create (const char * filename)
     fclose(fh);
 
     // make sure this is a 32-bit ELF
-    if (    (elf32->data_size < 0x200)
+    if (    (elf32->data_size < 0x40)
          || (elf32->ehdr->e_ident[EI_MAG0]  != ELFMAG0)
          || (elf32->ehdr->e_ident[EI_MAG1]  != ELFMAG1)
          || (elf32->ehdr->e_ident[EI_MAG2]  != ELFMAG2)
          || (elf32->ehdr->e_ident[EI_MAG3]  != ELFMAG3)
          || (elf32->ehdr->e_ident[EI_CLASS] != ELFCLASS32)) {
         elf32_delete(elf32);
-        return NULL;       
+        return NULL;
     }
 
     return elf32;

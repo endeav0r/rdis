@@ -147,14 +147,14 @@ struct _rdg * rdg_copy (struct _rdg * rdg)
 
     new_rdg = (struct _rdg *) malloc(sizeof(struct _rdg));
 
-    new_rdg->object    = &rdg_object;
+    new_rdg->object = &rdg_object;
     if (rdg->surface == NULL)
         new_rdg->surface = NULL;
     else
-        new_rdg->surface   = cairo_surface_copy(rdg->surface);
+        new_rdg->surface = cairo_surface_copy(rdg->surface);
     
     new_rdg->top_index = rdg->top_index;
-    new_rdg->graph     = object_copy(rdg->graph);
+    new_rdg->graph = object_copy(rdg->graph);
     
     if (rdg->levels != NULL)
         new_rdg->levels = object_copy(rdg->levels);

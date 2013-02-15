@@ -8,6 +8,9 @@
 #include "tree.h"
 #include "util.h"
 
+// HACK_STUFF for redis
+#include "redis_x86.h"
+
 #include <openssl/sha.h>
 #include <stdlib.h>
 #include <string.h>
@@ -964,6 +967,21 @@ int rl_rdis_loader (lua_State * L)
     rdis_lua->rdis->labels    = loader_labels_functions(loader,
                                                         rdis_lua->rdis->memory,
                                                         rdis_lua->rdis->functions);
+
+
+    // HACK_STUFF FOR REDIS
+    struct _redis_x86 * redis_x86 = redis_x86_create();
+    redis_x86_mem_from_mem_map(redis_x86, rdis_lua->rdis->memory);
+    redis_x86->regs[RED_EIP] = loader_entry(loader);
+    redis_x86_false_stack(redis_x86);
+
+    printf("begin redis step\n");
+    while (redis_x86_step(redis_x86) == 0) {
+        printf("redis_x86->regs[RED_EIP] == %lx\n",
+               (unsigned long int) redis_x86->regs[RED_EIP]);
+    }
+
+    object_delete(redis_x86);
 
     lua_pop(L, 1);
     lua_pushboolean(L, 1);
