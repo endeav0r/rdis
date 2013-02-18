@@ -91,5 +91,6 @@ int rl_rdis_sha256             (lua_State * L);
 int rl_rdis_user_function      (lua_State * L);
 int rl_rdis_dump_json          (lua_State * L);
 int rl_rdis_rdg                (lua_State * L);
+int rl_rdis_x86_emudis         (lua_State * L);
 
 #endif

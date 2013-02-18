@@ -5,6 +5,7 @@
 #include "label.h"
 #include "lua.h"
 #include "map.h"
+#include "redis_x86_graph.h"
 #include "tree.h"
 #include "util.h"
 
@@ -84,6 +85,7 @@ static const struct luaL_Reg rl_rdis_lib_f [] = {
     {"user_function",      rl_rdis_user_function},
     {"dump_json",          rl_rdis_dump_json},
     {"rdg",                rl_rdis_rdg},
+    {"x86_emudis",         rl_rdis_x86_emudis},
     {NULL, NULL}
 };
 
@@ -968,21 +970,6 @@ int rl_rdis_loader (lua_State * L)
                                                         rdis_lua->rdis->memory,
                                                         rdis_lua->rdis->functions);
 
-
-    // HACK_STUFF FOR REDIS
-    struct _redis_x86 * redis_x86 = redis_x86_create();
-    redis_x86_mem_from_mem_map(redis_x86, rdis_lua->rdis->memory);
-    redis_x86->regs[RED_EIP] = loader_entry(loader);
-    redis_x86_false_stack(redis_x86);
-
-    printf("begin redis step\n");
-    while (redis_x86_step(redis_x86) == 0) {
-        printf("redis_x86->regs[RED_EIP] == %lx\n",
-               (unsigned long int) redis_x86->regs[RED_EIP]);
-    }
-
-    object_delete(redis_x86);
-
     lua_pop(L, 1);
     lua_pushboolean(L, 1);
     return 1;
@@ -1098,7 +1085,7 @@ int rl_rdis_rdg (lua_State * L)
 {
     struct _rdis_lua * rdis_lua = rl_get_rdis_lua(L);
 
-    uint64_t     address  = rl_check_uint64(L, -1);
+    uint64_t address = rl_check_uint64(L, -1);
 
     struct _graph * family = graph_family(rdis_lua->rdis->graph, address);
 
@@ -1118,6 +1105,36 @@ int rl_rdis_rdg (lua_State * L)
         rl_rdg_push(L, rdg);
 
         object_delete(family);
+        return 1;
+    }
+}
+
+
+int rl_rdis_x86_emudis (lua_State * L)
+{
+    struct _rdis_lua * rdis_lua = rl_get_rdis_lua(L);
+
+    uint64_t address  = rl_check_uint64(L, -1);
+
+    struct _graph * graph = redis_x86_graph(address, rdis_lua->rdis->memory);
+    graph_reduce(graph);
+
+    if (graph == NULL) {
+        char tmp[128];
+        snprintf(tmp, 128, "Could not emulate from address %llx",
+                 (unsigned long long) address);
+        luaL_error(L, tmp);
+        lua_pop(L, 1);
+        return 0;
+    }
+    else {
+        struct _rdg * rdg = rdg_create(1, graph, rdis_lua->rdis->labels);
+        rdg_draw(rdg);
+
+        lua_pop(L, 1);
+        rl_rdg_push(L, rdg);
+
+        object_delete(graph);
         return 1;
     }
 }

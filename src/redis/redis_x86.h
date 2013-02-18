@@ -7,6 +7,7 @@
 
 #include <udis86.h>
 
+#define REDIS_X86_FALSE_STACK_ADDR 0xfff80000
 #define REDIS_X86_FALSE_STACK_SIZE (1024 * 32)
 #define REDIS_X86_FPU_STACK_SIZE   8
 
@@ -15,7 +16,7 @@ enum {
     REDIS_INVALID_IP,
     REDIS_INVALID_INSTRUCTION,
     REDIS_EXEC_ERROR,
-    REDIS_FPU_STACK_EXHAUSTION
+    REDIS_MEM_ERROR
 };
 
 enum {
@@ -28,6 +29,10 @@ enum {
     RED_ESI,
     RED_EDI,
     RED_EIP,
+    RED_CF,
+    RED_OF,
+    RED_SF,
+    RED_ZF,
     RED_REGS_NUM
 };
 
@@ -37,7 +42,10 @@ struct _redis_x86 {
     uint32_t      regs[RED_REGS_NUM];
     int           error;
 
-    uint32_t      last_fpu_ins; // for getpc through fld2env (or whatever it is)
+    uint32_t      last_fpu_ins;
+
+    size_t    ins_size;
+    uint8_t   ins_bytes[16];
 };
 
 struct _redis_x86 * redis_x86_create ();
@@ -48,22 +56,48 @@ void  redis_x86_mem_from_mem_map (struct _redis_x86 * redis_x86,
                                   struct _map * mem_map);
 void  redis_x86_false_stack (struct _redis_x86 * redis_x86);              
 
-int  redis_x86_step (struct _redis_x86 * redis_x86);
+int   redis_x86_step (struct _redis_x86 * redis_x86);
 
+int      redis_x86_mem_set32         (struct _redis_x86 * redis_x86,
+                                      uint32_t addr,
+                                      uint32_t value);
+uint8_t  redis_x86_mem_get8          (struct _redis_x86 * redis_x86,
+                                      uint32_t addr,
+                                      int * error);
+uint16_t redis_x86_mem_get16         (struct _redis_x86 * redis_x86,
+                                      uint32_t addr,
+                                      int * error);
+uint32_t redis_x86_mem_get32         (struct _redis_x86 * redis_x86,
+                                      uint32_t addr,
+                                      int * error);
 uint32_t redis_x86_reg_value         (struct _redis_x86 * redis_x86,
-                                      enum ud_type reg);
+                                      enum ud_type reg,
+                                      int * error);
 uint32_t redix_x86_sib               (struct _redis_x86 * redis_x86,
                                       ud_t * ud_obj,
                                       int operand);
 uint32_t redis_x86_get_operand_value (struct _redis_x86 * redis_x86,
                                       ud_t * ud_obj,
-                                      int operand);
-int      redis_x86_set_operand_value (struct _redis_x86 * redis_x86,
+                                      int operand,
+                                      int * error);
+int      redis_x86_set_operand       (struct _redis_x86 * redis_x86,
                                       ud_t * ud_obj,
                                       int operand,
                                       uint32_t value);
 
-int redis_x86_fld2lt (struct _redis_x86 * redis_x86, ud_t * ud_obj);
-int redis_x86_mov    (struct _redis_x86 * redis_x86, ud_t * ud_obj);
+int redis_x86_add     (struct _redis_x86 * redis_x86, ud_t * ud_obj);
+int redis_x86_and     (struct _redis_x86 * redis_x86, ud_t * ud_obj);
+int redis_x86_cdq     (struct _redis_x86 * redis_x86, ud_t * ud_obj);
+int redis_x86_fldl2t  (struct _redis_x86 * redis_x86, ud_t * ud_obj);
+int redis_x86_fnstenv (struct _redis_x86 * redis_x86, ud_t * ud_obj);
+int redis_x86_inc     (struct _redis_x86 * redis_x86, ud_t * ud_obj);
+int redis_x86_int     (struct _redis_x86 * redis_x86, ud_t * ud_obj);
+int redis_x86_jl      (struct _redis_x86 * redis_x86, ud_t * ud_obj);
+int redis_x86_loop    (struct _redis_x86 * redis_x86, ud_t * ud_obj);
+int redis_x86_mov     (struct _redis_x86 * redis_x86, ud_t * ud_obj);
+int redis_x86_mul     (struct _redis_x86 * redis_x86, ud_t * ud_obj);
+int redis_x86_pop     (struct _redis_x86 * redis_x86, ud_t * ud_obj);
+int redis_x86_push    (struct _redis_x86 * redis_x86, ud_t * ud_obj);
+int redis_x86_xor     (struct _redis_x86 * redis_x86, ud_t * ud_obj);
 
 #endif

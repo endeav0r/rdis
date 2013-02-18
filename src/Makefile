@@ -26,5 +26,6 @@ clean :
 	make -C loader clean
 	make -C script clean
 	make -C rdil clean
+	make -C redis clean
 	rm -f *.o
 	rm -f rdis
