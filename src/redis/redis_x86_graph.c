@@ -22,7 +22,7 @@ struct _ins * redis_x86_create_ins (struct _redis_x86 * redis_x86)
         return NULL;
     }
 
-    struct _ins * ins = ins_create(redis_x86->regs[RED_EIP],
+    struct _ins * ins = ins_create(redis_x86->ins_addr,
                                    ud_insn_ptr(&ud_obj),
                                    ud_insn_len(&ud_obj),
                                    ud_insn_asm(&ud_obj),
@@ -47,7 +47,7 @@ struct _graph * redis_x86_graph (uint64_t address, struct _map * memory)
     struct _graph * graph = graph_create();
 
     while (redis_x86_step(redis_x86) == REDIS_SUCCESS) {
-        uint64_t address = redis_x86->regs[RED_EIP];
+        uint64_t address = redis_x86->ins_addr;
 
         // do we have an instruction at this address already?
         struct _index * index = map_fetch(ins_map, address);
@@ -61,8 +61,8 @@ struct _graph * redis_x86_graph (uint64_t address, struct _map * memory)
                  || (memcmp(ins->bytes, redis_x86->ins_bytes, redis_x86->ins_size))) {
                 ins = redis_x86_create_ins(redis_x86);
                 if (ins == NULL) {
-                    fprintf(stderr, "could not create ins, eip=%x\n",
-                            redis_x86->regs[RED_EIP]);
+                    fprintf(stderr, "could not create ins, eip=%llx\n",
+                            (unsigned long long) redis_x86->ins_addr);
                     break;
                 }
 
@@ -73,9 +73,9 @@ struct _graph * redis_x86_graph (uint64_t address, struct _map * memory)
                 graph_add_node(graph, next_index, list);
                 object_delete(list);
 
-                map_remove(ins_map, redis_x86->regs[RED_EIP]);
+                map_remove(ins_map, redis_x86->ins_addr);
                 index = index_create(next_index++);
-                map_insert(ins_map, redis_x86->regs[RED_EIP], index);
+                map_insert(ins_map, redis_x86->ins_addr, index);
                 this_index = index->index;
                 object_delete(index);
             }
@@ -86,8 +86,8 @@ struct _graph * redis_x86_graph (uint64_t address, struct _map * memory)
         else {
             struct _ins * ins = redis_x86_create_ins(redis_x86);
             if (ins == NULL) {
-                fprintf(stderr, "could not create ins eip=%x\n",
-                        redis_x86->regs[RED_EIP]);
+                fprintf(stderr, "could not create ins eip=%llx\n",
+                        (unsigned long long) redis_x86->ins_addr);
                 break;
             }
             struct _list * list = list_create();
@@ -98,7 +98,7 @@ struct _graph * redis_x86_graph (uint64_t address, struct _map * memory)
             object_delete(list);
 
             index = index_create(next_index++);
-            map_insert(ins_map, redis_x86->regs[RED_EIP], index);
+            map_insert(ins_map, redis_x86->ins_addr, index);
             this_index = index->index;
             object_delete(index);
         }

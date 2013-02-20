@@ -48,6 +48,14 @@ int rl_ins_bytes       (lua_State * L);
 int rl_ins_description (lua_State * L);
 int rl_ins_comment     (lua_State * L);
 
+int             rl_graph_push  (lua_State * L, struct _graph * graph);
+struct _graph * rl_check_graph (lua_State * L, int position);
+
+int rl_graph_gc      (lua_State * L);
+int rl_graph_reduce  (lua_State * L);
+int rl_graph_family  (lua_State * L);
+int rl_graph_display (lua_State * L);
+
 int                  rl_graph_edge_push  (lua_State * L,
                                           struct _graph_edge * edge);
 struct _graph_edge * rl_check_graph_edge (lua_State * L, int position);
@@ -64,7 +72,6 @@ int rl_graph_node_gc           (lua_State * L);
 int rl_graph_node_index        (lua_State * L);
 int rl_graph_node_edges        (lua_State * L);
 int rl_graph_node_instructions (lua_State * L);
-
 
 int           rl_rdg_push  (lua_State * L, struct _rdg * rdg);
 struct _rdg * rl_check_rdg (lua_State * L, int position);
@@ -91,6 +98,6 @@ int rl_rdis_sha256             (lua_State * L);
 int rl_rdis_user_function      (lua_State * L);
 int rl_rdis_dump_json          (lua_State * L);
 int rl_rdis_rdg                (lua_State * L);
-int rl_rdis_x86_emudis         (lua_State * L);
+int rl_rdis_redis_x86          (lua_State * L);
 
 #endif

@@ -29,15 +29,10 @@ static const struct _object rdis_object = {
 };
 
 
-struct _rdis * rdis_create (_loader * loader)
-{
-    return rdis_create_with_console(loader, NULL, NULL);
-}
-
-
-struct _rdis * rdis_create_with_console (_loader * loader,
-                              void (* console_callback) (void *, const char *),
-                              void * console_data)
+struct _rdis * rdis_create_with_gui (_loader * loader,
+                                     void (* console_callback) (void *, const char *),
+                                     void * console_data,
+                                     struct _gui * gui)
 {
     struct _rdis * rdis;
 
@@ -47,11 +42,14 @@ struct _rdis * rdis_create_with_console (_loader * loader,
     rdis->callback_counter = 0;
     rdis->callbacks        = map_create();
     rdis->loader           = loader;
+    rdis->gui              = gui;
+
+    // this is a hack :( to allow lua scripts to interact with the gui as soon
+    // as rdis starts
+    gui->rdis = rdis;
 
     rdis->console_data     = console_data;
     rdis->console_callback = console_callback;
-
-    rdis->gui = NULL;
 
     rdis->memory = loader_memory_map(loader);
     printf("memory loaded\n");fflush(stdout);
@@ -74,7 +72,7 @@ struct _rdis * rdis_create_with_console (_loader * loader,
 
     // this should be the last thing done so startup script accesses a valid
     // rdis
-    rdis->rdis_lua      = rdis_lua_create(rdis);
+    rdis->rdis_lua = rdis_lua_create(rdis);
 
     return rdis;
 }

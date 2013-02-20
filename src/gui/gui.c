@@ -29,9 +29,10 @@ struct _gui * gui_create ()
     gui->windows           = map_create();
     gui->next_window_index = 0;
     
-    gui->rdis = rdis_create_with_console((_loader *) dummy_loader_create(),
-                                         (void (*) (void *, const char *)) gui_console,
-                                         gui);
+    gui->rdis = rdis_create_with_gui((_loader *) dummy_loader_create(),
+                                     (void (*) (void *, const char *)) gui_console,
+                                     gui,
+                                     gui);
 
     gtk_widget_show(rdiswindow_window(gui->rdiswindow));
 
