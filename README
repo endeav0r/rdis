@@ -26,6 +26,19 @@ More information can be found here: http://rainbowsandpwnies.com/rdis/
 
     You will also need to grab udis86 and install it
 
+* Fedora (from Killboy Powerhed)
+    ## rdis dependencies for Fedora
+    $ yum -y install cairo-devel gtk3-devel jansson-devel openssl-devel udis86-devel
+
+    ## luajit is not in Fedora as yet, build from source or get candidate src rpm
+    ## ref: https://bugzilla.redhat.com/show_bug.cgi?id=718681
+    $ cd ~/Downloads && wget http://dl.dropbox.com/u/11270386/luajit-2.0.0-0.4.beta9.fc17.src.rpm
+
+    ## assuming you've set up an rpm building environment
+    $ rpmbuild --rebuild ~/Downloads/luajit-2.0.0-0.4.beta9.fc17.src.rpm
+    $ sudo rpm -Uvh ~/rpmbuild/RPMS/<arch>/luajit-2*
+    $ sudo rpm -Uvh ~/rpmbuild/RPMS/<arch>/luajit-devel-2*
+
 * Other
     Dependencies: gtk3, luajit, cairo, jansson
 
