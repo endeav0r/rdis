@@ -1,4 +1,4 @@
-OBJS = hexwindow.o inswindow.o funcwindow.o main.o refwindow.o rdgwindow.o \
+OBJS = hexwindow.o funcwindow.o main.o refwindow.o rdgwindow.o \
 		rdiswindow.o gui.o
 
 CCFLAGS=-Wall -O2 -Werror -g

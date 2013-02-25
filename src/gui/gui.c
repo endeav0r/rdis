@@ -3,7 +3,6 @@
 #include "dummy.h"
 #include "funcwindow.h"
 #include "hexwindow.h"
-#include "inswindow.h"
 #include "queue.h"
 #include "rdgwindow.h"
 #include "rdiswindow.h"
