@@ -6,6 +6,7 @@
 #include "lua.h"
 #include "map.h"
 #include "rdgwindow.h"
+#include "settings.h"
 #include "tree.h"
 #include "util.h"
 
@@ -108,6 +109,7 @@ static const struct luaL_Reg rl_rdis_lib_f [] = {
     {"dump_json",          rl_rdis_dump_json},
     {"rdg",                rl_rdis_rdg},
     {"redis_x86" ,         rl_rdis_redis_x86},
+    {"setting",            rl_rdis_setting},
     {NULL, NULL}
 };
 
@@ -1236,4 +1238,18 @@ int rl_rdis_redis_x86 (lua_State * L)
     object_delete(redis_x86);
 
     return 1;
+}
+
+
+int rl_rdis_setting (lua_State * L)
+{
+    const char * setting_name = luaL_checkstring(L, -2);
+    int value = luaL_checkinteger(L, -1);
+
+    lua_pop(L, 2);
+
+    if (strcmp(setting_name, "reference_popup") == 0)
+        settings.reference_popup = value & 1;
+
+    return 0;
 }

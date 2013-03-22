@@ -2,6 +2,7 @@
 
 #include "instruction.h"
 #include "queue.h"
+#include "settings.h"
 #include "util.h"
 
 #include <string.h>
@@ -266,7 +267,7 @@ gboolean rdgwindow_image_motion_notify_event (GtkWidget * widget,
             (unsigned long long) hover_ins);
             return FALSE;
         }
-        if (ins->references->size > 0) {
+        if ((ins->references->size > 0) && (settings.reference_popup)) {
             char references_text[512];
             strcpy(references_text, "<span background=\"#ffffff\" font_family=\"monospace\" font=\"9.0\">");
             struct _list_it * it;

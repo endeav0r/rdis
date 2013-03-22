@@ -1,4 +1,4 @@
-OBJS=object.o rdg.o rdg_node.o rdis.o serialize.o util.o wqueue.o
+OBJS=object.o rdg.o rdg_node.o rdis.o serialize.o settings.o util.o wqueue.o
 
 CCFLAGS=-Wall -O2 -Werror -g
 INCLUDE=`pkg-config --cflags cairo` `pkg-config --cflags gtk+-3.0` \

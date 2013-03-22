@@ -99,5 +99,6 @@ int rl_rdis_user_function      (lua_State * L);
 int rl_rdis_dump_json          (lua_State * L);
 int rl_rdis_rdg                (lua_State * L);
 int rl_rdis_redis_x86          (lua_State * L);
+int rl_rdis_setting            (lua_State * L);
 
 #endif
