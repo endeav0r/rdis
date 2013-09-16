@@ -44,7 +44,7 @@ struct _ins_edge {
 
 
 struct _ins * ins_create    (uint64_t address,
-                             uint8_t * bytes,
+                             const uint8_t * bytes,
                              size_t size,
                              const char * description,
                              const char * comment);

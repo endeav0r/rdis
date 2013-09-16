@@ -19,7 +19,7 @@ static const struct _object ins_edge_object = {
 };
 
 struct _ins * ins_create  (uint64_t address,
-                           uint8_t * bytes,
+                           const uint8_t * bytes,
                            size_t size,
                            const char * description,
                            const char * comment)
