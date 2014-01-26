@@ -110,6 +110,7 @@ static const struct luaL_Reg rl_rdis_lib_f [] = {
     {"rdg",                rl_rdis_rdg},
     {"redis_x86" ,         rl_rdis_redis_x86},
     {"setting",            rl_rdis_setting},
+    {"entry",              rl_rdis_entry},
     {NULL, NULL}
 };
 
@@ -1252,4 +1253,14 @@ int rl_rdis_setting (lua_State * L)
         settings.reference_popup = value & 1;
 
     return 0;
+}
+
+
+int rl_rdis_entry (lua_State * L)
+{
+    struct _rdis_lua * rdis_lua = rl_get_rdis_lua(L);
+
+    rl_uint64_push(L, loader_entry(rdis_lua->rdis->loader));
+
+    return 1;
 }
