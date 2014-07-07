@@ -1,6 +1,6 @@
 OBJS = redis_x86.o redis_x86_graph.o
 
-CCFLAGS=-Wall -O2 -Werror -g
+CCFLAGS=-Wall -O2 -g
 INCLUDE=-iquote../ -iquote../container
 
 all : $(OBJS)

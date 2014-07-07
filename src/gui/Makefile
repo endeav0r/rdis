@@ -1,7 +1,7 @@
 OBJS = hexwindow.o funcwindow.o main.o refwindow.o rdgwindow.o \
 		rdiswindow.o gui.o
 
-CCFLAGS=-Wall -O2 -Werror -g
+CCFLAGS=-Wall -O2 -g
 INCLUDE=`pkg-config --cflags gtk+-3.0` \
         -iquote../ -iquote../container -iquote../loader -iquote../script
 

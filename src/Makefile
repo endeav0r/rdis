@@ -1,6 +1,6 @@
 OBJS=object.o rdg.o rdg_node.o rdis.o serialize.o settings.o util.o wqueue.o
 
-CCFLAGS=-Wall -O2 -Werror -g
+CCFLAGS=-Wall -O2 -g
 INCLUDE=`pkg-config --cflags cairo` `pkg-config --cflags gtk+-3.0` \
         -iquotecontainer/ -iquoteloader/ -iquote./ -iquotescript/ -iquotegui/ -iquoteredis/
 LIB=`pkg-config --libs gtk+-3.0 cairo` -ludis86 -lm -lfontconfig -lpthread \
