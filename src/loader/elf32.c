@@ -652,23 +652,26 @@ struct _label * elf32_label_address (struct _elf32 * elf32,
          && (address <  plt_top)) {
 
         // disassemble instruction
-        uint8_t * data  = &(elf32->data[address - elf32_base_address(elf32)]);
-        ud_t ud_obj;
-        ud_init(&ud_obj);
-        ud_set_mode  (&ud_obj, 32);
-        ud_set_input_buffer(&ud_obj, data, 0x20);
-        ud_disassemble(&ud_obj);
+        intptr_t data_addr = address - elf32_base_address(elf32);
+        if(data_addr >= 0 && data_addr < elf32->data_size) {
+            uint8_t * data  = &(elf32->data[data_addr]);
+            ud_t ud_obj;
+            ud_init(&ud_obj);
+            ud_set_mode  (&ud_obj, 32);
+            ud_set_input_buffer(&ud_obj, data, 0x20);
+            ud_disassemble(&ud_obj);
 
-        if (    (ud_obj.mnemonic == UD_Ijmp)
-             && (udis86_sign_extend_lval(&(ud_obj.operand[0])) != -1)) {
-            uint64_t target = udis86_sign_extend_lval(&(ud_obj.operand[0]));
-            const char * name = elf32_rel_name_by_address(elf32, target);
-            if (name != NULL) {
-                char plttmp[256];
-                snprintf(plttmp, 256, "%s@plt", name);
-                struct _label * label;
-                label = label_create(address, plttmp, LABEL_FUNCTION);
-                return label;
+            if (    (ud_obj.mnemonic == UD_Ijmp)
+                 && (udis86_sign_extend_lval(&(ud_obj.operand[0])) != -1)) {
+                uint64_t target = udis86_sign_extend_lval(&(ud_obj.operand[0]));
+                const char * name = elf32_rel_name_by_address(elf32, target);
+                if (name != NULL) {
+                    char plttmp[256];
+                    snprintf(plttmp, 256, "%s@plt", name);
+                    struct _label * label;
+                    label = label_create(address, plttmp, LABEL_FUNCTION);
+                    return label;
+                }
             }
         }
     }

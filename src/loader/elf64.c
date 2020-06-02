@@ -671,26 +671,29 @@ struct _label * elf64_label_address (struct _elf64 * elf64,
          && (address <  plt_top)) {
 
         // disassemble instruction
-        uint8_t * data  = &(elf64->data[address - elf64_base_address(elf64)]);
-        ud_t ud_obj;
-        ud_init(&ud_obj);
-        ud_set_mode  (&ud_obj, 64);
-        ud_set_input_buffer(&ud_obj, data, 0x10);
-        ud_disassemble(&ud_obj);
+        intptr_t data_addr = address - elf64_base_address(elf64);
+        if(data_addr > 0 && data_addr < elf64->data_size) {
+            uint8_t * data  = &(elf64->data[data_addr]);
+            ud_t ud_obj;
+            ud_init(&ud_obj);
+            ud_set_mode  (&ud_obj, 64);
+            ud_set_input_buffer(&ud_obj, data, 0x10);
+            ud_disassemble(&ud_obj);
 
-        // this is a jmp and we can get the rip offset (jmp [rip+0xXXXX])
-        if (    (ud_obj.mnemonic == UD_Ijmp)
-             && (udis86_rip_offset(address, &(ud_obj.operand[0])) != -1)) {
-            uint64_t target = udis86_rip_offset(address, &(ud_obj.operand[0]));
-            target += ud_insn_len(&ud_obj);
-            // get the symbol name for the target
-            const char * name = elf64_rel_name_by_address(elf64, target);
-            if (name != NULL) {
-                char plttmp[256];
-                snprintf(plttmp, 256, "%s@plt", name);
-                struct _label * label;
-                label = label_create(address, plttmp, LABEL_FUNCTION);
-                return label;
+            // this is a jmp and we can get the rip offset (jmp [rip+0xXXXX])
+            if (    (ud_obj.mnemonic == UD_Ijmp)
+                 && (udis86_rip_offset(address, &(ud_obj.operand[0])) != -1)) {
+                uint64_t target = udis86_rip_offset(address, &(ud_obj.operand[0]));
+                target += ud_insn_len(&ud_obj);
+                // get the symbol name for the target
+                const char * name = elf64_rel_name_by_address(elf64, target);
+                if (name != NULL) {
+                    char plttmp[256];
+                    snprintf(plttmp, 256, "%s@plt", name);
+                    struct _label * label;
+                    label = label_create(address, plttmp, LABEL_FUNCTION);
+                    return label;
+                }
             }
         }
     }
